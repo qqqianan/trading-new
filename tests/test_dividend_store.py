@@ -81,7 +81,7 @@ def test_dividend_lineage_maps_stage_fields_to_exact_raw_columns() -> None:
     event = _event(DividendEventType.IMPLEMENTATION_ANNOUNCED)
 
     # When: its field-level lineage is generated.
-    lineage = dividend_lineage_document(event)
+    lineage = dividend_lineage_document(event, "a" * 40)
 
     # Then: both the announcement clock and ex-date retain explicit source mappings.
     mappings = lineage["field_mappings"]

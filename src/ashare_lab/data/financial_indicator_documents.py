@@ -69,7 +69,10 @@ def financial_indicator_document(event: FinancialIndicatorVersion) -> BsonDocume
     }
 
 
-def financial_indicator_lineage(event: FinancialIndicatorVersion) -> BsonDocument:
+def financial_indicator_lineage(
+    event: FinancialIndicatorVersion,
+    code_commit: str,
+) -> BsonDocument:
     """Map every PIT field and announcement clock to the immutable Raw row."""
     lineage_id = financial_indicator_lineage_id(event)
     raw = "raw_tushare_fina_indicator.payload"
@@ -81,7 +84,7 @@ def financial_indicator_lineage(event: FinancialIndicatorVersion) -> BsonDocumen
         "downstream_artifact_id": event.event_id,
         "transform_name": event.transform_name,
         "transform_version": event.transform_version,
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [event.input_schema_manifest_id],
         "output_schema_id": event.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"announcement_clock").hexdigest(),

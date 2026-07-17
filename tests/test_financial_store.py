@@ -90,7 +90,7 @@ def test_income_version_document_and_lineage_cover_every_financial_field() -> No
 
     # When: event and lineage documents cross the Mongo boundary.
     document = income_version_document(event)
-    lineage = income_version_lineage(event)
+    lineage = income_version_lineage(event, "a" * 40)
 
     # Then: report values and actual-publication mapping are explicit.
     assert document["n_income_attr_p"] == 14.0

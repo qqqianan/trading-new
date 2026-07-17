@@ -58,7 +58,7 @@ def test_cashflow_version_and_documents_use_actual_publication_clock() -> None:
     # When: it crosses PIT and closed-document boundaries.
     event = build_cashflow_version(record)
     document = cashflow_document(event)
-    lineage = cashflow_lineage(event)
+    lineage = cashflow_lineage(event, "a" * 40)
 
     # Then: actual publication controls visibility and all source fields have lineage.
     assert event.available_at == datetime(2026, 3, 22, 18, 0, tzinfo=SHANGHAI)

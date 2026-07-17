@@ -69,7 +69,7 @@ def test_benchmark_store_writes_events_lineage_and_empty_month_evidence() -> Non
 
     # Then: values, field lineage, and both monthly proofs are explicit.
     assert index_weight_document(events[0])["weight"] == 60.0
-    mappings = index_weight_lineage(events[0])["field_mappings"]
+    mappings = index_weight_lineage(events[0], "a" * 40)["field_mappings"]
     assert isinstance(mappings, list)
     assert len(mappings) == 5
     assert result.inserted_count == 1

@@ -85,7 +85,7 @@ def balance_sheet_document(event: BalanceSheetVersion) -> BsonDocument:
     }
 
 
-def balance_sheet_lineage(event: BalanceSheetVersion) -> BsonDocument:
+def balance_sheet_lineage(event: BalanceSheetVersion, code_commit: str) -> BsonDocument:
     """Map every PIT field and publication clock to its immutable Raw row."""
     lineage_id = balance_sheet_lineage_id(event)
     raw = "raw_tushare_balancesheet.payload"
@@ -96,7 +96,7 @@ def balance_sheet_lineage(event: BalanceSheetVersion) -> BsonDocument:
         "downstream_artifact_id": event.event_id,
         "transform_name": event.transform_name,
         "transform_version": event.transform_version,
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [event.input_schema_manifest_id],
         "output_schema_id": event.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"actual_announcement_clock").hexdigest(),

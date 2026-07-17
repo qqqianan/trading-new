@@ -31,7 +31,7 @@ def industry_membership_document(event: IndustryMembership) -> BsonDocument:
     }
 
 
-def industry_membership_lineage(event: IndustryMembership) -> BsonDocument:
+def industry_membership_lineage(event: IndustryMembership, code_commit: str) -> BsonDocument:
     """Map identity, interval, and knowledge clock to one Raw row."""
     lineage_id = industry_membership_lineage_id(event)
     raw = "raw_tushare_index_member.payload"
@@ -42,7 +42,7 @@ def industry_membership_lineage(event: IndustryMembership) -> BsonDocument:
         "downstream_artifact_id": event.membership_id,
         "transform_name": event.transform_name,
         "transform_version": event.transform_version,
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [event.input_schema_manifest_id],
         "output_schema_id": event.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"observed_membership_clock").hexdigest(),

@@ -97,7 +97,7 @@ def test_universe_lineage_maps_event_fields_to_exact_raw_fields() -> None:
     event = _event()
 
     # When: its field-level lineage document is produced.
-    lineage = universe_lineage_document(event)
+    lineage = universe_lineage_document(event, "a" * 40)
 
     # Then: the transition and identity map to explicit provider fields.
     mappings = lineage["field_mappings"]

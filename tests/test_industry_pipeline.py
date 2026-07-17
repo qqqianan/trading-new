@@ -83,7 +83,7 @@ def test_industry_store_writes_intervals_lineage_and_batch_evidence() -> None:
 
     # Then: closed fields, evidence, and field mappings are persisted.
     assert industry_membership_document(event)["con_code"] == "000592.SZ"
-    mappings = industry_membership_lineage(event)["field_mappings"]
+    mappings = industry_membership_lineage(event, "a" * 40)["field_mappings"]
     assert isinstance(mappings, list)
     assert len(mappings) == 8
     assert result.inserted_count == 1

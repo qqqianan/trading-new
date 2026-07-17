@@ -5,12 +5,14 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Final
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 from pymongo import MongoClient, UpdateOne
 
+from ashare_lab.code_identity import load_git_commit
 from ashare_lab.data.mongo_documents import canonical_document
 
 if TYPE_CHECKING:
@@ -167,7 +169,7 @@ class MongoCanonicalStore:
                     "downstream_artifact_id": batch.artifact_id,
                     "transform_name": batch.transform_name,
                     "transform_version": batch.transform_version,
-                    "code_commit": "workspace_unversioned",
+                    "code_commit": load_git_commit(Path.cwd()),
                     "input_schema_ids": [batch.schema_manifest_id],
                     "output_schema_id": batch.schema_manifest_id,
                     "parameters_sha256": parameters,

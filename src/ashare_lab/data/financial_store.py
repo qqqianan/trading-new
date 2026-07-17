@@ -5,11 +5,13 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from pymongo import MongoClient, UpdateOne
 
+from ashare_lab.code_identity import load_git_commit
 from ashare_lab.data.financial_documents import (
     income_version_document,
     income_version_lineage,
@@ -51,7 +53,8 @@ class MongoFinancialEventStore:
         events: tuple[IncomeVersion, ...],
     ) -> FinancialWriteResult:
         """Persist versions and immutable completion evidence for one period."""
-        inserted = self._write_events(events)
+        code_commit = load_git_commit(Path.cwd())
+        inserted = self._write_events(events, code_commit)
         artifact_id = income_batch_artifact_id(canonical.artifact_id)
         self._database["meta_quality_reports"].update_one(
             {"_id": _batch_quality_id(artifact_id)},
@@ -60,12 +63,12 @@ class MongoFinancialEventStore:
         )
         self._database["meta_lineage_edges"].update_one(
             {"_id": _batch_lineage_id(artifact_id)},
-            {"$setOnInsert": _batch_lineage_document(canonical, artifact_id)},
+            {"$setOnInsert": _batch_lineage_document(canonical, artifact_id, code_commit)},
             upsert=True,
         )
         return FinancialWriteResult(artifact_id, len(events), inserted)
 
-    def _write_events(self, events: tuple[IncomeVersion, ...]) -> int:
+    def _write_events(self, events: tuple[IncomeVersion, ...], code_commit: str) -> int:
         if not events:
             return 0
         inserted = (
@@ -98,7 +101,7 @@ class MongoFinancialEventStore:
             [
                 UpdateOne(
                     {"_id": income_version_lineage_id(event)},
-                    {"$setOnInsert": income_version_lineage(event)},
+                    {"$setOnInsert": income_version_lineage(event, code_commit)},
                     upsert=True,
                 )
                 for event in events
@@ -148,7 +151,11 @@ def _batch_lineage_id(artifact_id: str) -> str:
     return f"lineage_{hashlib.sha256(artifact_id.encode()).hexdigest()}"
 
 
-def _batch_lineage_document(canonical: CanonicalBatch, artifact_id: str) -> BsonDocument:
+def _batch_lineage_document(
+    canonical: CanonicalBatch,
+    artifact_id: str,
+    code_commit: str,
+) -> BsonDocument:
     lineage_id = _batch_lineage_id(artifact_id)
     return {
         "_id": lineage_id,
@@ -157,7 +164,7 @@ def _batch_lineage_document(canonical: CanonicalBatch, artifact_id: str) -> Bson
         "downstream_artifact_id": artifact_id,
         "transform_name": "income_row_to_pit_version",
         "transform_version": "1.0.0",
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [canonical.schema_manifest_id],
         "output_schema_id": canonical.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"income_version_projection").hexdigest(),

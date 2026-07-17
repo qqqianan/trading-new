@@ -2,12 +2,12 @@
 
 import hashlib
 import re
-import shutil
-import subprocess
 from dataclasses import dataclass
 from enum import StrEnum, unique
 from pathlib import Path
 from typing import Final
+
+from ashare_lab.code_identity import CodeIdentityError, GitEvidence, load_git_evidence
 
 _RULEBOOK_VERSION: Final = "1.1.0"
 _GOVERNED_DATABASE: Final = "ashare_quant"
@@ -32,14 +32,6 @@ class PreflightRequest:
     project_root: Path
     database_name: str
     require_clean_worktree: bool
-
-
-@dataclass(frozen=True, slots=True)
-class GitEvidence:
-    """Git facts gathered from the project worktree."""
-
-    commit: str
-    is_clean: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +62,10 @@ class ResearchPreflightError(Exception):
 
 def run_research_preflight(request: PreflightRequest) -> ResearchIdentity:
     """Read Git and dependency evidence before assessing research eligibility."""
-    git = _load_git_evidence(request.project_root)
+    try:
+        git = load_git_evidence(request.project_root)
+    except CodeIdentityError as error:
+        raise ResearchPreflightError(PreflightRule.GIT_IDENTITY, error.detail) from error
     lock_digest = _load_lock_digest(request.project_root / "uv.lock")
     return assess_research_preflight(request, git, lock_digest)
 
@@ -107,31 +102,6 @@ def assess_research_preflight(
         rulebook_version=_RULEBOOK_VERSION,
         database_name=request.database_name,
     )
-
-
-def _load_git_evidence(project_root: Path) -> GitEvidence:
-    git_executable = shutil.which("git")
-    if git_executable is None:
-        raise ResearchPreflightError(PreflightRule.GIT_IDENTITY, "Git executable not found")
-    commit = _run_git(git_executable, project_root, "rev-parse", "HEAD")
-    status = _run_git(git_executable, project_root, "status", "--porcelain")
-    return GitEvidence(commit=commit, is_clean=status == "")
-
-
-def _run_git(executable: str, project_root: Path, *arguments: str) -> str:
-    try:
-        completed = subprocess.run(  # noqa: S603 - executable is resolved to an absolute path.
-            (executable, "-C", str(project_root), *arguments),
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as error:
-        raise ResearchPreflightError(
-            PreflightRule.GIT_IDENTITY,
-            "project does not have a readable Git identity",
-        ) from error
-    return completed.stdout.strip()
 
 
 def _load_lock_digest(path: Path) -> str:

@@ -5,12 +5,14 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 from pymongo import MongoClient, UpdateOne
 
+from ashare_lab.code_identity import load_git_commit
 from ashare_lab.data.universe import (
     SecurityEvent,
     SecurityEventType,
@@ -72,6 +74,7 @@ class MongoUniverseEventStore:
         """Persist events and their evidence idempotently."""
         if not events:
             return UniverseEventWriteResult(event_count=0, inserted_count=0)
+        code_commit = load_git_commit(Path.cwd())
         inserted = (
             self._database["pit_security_events"]
             .bulk_write(
@@ -102,7 +105,7 @@ class MongoUniverseEventStore:
             [
                 UpdateOne(
                     {"_id": _lineage_id(event)},
-                    {"$setOnInsert": universe_lineage_document(event)},
+                    {"$setOnInsert": universe_lineage_document(event, code_commit)},
                     upsert=True,
                 )
                 for event in events
@@ -175,7 +178,7 @@ def security_event_from_document(document: BsonDocument) -> SecurityEvent:
     )
 
 
-def universe_lineage_document(event: SecurityEvent) -> BsonDocument:
+def universe_lineage_document(event: SecurityEvent, code_commit: str) -> BsonDocument:
     """Bind every derived field to explicit provider fields and one Raw snapshot."""
     edge_id = _lineage_id(event)
     return {
@@ -185,7 +188,7 @@ def universe_lineage_document(event: SecurityEvent) -> BsonDocument:
         "downstream_artifact_id": event.event_id,
         "transform_name": event.transform_name,
         "transform_version": event.transform_version,
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [event.input_schema_manifest_id],
         "output_schema_id": event.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(event.event_type.value.encode()).hexdigest(),

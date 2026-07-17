@@ -30,7 +30,7 @@ def index_weight_document(event: IndexWeightEvent) -> BsonDocument:
     }
 
 
-def index_weight_lineage(event: IndexWeightEvent) -> BsonDocument:
+def index_weight_lineage(event: IndexWeightEvent, code_commit: str) -> BsonDocument:
     """Map index identity, constituent, date, weight, and clock to Raw fields."""
     lineage_id = index_weight_lineage_id(event)
     raw = "raw_tushare_index_weight.payload"
@@ -42,7 +42,7 @@ def index_weight_lineage(event: IndexWeightEvent) -> BsonDocument:
         "downstream_artifact_id": event.event_id,
         "transform_name": event.transform_name,
         "transform_version": event.transform_version,
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [event.input_schema_manifest_id],
         "output_schema_id": event.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"weight_date_close_clock").hexdigest(),

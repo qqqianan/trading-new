@@ -5,11 +5,13 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from pymongo import MongoClient, UpdateOne
 
+from ashare_lab.code_identity import load_git_commit
 from ashare_lab.data.industry_documents import (
     industry_membership_document,
     industry_membership_lineage,
@@ -51,7 +53,8 @@ class MongoIndustryStore:
         events: tuple[IndustryMembership, ...],
     ) -> IndustryWriteResult:
         """Persist intervals and completion evidence, including empty results."""
-        inserted = self._write_events(events)
+        code_commit = load_git_commit(Path.cwd())
+        inserted = self._write_events(events, code_commit)
         artifact = _batch_id(canonical.artifact_id)
         self._database["meta_quality_reports"].update_one(
             {"_id": _quality_id(artifact)},
@@ -60,12 +63,12 @@ class MongoIndustryStore:
         )
         self._database["meta_lineage_edges"].update_one(
             {"_id": _lineage_id(artifact)},
-            {"$setOnInsert": _batch_lineage(canonical, artifact)},
+            {"$setOnInsert": _batch_lineage(canonical, artifact, code_commit)},
             upsert=True,
         )
         return IndustryWriteResult(artifact, len(events), inserted)
 
-    def _write_events(self, events: tuple[IndustryMembership, ...]) -> int:
+    def _write_events(self, events: tuple[IndustryMembership, ...], code_commit: str) -> int:
         if not events:
             return 0
         inserted = (
@@ -98,7 +101,7 @@ class MongoIndustryStore:
             [
                 UpdateOne(
                     {"_id": industry_membership_lineage_id(event)},
-                    {"$setOnInsert": industry_membership_lineage(event)},
+                    {"$setOnInsert": industry_membership_lineage(event, code_commit)},
                     upsert=True,
                 )
                 for event in events
@@ -147,7 +150,11 @@ def _lineage_id(artifact: str) -> str:
     return f"lineage_{hashlib.sha256(artifact.encode()).hexdigest()}"
 
 
-def _batch_lineage(canonical: CanonicalBatch, artifact: str) -> BsonDocument:
+def _batch_lineage(
+    canonical: CanonicalBatch,
+    artifact: str,
+    code_commit: str,
+) -> BsonDocument:
     lineage_id = _lineage_id(artifact)
     return {
         "_id": lineage_id,
@@ -156,7 +163,7 @@ def _batch_lineage(canonical: CanonicalBatch, artifact: str) -> BsonDocument:
         "downstream_artifact_id": artifact,
         "transform_name": "industry_member_row_to_observed_pit_interval",
         "transform_version": "1.0.0",
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [canonical.schema_manifest_id],
         "output_schema_id": canonical.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"exact_l1_industry_request").hexdigest(),

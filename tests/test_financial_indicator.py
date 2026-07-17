@@ -105,7 +105,7 @@ def test_indicator_version_uses_announcement_clock_and_closed_lineage() -> None:
     # When: it crosses PIT and document boundaries.
     event = build_financial_indicator_version(canonical.records[0])
     document = financial_indicator_document(event)
-    lineage = financial_indicator_lineage(event)
+    lineage = financial_indicator_lineage(event, "a" * 40)
 
     # Then: announcement controls visibility and all committed fields have lineage.
     assert event.available_at == datetime(2026, 3, 22, 18, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
@@ -114,6 +114,7 @@ def test_indicator_version_uses_announcement_clock_and_closed_lineage() -> None:
     mappings = lineage["field_mappings"]
     assert isinstance(mappings, list)
     assert len(mappings) == len(registry().endpoint("fina_indicator").fields) + 1
+    assert lineage["code_commit"] == "a" * 40
 
 
 def test_indicator_store_writes_event_and_empty_batch_evidence() -> None:

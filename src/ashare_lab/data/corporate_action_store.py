@@ -5,12 +5,19 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from pymongo import MongoClient, UpdateOne
 
-from ashare_lab.data.corporate_actions import DividendEvent, DividendEventType
+from ashare_lab.code_identity import load_git_commit
+from ashare_lab.data.corporate_action_documents import (
+    dividend_event_document,
+    dividend_event_lineage_id,
+    dividend_event_quality_document,
+    dividend_lineage_document,
+)
 
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
 
@@ -19,6 +26,7 @@ if TYPE_CHECKING:
 
     from ashare_lab.data.bson_types import BsonDocument
     from ashare_lab.data.canonical import CanonicalBatch
+    from ashare_lab.data.corporate_actions import DividendEvent
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +54,8 @@ class MongoDividendEventStore:
         events: tuple[DividendEvent, ...],
     ) -> DividendWriteResult:
         """Persist a complete projection, including evidence for an empty response."""
-        inserted = self._write_events(events)
+        code_commit = load_git_commit(Path.cwd())
+        inserted = self._write_events(events, code_commit)
         artifact_id = dividend_batch_artifact_id(canonical.artifact_id)
         self._database["meta_quality_reports"].update_one(
             {"_id": _batch_quality_id(artifact_id)},
@@ -55,12 +64,12 @@ class MongoDividendEventStore:
         )
         self._database["meta_lineage_edges"].update_one(
             {"_id": _batch_lineage_id(artifact_id)},
-            {"$setOnInsert": _batch_lineage_document(canonical, artifact_id)},
+            {"$setOnInsert": _batch_lineage_document(canonical, artifact_id, code_commit)},
             upsert=True,
         )
         return DividendWriteResult(artifact_id, len(events), inserted)
 
-    def _write_events(self, events: tuple[DividendEvent, ...]) -> int:
+    def _write_events(self, events: tuple[DividendEvent, ...], code_commit: str) -> int:
         if not events:
             return 0
         inserted = (
@@ -82,7 +91,7 @@ class MongoDividendEventStore:
             [
                 UpdateOne(
                     {"_id": event.quality_report_id},
-                    {"$setOnInsert": _event_quality_document(event)},
+                    {"$setOnInsert": dividend_event_quality_document(event)},
                     upsert=True,
                 )
                 for event in events
@@ -92,8 +101,8 @@ class MongoDividendEventStore:
         self._database["meta_lineage_edges"].bulk_write(
             [
                 UpdateOne(
-                    {"_id": _event_lineage_id(event)},
-                    {"$setOnInsert": dividend_lineage_document(event)},
+                    {"_id": dividend_event_lineage_id(event)},
+                    {"$setOnInsert": dividend_lineage_document(event, code_commit)},
                     upsert=True,
                 )
                 for event in events
@@ -101,100 +110,6 @@ class MongoDividendEventStore:
             ordered=False,
         )
         return inserted
-
-
-def dividend_event_document(event: DividendEvent) -> BsonDocument:
-    """Serialize one stage-safe event under the closed managed schema."""
-    return {
-        "_id": event.event_id,
-        "event_id": event.event_id,
-        "ts_code": event.ts_code,
-        "end_date": event.end_date,
-        "event_type": event.event_type.value,
-        "effective_at": event.effective_at,
-        "available_at": event.available_at,
-        "ingested_at": event.ingested_at,
-        "div_proc": event.div_proc,
-        "stk_div": event.stk_div,
-        "stk_bo_rate": event.stk_bo_rate,
-        "stk_co_rate": event.stk_co_rate,
-        "cash_div": event.cash_div,
-        "cash_div_tax": event.cash_div_tax,
-        "record_date": event.record_date,
-        "ex_date": event.ex_date,
-        "pay_date": event.pay_date,
-        "div_listdate": event.div_listdate,
-        "source_snapshot_id": event.source_snapshot_id,
-        "source_row_sha256": event.source_row_sha256,
-        "input_schema_manifest_id": event.input_schema_manifest_id,
-        "schema_manifest_id": event.schema_manifest_id,
-        "transform_name": event.transform_name,
-        "transform_version": event.transform_version,
-        "quality_status": event.quality_status,
-        "quality_report_id": event.quality_report_id,
-    }
-
-
-def dividend_lineage_document(event: DividendEvent) -> BsonDocument:
-    """Map every exposed stage field to an exact Tushare dividend column."""
-    lineage_id = _event_lineage_id(event)
-    return {
-        "_id": lineage_id,
-        "lineage_edge_id": lineage_id,
-        "upstream_artifact_id": event.source_snapshot_id,
-        "downstream_artifact_id": event.event_id,
-        "transform_name": event.transform_name,
-        "transform_version": event.transform_version,
-        "code_commit": "workspace_unversioned",
-        "input_schema_ids": [event.input_schema_manifest_id],
-        "output_schema_id": event.schema_manifest_id,
-        "parameters_sha256": hashlib.sha256(event.event_type.value.encode()).hexdigest(),
-        "field_mappings": list(_field_mappings(event.event_type)),
-        "executed_at": event.ingested_at,
-    }
-
-
-def _field_mappings(event_type: DividendEventType) -> tuple[str, ...]:
-    raw = "raw_tushare_dividend.payload"
-    common = tuple(
-        f"pit_dividend_events.{field}<-{raw}.{field}"
-        for field in (
-            "ts_code",
-            "end_date",
-            "div_proc",
-            "stk_div",
-            "stk_bo_rate",
-            "stk_co_rate",
-            "cash_div",
-            "cash_div_tax",
-        )
-    )
-    match event_type:
-        case DividendEventType.PLAN_ANNOUNCED:
-            return (*common, f"pit_dividend_events.effective_at<-{raw}.ann_date")
-        case DividendEventType.IMPLEMENTATION_ANNOUNCED:
-            implementation = tuple(
-                f"pit_dividend_events.{field}<-{raw}.{field}"
-                for field in ("record_date", "ex_date", "pay_date", "div_listdate")
-            )
-            return (
-                *common,
-                f"pit_dividend_events.effective_at<-{raw}.imp_ann_date",
-                *implementation,
-            )
-
-
-def _event_quality_document(event: DividendEvent) -> BsonDocument:
-    return {
-        "_id": event.quality_report_id,
-        "quality_report_id": event.quality_report_id,
-        "artifact_id": event.event_id,
-        "rulebook_version": "1.1.0",
-        "checks": ["stage_field_isolation", "point_in_time_availability", "field_lineage"],
-        "passed": True,
-        "failure_codes": [],
-        "checked_at": event.ingested_at,
-    }
 
 
 def dividend_batch_artifact_id(canonical_artifact_id: str) -> str:
@@ -224,7 +139,11 @@ def _batch_lineage_id(artifact_id: str) -> str:
     return f"lineage_{hashlib.sha256(artifact_id.encode()).hexdigest()}"
 
 
-def _batch_lineage_document(canonical: CanonicalBatch, artifact_id: str) -> BsonDocument:
+def _batch_lineage_document(
+    canonical: CanonicalBatch,
+    artifact_id: str,
+    code_commit: str,
+) -> BsonDocument:
     lineage_id = _batch_lineage_id(artifact_id)
     return {
         "_id": lineage_id,
@@ -233,15 +152,10 @@ def _batch_lineage_document(canonical: CanonicalBatch, artifact_id: str) -> Bson
         "downstream_artifact_id": artifact_id,
         "transform_name": "dividend_row_to_pit_events",
         "transform_version": "1.0.0",
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [canonical.schema_manifest_id],
         "output_schema_id": canonical.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"stage_split").hexdigest(),
         "field_mappings": [f"pit_dividend_events.*<-{canonical.collection}.*"],
         "executed_at": datetime.now(_SHANGHAI),
     }
-
-
-def _event_lineage_id(event: DividendEvent) -> str:
-    digest = hashlib.sha256(f"{event.event_id}|lineage".encode()).hexdigest()
-    return f"lineage_{digest}"

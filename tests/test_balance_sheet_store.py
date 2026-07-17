@@ -58,7 +58,7 @@ def test_balance_sheet_documents_and_store_cover_closed_fields() -> None:
 
     # When: documents and the event batch cross the Mongo boundary.
     document = balance_sheet_document(event)
-    lineage = balance_sheet_lineage(event)
+    lineage = balance_sheet_lineage(event, "a" * 40)
     result = _store(database).write_batch(canonical_batch(), (event,))
 
     # Then: fields, quality, lineage, and the accepted event are all persisted.

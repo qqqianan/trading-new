@@ -5,11 +5,13 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from pymongo import MongoClient, UpdateOne
 
+from ashare_lab.code_identity import load_git_commit
 from ashare_lab.data.benchmark_documents import (
     index_weight_document,
     index_weight_lineage,
@@ -49,7 +51,8 @@ class MongoBenchmarkWeightStore:
         self, canonical: CanonicalBatch, events: tuple[IndexWeightEvent, ...]
     ) -> BenchmarkWriteResult:
         """Persist events and completion evidence, including empty months."""
-        inserted = self._write_events(events)
+        code_commit = load_git_commit(Path.cwd())
+        inserted = self._write_events(events, code_commit)
         artifact = benchmark_weight_batch_id(canonical.artifact_id)
         self._database["meta_quality_reports"].update_one(
             {"_id": _quality_id(artifact)},
@@ -58,12 +61,12 @@ class MongoBenchmarkWeightStore:
         )
         self._database["meta_lineage_edges"].update_one(
             {"_id": _lineage_id(artifact)},
-            {"$setOnInsert": _batch_lineage(canonical, artifact)},
+            {"$setOnInsert": _batch_lineage(canonical, artifact, code_commit)},
             upsert=True,
         )
         return BenchmarkWriteResult(artifact, len(events), inserted)
 
-    def _write_events(self, events: tuple[IndexWeightEvent, ...]) -> int:
+    def _write_events(self, events: tuple[IndexWeightEvent, ...], code_commit: str) -> int:
         if not events:
             return 0
         inserted = (
@@ -96,7 +99,7 @@ class MongoBenchmarkWeightStore:
             [
                 UpdateOne(
                     {"_id": index_weight_lineage_id(event)},
-                    {"$setOnInsert": index_weight_lineage(event)},
+                    {"$setOnInsert": index_weight_lineage(event, code_commit)},
                     upsert=True,
                 )
                 for event in events
@@ -146,7 +149,11 @@ def _lineage_id(artifact: str) -> str:
     return f"lineage_{hashlib.sha256(artifact.encode()).hexdigest()}"
 
 
-def _batch_lineage(canonical: CanonicalBatch, artifact: str) -> BsonDocument:
+def _batch_lineage(
+    canonical: CanonicalBatch,
+    artifact: str,
+    code_commit: str,
+) -> BsonDocument:
     lineage = _lineage_id(artifact)
     return {
         "_id": lineage,
@@ -155,7 +162,7 @@ def _batch_lineage(canonical: CanonicalBatch, artifact: str) -> BsonDocument:
         "downstream_artifact_id": artifact,
         "transform_name": "index_weight_row_to_pit_event",
         "transform_version": "1.0.0",
-        "code_commit": "workspace_unversioned",
+        "code_commit": code_commit,
         "input_schema_ids": [canonical.schema_manifest_id],
         "output_schema_id": canonical.schema_manifest_id,
         "parameters_sha256": hashlib.sha256(b"monthly_weight_projection").hexdigest(),
