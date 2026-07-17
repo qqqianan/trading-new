@@ -36,6 +36,7 @@ from ashare_lab.data.queries import (
     name_history_queries,
     security_master_queries,
 )
+from ashare_lab.data.rematerialization_cli import rematerialize_lineage
 from ashare_lab.data.schema_registry import SchemaRegistry
 from ashare_lab.data.sync_service import SyncResult
 from ashare_lab.data.universe_pipeline import persist_universe_results
@@ -43,22 +44,23 @@ from ashare_lab.data.universe_pipeline import persist_universe_results
 _SCHEMA_PATH = Path("schemas/tushare_p0_v1.json")
 _UNIVERSE_SCHEMA_PATH = Path("schemas/tushare_universe_v1.json")
 _CORPORATE_ACTION_SCHEMA_PATH = Path("schemas/tushare_corporate_actions_v1.json")
-_APP = typer.Typer(no_args_is_help=True, help="Governed Tushare ingestion for ashare_quant.")
+app = typer.Typer(no_args_is_help=True, help="Governed Tushare ingestion for ashare_quant.")
 _CONSOLE = Console()
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
-_APP.command("sync-income")(sync_income)
-_APP.command("backfill-income")(backfill_income)
-_APP.command("backfill-balance-sheet")(backfill_balance_sheet)
-_APP.command("backfill-cashflow")(backfill_cashflow)
-_APP.command("backfill-financial-indicators")(backfill_financial_indicators)
-_APP.command("sync-benchmark-master")(sync_benchmark_master)
-_APP.command("backfill-benchmark-daily")(backfill_benchmark_daily)
-_APP.command("backfill-benchmark-weights")(backfill_benchmark_weights)
-_APP.command("sync-industries")(sync_industries)
-_APP.command("nightly-maintenance")(nightly_maintenance)
+app.command("sync-income")(sync_income)
+app.command("backfill-income")(backfill_income)
+app.command("backfill-balance-sheet")(backfill_balance_sheet)
+app.command("backfill-cashflow")(backfill_cashflow)
+app.command("backfill-financial-indicators")(backfill_financial_indicators)
+app.command("sync-benchmark-master")(sync_benchmark_master)
+app.command("backfill-benchmark-daily")(backfill_benchmark_daily)
+app.command("backfill-benchmark-weights")(backfill_benchmark_weights)
+app.command("sync-industries")(sync_industries)
+app.command("nightly-maintenance")(nightly_maintenance)
+app.command("rematerialize-lineage")(rematerialize_lineage)
 
 
-@_APP.command("init-db")
+@app.command("init-db")
 def initialize_database() -> None:
     """Create or tighten the isolated MongoDB collections and indexes."""
     settings = DataSettings()
@@ -70,7 +72,7 @@ def initialize_database() -> None:
     )
 
 
-@_APP.command("daily")
+@app.command("daily")
 def sync_daily(
     trade_date: Annotated[str, typer.Option(help="Trading date in YYYYMMDD format.")],
 ) -> None:
@@ -79,7 +81,7 @@ def sync_daily(
     execute_queries(registry, daily_queries(registry, trade_date))
 
 
-@_APP.command("daily-latest")
+@app.command("daily-latest")
 def sync_daily_latest() -> None:
     """Sync today's market endpoints only when the exchange calendar is open."""
     trade_date = _current_trade_date()
@@ -91,7 +93,7 @@ def sync_daily_latest() -> None:
     execute_queries(registry, daily_queries(registry, trade_date))
 
 
-@_APP.command("daily-maintenance")
+@app.command("daily-maintenance")
 def daily_maintenance() -> None:
     """Sync today's market data and recheck recent dividend announcements."""
     sync_daily_latest()
@@ -101,7 +103,7 @@ def daily_maintenance() -> None:
     sync_dividends(start_date, end_date, max_days=8)
 
 
-@_APP.command("backfill-market")
+@app.command("backfill-market")
 def backfill_market(
     start_date: Annotated[str, typer.Option(help="Inclusive start in YYYYMMDD format.")],
     end_date: Annotated[str, typer.Option(help="Inclusive end in YYYYMMDD format.")],
@@ -139,7 +141,7 @@ def backfill_market(
         raise typer.Exit(code=1)
 
 
-@_APP.command("pilot")
+@app.command("pilot")
 def sync_pilot(
     trade_date: Annotated[str, typer.Option(help="Pilot trading date in YYYYMMDD format.")],
     calendar_start: Annotated[str, typer.Option(help="Calendar start in YYYYMMDD format.")],
@@ -155,7 +157,7 @@ def sync_pilot(
     execute_queries(registry, queries)
 
 
-@_APP.command("sync-universe")
+@app.command("sync-universe")
 def sync_universe(
     start_date: Annotated[str, typer.Option(help="Name history start in YYYYMMDD format.")],
     end_date: Annotated[str, typer.Option(help="Name history end in YYYYMMDD format.")],
@@ -170,7 +172,7 @@ def sync_universe(
     persist_universe_results(registry, results)
 
 
-@_APP.command("sync-dividends")
+@app.command("sync-dividends")
 def sync_dividends(
     start_date: Annotated[str, typer.Option(help="First announcement date in YYYYMMDD.")],
     end_date: Annotated[str, typer.Option(help="Last announcement date in YYYYMMDD.")],
@@ -220,7 +222,7 @@ def _completed_market_dates(
 
 def run() -> None:
     """Launch the operator command group."""
-    _APP()
+    app()
 
 
 if __name__ == "__main__":
