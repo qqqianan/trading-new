@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Final, Protocol
 
 import polars as pl
@@ -91,10 +91,14 @@ def materialize_weekly_universe(
     spec = request.admission
     open_dates = reader.open_dates(
         request.start_date,
-        request.end_date,
+        request.end_date + timedelta(days=7),
         request.market_schema_manifest_id,
     )
-    decisions = weekly_decision_times(open_dates)
+    decisions = weekly_decision_times(
+        open_dates,
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
     events = reader.events(request.end_date, request.universe_schema_manifest_id)
     groups = _quarter_groups(decisions)
     date_positions = {day: index for index, day in enumerate(open_dates)}

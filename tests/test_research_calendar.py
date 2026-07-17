@@ -39,3 +39,25 @@ def test_weekly_decisions_reject_duplicate_calendar_dates() -> None:
     # When / Then: research scheduling fails closed on ambiguous evidence.
     with pytest.raises(ValueError, match="duplicate"):
         weekly_decision_times(duplicated)
+
+
+def test_weekly_decisions_exclude_a_truncated_final_week() -> None:
+    # Given: the frozen data cutoff is Thursday while Friday is known to be open.
+    open_dates = (
+        date(2026, 7, 10),
+        date(2026, 7, 13),
+        date(2026, 7, 14),
+        date(2026, 7, 15),
+        date(2026, 7, 16),
+        date(2026, 7, 17),
+    )
+
+    # When: decisions are bounded by the qualified market-data cutoff.
+    decisions = weekly_decision_times(
+        open_dates,
+        start_date=date(2026, 7, 10),
+        end_date=date(2026, 7, 16),
+    )
+
+    # Then: only the fully completed prior week can form a weekly signal.
+    assert decisions == (datetime(2026, 7, 10, 18, tzinfo=SHANGHAI),)

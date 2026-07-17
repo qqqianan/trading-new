@@ -7,7 +7,12 @@ _SHANGHAI = ZoneInfo("Asia/Shanghai")
 _DECISION_CLOCK = time(18)
 
 
-def weekly_decision_times(open_dates: tuple[date, ...]) -> tuple[datetime, ...]:
+def weekly_decision_times(
+    open_dates: tuple[date, ...],
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> tuple[datetime, ...]:
     """Select each ISO week's final open session after provider publication."""
     if len(open_dates) != len(set(open_dates)):
         detail = "governed open calendar contains duplicate dates"
@@ -16,4 +21,8 @@ def weekly_decision_times(open_dates: tuple[date, ...]) -> tuple[datetime, ...]:
     for day in sorted(open_dates):
         iso = day.isocalendar()
         weekly[(iso.year, iso.week)] = day
-    return tuple(datetime.combine(day, _DECISION_CLOCK, _SHANGHAI) for day in weekly.values())
+    return tuple(
+        datetime.combine(day, _DECISION_CLOCK, _SHANGHAI)
+        for day in weekly.values()
+        if (start_date is None or day >= start_date) and (end_date is None or day <= end_date)
+    )
