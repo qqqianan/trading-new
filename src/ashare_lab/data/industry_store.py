@@ -62,7 +62,7 @@ class MongoIndustryStore:
             upsert=True,
         )
         self._database["meta_lineage_edges"].update_one(
-            {"_id": _lineage_id(artifact)},
+            {"_id": _lineage_id(artifact, code_commit)},
             {"$setOnInsert": _batch_lineage(canonical, artifact, code_commit)},
             upsert=True,
         )
@@ -100,7 +100,7 @@ class MongoIndustryStore:
         self._database["meta_lineage_edges"].bulk_write(
             [
                 UpdateOne(
-                    {"_id": industry_membership_lineage_id(event)},
+                    {"_id": industry_membership_lineage_id(event, code_commit)},
                     {"$setOnInsert": industry_membership_lineage(event, code_commit)},
                     upsert=True,
                 )
@@ -146,8 +146,8 @@ def _batch_quality(artifact: str) -> BsonDocument:
     }
 
 
-def _lineage_id(artifact: str) -> str:
-    return f"lineage_{hashlib.sha256(artifact.encode()).hexdigest()}"
+def _lineage_id(artifact: str, code_commit: str) -> str:
+    return f"lineage_{hashlib.sha256(f'{artifact}|{code_commit}'.encode()).hexdigest()}"
 
 
 def _batch_lineage(
@@ -155,7 +155,7 @@ def _batch_lineage(
     artifact: str,
     code_commit: str,
 ) -> BsonDocument:
-    lineage_id = _lineage_id(artifact)
+    lineage_id = _lineage_id(artifact, code_commit)
     return {
         "_id": lineage_id,
         "lineage_edge_id": lineage_id,

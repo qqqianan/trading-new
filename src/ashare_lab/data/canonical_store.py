@@ -157,7 +157,9 @@ class MongoCanonicalStore:
         )
 
     def _write_lineage(self, schema: EndpointSchema, batch: CanonicalBatch) -> None:
-        edge_id = f"lineage_{hashlib.sha256(batch.artifact_id.encode()).hexdigest()}"
+        code_commit = load_git_commit(Path.cwd())
+        identity = f"{batch.artifact_id}|{code_commit}"
+        edge_id = f"lineage_{hashlib.sha256(identity.encode()).hexdigest()}"
         parameters = hashlib.sha256(schema.available_at_policy.encode()).hexdigest()
         self._database["meta_lineage_edges"].update_one(
             {"_id": edge_id},
@@ -169,7 +171,7 @@ class MongoCanonicalStore:
                     "downstream_artifact_id": batch.artifact_id,
                     "transform_name": batch.transform_name,
                     "transform_version": batch.transform_version,
-                    "code_commit": load_git_commit(Path.cwd()),
+                    "code_commit": code_commit,
                     "input_schema_ids": [batch.schema_manifest_id],
                     "output_schema_id": batch.schema_manifest_id,
                     "parameters_sha256": parameters,

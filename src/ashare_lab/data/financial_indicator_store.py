@@ -58,7 +58,7 @@ class MongoFinancialIndicatorStore:
             {"_id": _quality_id(artifact)}, {"$setOnInsert": _quality(artifact)}, upsert=True
         )
         self._database["meta_lineage_edges"].update_one(
-            {"_id": _lineage_id(artifact)},
+            {"_id": _lineage_id(artifact, code_commit)},
             {"$setOnInsert": _batch_lineage(canonical, artifact, code_commit)},
             upsert=True,
         )
@@ -98,7 +98,7 @@ class MongoFinancialIndicatorStore:
         self._database["meta_lineage_edges"].bulk_write(
             [
                 UpdateOne(
-                    {"_id": financial_indicator_lineage_id(e)},
+                    {"_id": financial_indicator_lineage_id(e, code_commit)},
                     {"$setOnInsert": financial_indicator_lineage(e, code_commit)},
                     upsert=True,
                 )
@@ -145,8 +145,8 @@ def _quality(artifact: str) -> BsonDocument:
     }
 
 
-def _lineage_id(artifact: str) -> str:
-    return f"lineage_{hashlib.sha256(artifact.encode()).hexdigest()}"
+def _lineage_id(artifact: str, code_commit: str) -> str:
+    return f"lineage_{hashlib.sha256(f'{artifact}|{code_commit}'.encode()).hexdigest()}"
 
 
 def _batch_lineage(
@@ -154,7 +154,7 @@ def _batch_lineage(
     artifact: str,
     code_commit: str,
 ) -> BsonDocument:
-    lineage = _lineage_id(artifact)
+    lineage = _lineage_id(artifact, code_commit)
     return {
         "_id": lineage,
         "lineage_edge_id": lineage,

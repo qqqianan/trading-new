@@ -74,7 +74,7 @@ def financial_indicator_lineage(
     code_commit: str,
 ) -> BsonDocument:
     """Map every PIT field and announcement clock to the immutable Raw row."""
-    lineage_id = financial_indicator_lineage_id(event)
+    lineage_id = financial_indicator_lineage_id(event, code_commit)
     raw = "raw_tushare_fina_indicator.payload"
     fields = ("ts_code", "ann_date", "end_date", *METRIC_FIELDS, "update_flag")
     return {
@@ -96,6 +96,7 @@ def financial_indicator_lineage(
     }
 
 
-def financial_indicator_lineage_id(event: FinancialIndicatorVersion) -> str:
+def financial_indicator_lineage_id(event: FinancialIndicatorVersion, code_commit: str) -> str:
     """Return one stable event-lineage identity."""
-    return f"lineage_{hashlib.sha256(f'{event.event_id}|lineage'.encode()).hexdigest()}"
+    identity = f"{event.event_id}|lineage|{code_commit}"
+    return f"lineage_{hashlib.sha256(identity.encode()).hexdigest()}"

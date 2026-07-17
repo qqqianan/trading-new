@@ -104,7 +104,7 @@ class MongoUniverseEventStore:
         self._database["meta_lineage_edges"].bulk_write(
             [
                 UpdateOne(
-                    {"_id": _lineage_id(event)},
+                    {"_id": _lineage_id(event, code_commit)},
                     {"$setOnInsert": universe_lineage_document(event, code_commit)},
                     upsert=True,
                 )
@@ -180,7 +180,7 @@ def security_event_from_document(document: BsonDocument) -> SecurityEvent:
 
 def universe_lineage_document(event: SecurityEvent, code_commit: str) -> BsonDocument:
     """Bind every derived field to explicit provider fields and one Raw snapshot."""
-    edge_id = _lineage_id(event)
+    edge_id = _lineage_id(event, code_commit)
     return {
         "_id": edge_id,
         "lineage_edge_id": edge_id,
@@ -230,8 +230,8 @@ def _field_mappings(event: SecurityEvent) -> tuple[str, ...]:
     return common + specific
 
 
-def _lineage_id(event: SecurityEvent) -> str:
-    digest = hashlib.sha256(f"{event.event_id}|lineage".encode()).hexdigest()
+def _lineage_id(event: SecurityEvent, code_commit: str) -> str:
+    digest = hashlib.sha256(f"{event.event_id}|lineage|{code_commit}".encode()).hexdigest()
     return f"lineage_{digest}"
 
 

@@ -33,7 +33,7 @@ def industry_membership_document(event: IndustryMembership) -> BsonDocument:
 
 def industry_membership_lineage(event: IndustryMembership, code_commit: str) -> BsonDocument:
     """Map identity, interval, and knowledge clock to one Raw row."""
-    lineage_id = industry_membership_lineage_id(event)
+    lineage_id = industry_membership_lineage_id(event, code_commit)
     raw = "raw_tushare_index_member.payload"
     return {
         "_id": lineage_id,
@@ -59,7 +59,7 @@ def industry_membership_lineage(event: IndustryMembership, code_commit: str) -> 
     }
 
 
-def industry_membership_lineage_id(event: IndustryMembership) -> str:
+def industry_membership_lineage_id(event: IndustryMembership, code_commit: str) -> str:
     """Return one stable event-lineage identity."""
-    digest = hashlib.sha256(f"{event.membership_id}|lineage".encode()).hexdigest()
+    digest = hashlib.sha256(f"{event.membership_id}|lineage|{code_commit}".encode()).hexdigest()
     return f"lineage_{digest}"
