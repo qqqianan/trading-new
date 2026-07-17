@@ -11,6 +11,7 @@ from ashare_lab.data.industry_memberships import (
 )
 from ashare_lab.data.rematerialization import ProjectionResult
 from ashare_lab.data.schema_registry import SchemaContractError
+from ashare_lab.data.universe import SecurityEventType
 from ashare_lab.data.universe_builder import build_lifecycle_events, build_name_status_event
 
 if TYPE_CHECKING:
@@ -54,6 +55,23 @@ class IndustryMembershipSink(Protocol):
     ) -> IndustryWriteResult:
         """Persist intervals and batch completion evidence."""
         ...
+
+
+def first_trade_lineage_events(events: tuple[SecurityEvent, ...]) -> tuple[SecurityEvent, ...]:
+    """Select only accepted daily fallback events for dedicated lineage replay."""
+    selected: list[SecurityEvent] = []
+    for event in events:
+        match event.event_type:
+            case SecurityEventType.FIRST_TRADED:
+                if event.source_endpoint == "daily" and event.quality_status == "ACCEPTED":
+                    selected.append(event)
+            case (
+                SecurityEventType.LISTED
+                | SecurityEventType.DELISTED
+                | SecurityEventType.NAME_STATUS
+            ):
+                pass
+    return tuple(selected)
 
 
 class CanonicalOnlyProjector:

@@ -1,8 +1,10 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from ashare_lab.data.bson_types import BsonDocument
 from ashare_lab.data.canonical import CanonicalBatch, canonicalize_batch
 from ashare_lab.data.canonical_store import CanonicalWriteResult
 from ashare_lab.data.cli import app
@@ -23,6 +25,7 @@ from ashare_lab.data.rematerialization_projectors import (
     FinancialIndicatorProjector,
     IndustryProjector,
     UniverseProjector,
+    first_trade_lineage_events,
 )
 from ashare_lab.data.rematerialization_runtime import (
     RematerializationTarget,
@@ -30,7 +33,8 @@ from ashare_lab.data.rematerialization_runtime import (
 )
 from ashare_lab.data.schema_registry import EndpointSchema, SchemaContractError, SchemaRegistry
 from ashare_lab.data.snapshots import SnapshotBatch
-from ashare_lab.data.universe import SecurityEvent
+from ashare_lab.data.universe import SecurityEvent, SecurityEventType
+from ashare_lab.data.universe_builder import build_first_trade_event
 from ashare_lab.data.universe_store import UniverseEventWriteResult
 from tests.test_raw_replay import (
     replay_registry,
@@ -115,6 +119,7 @@ class _Checkpoint:
 class _StoredCheckpointCollection:
     def __init__(self) -> None:
         self.last_query: dict[str, str] = {}
+        self.last_update: BsonDocument = {}
 
     def find_one(
         self,
@@ -123,6 +128,16 @@ class _StoredCheckpointCollection:
     ) -> dict[str, str]:
         self.last_query = query
         return {"_id": "lineage_from_prior_non_material_commit"}
+
+    def update_one(
+        self,
+        _query: BsonDocument,
+        update: BsonDocument,
+        *,
+        upsert: bool,
+    ) -> None:
+        assert upsert is True
+        self.last_update = update
 
 
 class _StoredCheckpointDatabase:
@@ -283,6 +298,25 @@ def test_checkpoint_reuses_same_version_completion_across_code_commits() -> None
     assert "code_commit" not in database.collection.last_query
 
 
+def test_checkpoint_writes_content_addressed_versioned_completion_lineage() -> None:
+    # Given: one fully projected Raw and canonical batch under a real code identity.
+    batch, canonical = _daily_batch()
+    database = _StoredCheckpointDatabase()
+    checkpoint = MongoRematerializationCheckpoint.__new__(MongoRematerializationCheckpoint)
+    checkpoint.__dict__["_database"] = database
+    checkpoint.__dict__["_code_commit"] = "a" * 40
+
+    # When: replay records final completion after all owned stages succeed.
+    checkpoint.complete(batch, canonical)
+
+    # Then: the append-only edge pins code, schema, and material transform version.
+    inserted = database.collection.last_update["$setOnInsert"]
+    assert isinstance(inserted, dict)
+    assert inserted["code_commit"] == "a" * 40
+    assert inserted["output_schema_id"] == canonical.schema_manifest_id
+    assert inserted["transform_version"] == "1.0.0"
+
+
 def test_canonical_only_projector_records_an_explicit_zero_event_projection() -> None:
     # Given: one canonicalized Raw batch that requires no PIT event projection.
     batch, canonical = _daily_batch()
@@ -311,6 +345,24 @@ def test_pit_projectors_reject_raw_endpoints_outside_their_owned_contract(
     # When / Then: the projector fails closed instead of creating foreign events.
     with pytest.raises(SchemaContractError, match="unsupported"):
         projector.project(batch, canonical)
+
+
+def test_universe_fallback_lineage_selects_only_daily_first_trade_events() -> None:
+    # Given: one conservative daily fallback and one ordinary listed event.
+    _, canonical = _daily_batch()
+    fallback = build_first_trade_event(canonical.records[0], "schema_universe")
+    listed = replace(
+        fallback,
+        event_id="listed",
+        event_type=SecurityEventType.LISTED,
+        source_endpoint="stock_basic",
+    )
+
+    # When: replay selects historical fallback events needing their owned lineage path.
+    selected = first_trade_lineage_events((fallback, listed))
+
+    # Then: no other lifecycle variant is written through the fallback path.
+    assert selected == (fallback,)
 
 
 @pytest.mark.parametrize(

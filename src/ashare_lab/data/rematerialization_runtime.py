@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from enum import StrEnum, unique
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -26,6 +27,7 @@ from ashare_lab.data.rematerialization_projectors import (
     FinancialIndicatorProjector,
     IndustryProjector,
     UniverseProjector,
+    first_trade_lineage_events,
 )
 from ashare_lab.data.schema_registry import SchemaRegistry
 from ashare_lab.data.universe_store import MongoUniverseEventStore
@@ -63,7 +65,7 @@ def rematerialize_target(
         serverSelectionTimeoutMS=8_000,
     ) as client:
         database = client[settings.mongodb_database]
-        return rematerialize_batches(
+        result = rematerialize_batches(
             RematerializationJob(
                 registry,
                 endpoints,
@@ -74,6 +76,7 @@ def rematerialize_target(
             ),
             max_batches=max_batches,
         )
+        return _repair_fallback_lineage(target, client, registry, result)
 
 
 def target_contract(
@@ -114,3 +117,30 @@ def _projector(
             return FinancialIndicatorProjector(MongoFinancialIndicatorStore(client, database.name))
         case RematerializationTarget.INDUSTRY:
             return IndustryProjector(MongoIndustryStore(client, database.name))
+
+
+def _repair_fallback_lineage(
+    target: RematerializationTarget,
+    client: MongoClient[BsonDocument],
+    registry: SchemaRegistry,
+    result: RematerializationResult,
+) -> RematerializationResult:
+    match target:
+        case RematerializationTarget.UNIVERSE:
+            if result.has_more:
+                return result
+            store = MongoUniverseEventStore(client, "ashare_quant")
+            events = first_trade_lineage_events(store.load_events(registry.manifest_id))
+            written = store.write(events)
+            return replace(
+                result,
+                event_count=result.event_count + written.event_count,
+                event_inserted_count=result.event_inserted_count + written.inserted_count,
+            )
+        case (
+            RematerializationTarget.MARKET
+            | RematerializationTarget.BENCHMARK_DAILY
+            | RematerializationTarget.FINANCIAL_INDICATORS
+            | RematerializationTarget.INDUSTRY
+        ):
+            return result
