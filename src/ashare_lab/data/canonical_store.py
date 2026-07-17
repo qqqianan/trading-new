@@ -54,6 +54,14 @@ class _LineageEvidence(BaseModel):
     downstream_artifact_id: str
 
 
+class _CanonicalIdentity(BaseModel):
+    """Stored immutable canonical identity used to avoid redundant upserts."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    record_id: str
+
+
 @dataclass(frozen=True, slots=True)
 class CanonicalWriteResult:
     """Counts and identity produced by one idempotent canonical write."""
@@ -76,6 +84,38 @@ class MongoCanonicalStore:
 
     def write(self, schema: EndpointSchema, batch: CanonicalBatch) -> CanonicalWriteResult:
         """Append records and immutable evidence, returning an idempotent result."""
+        inserted = self._write_records(schema, batch, frozenset())
+        status = batch.quality_status
+        self._write_quality(batch, status)
+        self._write_lineage(schema, batch)
+        return CanonicalWriteResult(batch.artifact_id, len(batch.records), inserted, status)
+
+    def write_replayed(
+        self,
+        schema: EndpointSchema,
+        batch: CanonicalBatch,
+    ) -> CanonicalWriteResult:
+        """Append only missing rows before writing current replay evidence."""
+        record_ids = [record.record_id for record in batch.records]
+        existing = frozenset(
+            _CanonicalIdentity.model_validate(document).record_id
+            for document in self._database[schema.canonical_collection].find(
+                {"_id": {"$in": record_ids}},
+                {"_id": 0, "record_id": 1},
+            )
+        )
+        inserted = self._write_records(schema, batch, existing)
+        status = batch.quality_status
+        self._write_quality(batch, status)
+        self._write_lineage(schema, batch)
+        return CanonicalWriteResult(batch.artifact_id, len(batch.records), inserted, status)
+
+    def _write_records(
+        self,
+        schema: EndpointSchema,
+        batch: CanonicalBatch,
+        existing: frozenset[str],
+    ) -> int:
         collection = self._database[schema.canonical_collection]
         operations = [
             UpdateOne(
@@ -84,14 +124,9 @@ class MongoCanonicalStore:
                 upsert=True,
             )
             for record in batch.records
+            if record.record_id not in existing
         ]
-        inserted = (
-            collection.bulk_write(operations, ordered=False).upserted_count if operations else 0
-        )
-        status = batch.quality_status
-        self._write_quality(batch, status)
-        self._write_lineage(schema, batch)
-        return CanonicalWriteResult(batch.artifact_id, len(batch.records), inserted, status)
+        return collection.bulk_write(operations, ordered=False).upserted_count if operations else 0
 
     def completed_market_dates(
         self,

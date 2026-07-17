@@ -68,10 +68,10 @@ def replay_registry() -> SchemaRegistry:
     return SchemaRegistry(bundle, "schema_abc")
 
 
-def replay_snapshot(*, row_count: int = 1) -> BsonDocument:
+def replay_snapshot(*, snapshot_id: str = "snap_001", row_count: int = 1) -> BsonDocument:
     return {
-        "_id": "snap_001",
-        "snapshot_id": "snap_001",
+        "_id": snapshot_id,
+        "snapshot_id": snapshot_id,
         "source": "tushare",
         "endpoint": "daily",
         "request_params_canonical": '{"trade_date":"20260716"}',
@@ -85,10 +85,10 @@ def replay_snapshot(*, row_count: int = 1) -> BsonDocument:
     }
 
 
-def replay_row(*, ordinal: int = 0) -> BsonDocument:
+def replay_row(*, snapshot_id: str = "snap_001", ordinal: int = 0) -> BsonDocument:
     return {
-        "_id": f"snap_001:{ordinal}",
-        "snapshot_id": "snap_001",
+        "_id": f"{snapshot_id}:{ordinal}",
+        "snapshot_id": snapshot_id,
         "row_ordinal": ordinal,
         "ingested_at": datetime(2026, 7, 16, 7, 31, tzinfo=UTC),
         "row_sha256": "b" * 64,

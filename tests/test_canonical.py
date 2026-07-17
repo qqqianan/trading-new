@@ -29,6 +29,8 @@ class FakeCollection:
 
     def __init__(self) -> None:
         self.update_calls = 0
+        self.bulk_calls = 0
+        self.existing_ids: set[str] = set()
         self.last_update: dict[str, BsonValue] = {}
 
     def bulk_write(
@@ -39,7 +41,15 @@ class FakeCollection:
     ) -> FakeBulkResult:
         assert operations
         assert ordered is False
+        self.bulk_calls += 1
         return FakeBulkResult()
+
+    def find(
+        self,
+        _query: dict[str, BsonValue],
+        _projection: dict[str, BsonValue],
+    ) -> list[dict[str, BsonValue]]:
+        return [{"record_id": record_id} for record_id in self.existing_ids]
 
     def update_one(
         self,
@@ -179,6 +189,51 @@ def test_daily_canonical_record_has_conservative_pit_time_and_full_lineage() -> 
     assert select_available_records(canonical.records, after_release) == canonical.records
     with pytest.raises(ValueError, match="timezone-aware"):
         select_available_records(canonical.records, after_release.replace(tzinfo=None))
+
+
+def test_canonical_replay_does_not_upsert_rows_that_already_exist() -> None:
+    # Given: a deterministic canonical batch whose content-addressed row is already stored.
+    registry = SchemaRegistry.load(PROJECT_ROOT / "schemas" / "tushare_p0_v1.json")
+    schema = registry.endpoint("daily")
+    query = TushareQuery(
+        endpoint="daily",
+        params=(QueryParam("trade_date", "20260710"),),
+        fields=schema.field_names,
+    )
+    values = (
+        "000001.SZ",
+        "20260710",
+        10.1,
+        10.3,
+        10.0,
+        10.2,
+        10.0,
+        0.2,
+        2.0,
+        1234.0,
+        5678.0,
+    )
+    observed = datetime(2026, 7, 14, 18, 30, tzinfo=SHANGHAI)
+    raw = build_raw_snapshot(
+        query,
+        TushareClient.table_for_test(schema.field_names, (values,)),
+        schema,
+        registry.manifest_id,
+        SnapshotTiming(observed, observed),
+    )
+    canonical = canonicalize_batch(raw, schema, registry.manifest_id)
+    database = FakeDatabase()
+    database[schema.canonical_collection].existing_ids.add(canonical.records[0].record_id)
+    store = MongoCanonicalStore.__new__(MongoCanonicalStore)
+    store.__dict__["_database"] = database
+
+    # When: offline replay appends current governance evidence.
+    result = store.write_replayed(schema, canonical)
+
+    # Then: the immutable row is not rewritten while lineage is appended.
+    assert result.inserted_count == 0
+    assert database[schema.canonical_collection].bulk_calls == 0
+    assert database["meta_lineage_edges"].update_calls == 1
 
 
 def test_current_security_master_is_quarantined_from_historical_pit() -> None:

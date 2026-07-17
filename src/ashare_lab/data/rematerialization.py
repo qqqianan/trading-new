@@ -26,6 +26,8 @@ class RematerializationResult:
     canonical_inserted_count: int
     event_count: int
     event_inserted_count: int
+    skipped_completed_count: int
+    has_more: bool
 
 
 class RawReplaySource(Protocol):
@@ -47,8 +49,12 @@ class RawReplaySource(Protocol):
 class CanonicalSink(Protocol):
     """Capability that appends canonical records and versioned lineage."""
 
-    def write(self, schema: EndpointSchema, batch: CanonicalBatch) -> CanonicalWriteResult:
-        """Persist one deterministic canonical artifact."""
+    def write_replayed(
+        self,
+        schema: EndpointSchema,
+        batch: CanonicalBatch,
+    ) -> CanonicalWriteResult:
+        """Persist missing canonical rows and current replay evidence."""
         ...
 
 
@@ -60,21 +66,52 @@ class RematerializationProjector(Protocol):
         ...
 
 
+class RematerializationCheckpoint(Protocol):
+    """Final evidence boundary written only after every projection succeeds."""
+
+    def is_complete(self, snapshot_id: str, schema_manifest_id: str) -> bool:
+        """Return whether this exact Raw-to-output replay already completed."""
+        ...
+
+    def complete(self, batch: SnapshotBatch, canonical: CanonicalBatch) -> None:
+        """Append one content-addressed final completion edge."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class RematerializationJob:
+    """Closed dependency bundle for one governed replay target."""
+
+    registry: SchemaRegistry
+    endpoints: tuple[str, ...]
+    source: RawReplaySource
+    canonical_sink: CanonicalSink
+    projector: RematerializationProjector
+    checkpoint: RematerializationCheckpoint
+
+
 def rematerialize_batches(
-    registry: SchemaRegistry,
-    endpoints: tuple[str, ...],
-    source: RawReplaySource,
-    canonical_sink: CanonicalSink,
-    projector: RematerializationProjector,
+    job: RematerializationJob,
+    *,
+    max_batches: int,
 ) -> RematerializationResult:
     """Replay every accepted Raw batch without provider access or Raw mutation."""
     batch_count = record_count = canonical_inserted = event_count = event_inserted = 0
-    for snapshot_id in source.accepted_snapshot_ids(registry, endpoints):
-        batch = source.load_batch(registry, snapshot_id)
-        schema = registry.endpoint(batch.snapshot.endpoint)
-        canonical = canonicalize_batch(batch, schema, registry.manifest_id)
-        written = canonical_sink.write(schema, canonical)
-        projected = projector.project(batch, canonical)
+    skipped_completed = 0
+    has_more = False
+    for snapshot_id in job.source.accepted_snapshot_ids(job.registry, job.endpoints):
+        if job.checkpoint.is_complete(snapshot_id, job.registry.manifest_id):
+            skipped_completed += 1
+            continue
+        if batch_count >= max_batches:
+            has_more = True
+            break
+        batch = job.source.load_batch(job.registry, snapshot_id)
+        schema = job.registry.endpoint(batch.snapshot.endpoint)
+        canonical = canonicalize_batch(batch, schema, job.registry.manifest_id)
+        written = job.canonical_sink.write_replayed(schema, canonical)
+        projected = job.projector.project(batch, canonical)
+        job.checkpoint.complete(batch, canonical)
         batch_count += 1
         record_count += written.record_count
         canonical_inserted += written.inserted_count
@@ -86,4 +123,6 @@ def rematerialize_batches(
         canonical_inserted,
         event_count,
         event_inserted,
+        skipped_completed,
+        has_more,
     )

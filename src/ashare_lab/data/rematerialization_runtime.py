@@ -15,10 +15,12 @@ from ashare_lab.data.financial_indicator_store import MongoFinancialIndicatorSto
 from ashare_lab.data.industry_store import MongoIndustryStore
 from ashare_lab.data.mongo_raw_replay import MongoRawReplayReader
 from ashare_lab.data.rematerialization import (
+    RematerializationJob,
     RematerializationProjector,
     RematerializationResult,
     rematerialize_batches,
 )
+from ashare_lab.data.rematerialization_checkpoint import MongoRematerializationCheckpoint
 from ashare_lab.data.rematerialization_projectors import (
     CanonicalOnlyProjector,
     FinancialIndicatorProjector,
@@ -49,7 +51,10 @@ class RematerializationTarget(StrEnum):
     INDUSTRY = "industry"
 
 
-def rematerialize_target(target: RematerializationTarget) -> RematerializationResult:
+def rematerialize_target(
+    target: RematerializationTarget,
+    max_batches: int,
+) -> RematerializationResult:
     """Replay one registered bundle without network access or Raw writes."""
     settings = DataSettings()
     registry, endpoints = target_contract(target)
@@ -59,11 +64,15 @@ def rematerialize_target(target: RematerializationTarget) -> RematerializationRe
     ) as client:
         database = client[settings.mongodb_database]
         return rematerialize_batches(
-            registry,
-            endpoints,
-            MongoRawReplayReader(database),
-            MongoCanonicalStore(client, settings.mongodb_database),
-            _projector(target, client, database),
+            RematerializationJob(
+                registry,
+                endpoints,
+                MongoRawReplayReader(database),
+                MongoCanonicalStore(client, settings.mongodb_database),
+                _projector(target, client, database),
+                MongoRematerializationCheckpoint(client, settings.mongodb_database),
+            ),
+            max_batches=max_batches,
         )
 
 

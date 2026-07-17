@@ -13,6 +13,7 @@ from ashare_lab.data.industry_store import IndustryWriteResult
 from ashare_lab.data.raw_replay import build_stored_snapshot_batch
 from ashare_lab.data.rematerialization import (
     ProjectionResult,
+    RematerializationJob,
     RematerializationResult,
     rematerialize_batches,
 )
@@ -39,23 +40,26 @@ from tests.test_raw_replay import (
 
 
 class _Reader:
+    def __init__(self, snapshot_ids: tuple[str, ...] = ("snap_001",)) -> None:
+        self._snapshot_ids = snapshot_ids
+
     def accepted_snapshot_ids(
         self,
         registry: SchemaRegistry,
         endpoints: tuple[str, ...],
     ) -> tuple[str, ...]:
         del registry, endpoints
-        return ("snap_001",)
+        return self._snapshot_ids
 
     def load_batch(
         self,
         registry: SchemaRegistry,
         snapshot_id: str,
     ) -> SnapshotBatch:
-        del registry, snapshot_id
+        del registry
         return build_stored_snapshot_batch(
-            replay_snapshot(),
-            (replay_row(),),
+            replay_snapshot(snapshot_id=snapshot_id),
+            (replay_row(snapshot_id=snapshot_id),),
             replay_schema(),
         )
 
@@ -64,7 +68,7 @@ class _CanonicalSink:
     def __init__(self) -> None:
         self.artifact_ids: list[str] = []
 
-    def write(
+    def write_replayed(
         self,
         schema: EndpointSchema,
         batch: CanonicalBatch,
@@ -82,6 +86,29 @@ class _Projector:
         del batch
         self.batch_count += 1
         return ProjectionResult(event_count=len(canonical.records), inserted_count=0)
+
+
+class _FailingProjector:
+    @staticmethod
+    def project(batch: SnapshotBatch, canonical: CanonicalBatch) -> ProjectionResult:
+        del batch, canonical
+        detail = "owned PIT projection failed"
+        raise SchemaContractError(detail)
+
+
+class _Checkpoint:
+    def __init__(self, completed: set[str] | None = None) -> None:
+        self.completed = completed if completed is not None else set()
+        self.recorded: list[str] = []
+
+    def is_complete(self, snapshot_id: str, schema_manifest_id: str) -> bool:
+        del schema_manifest_id
+        return snapshot_id in self.completed
+
+    def complete(self, batch: SnapshotBatch, canonical: CanonicalBatch) -> None:
+        del canonical
+        self.completed.add(batch.snapshot.snapshot_id)
+        self.recorded.append(batch.snapshot.snapshot_id)
 
 
 class _UniverseStore:
@@ -125,14 +152,19 @@ def test_rematerialization_replays_raw_through_canonical_and_pit_projection() ->
     # Given: one accepted Raw batch and recording transformation boundaries.
     sink = _CanonicalSink()
     projector = _Projector()
+    checkpoint = _Checkpoint()
 
     # When: the model-independent rematerialization orchestration executes.
     result = rematerialize_batches(
-        replay_registry(),
-        ("daily",),
-        _Reader(),
-        sink,
-        projector,
+        RematerializationJob(
+            replay_registry(),
+            ("daily",),
+            _Reader(),
+            sink,
+            projector,
+            checkpoint,
+        ),
+        max_batches=10,
     )
 
     # Then: one deterministic canonical artifact and one projection are audited.
@@ -142,9 +174,76 @@ def test_rematerialization_replays_raw_through_canonical_and_pit_projection() ->
         canonical_inserted_count=0,
         event_count=1,
         event_inserted_count=0,
+        skipped_completed_count=0,
+        has_more=False,
     )
     assert len(sink.artifact_ids) == 1
     assert projector.batch_count == 1
+    assert checkpoint.recorded == ["snap_001"]
+
+
+def test_rematerialization_skips_only_batches_with_final_completion_evidence() -> None:
+    # Given: one completed batch followed by one batch with no final replay evidence.
+    checkpoint = _Checkpoint({"snap_001"})
+
+    # When: a bounded replay evaluates both immutable Raw identities.
+    result = rematerialize_batches(
+        RematerializationJob(
+            replay_registry(),
+            ("daily",),
+            _Reader(("snap_001", "snap_002")),
+            _CanonicalSink(),
+            _Projector(),
+            checkpoint,
+        ),
+        max_batches=10,
+    )
+
+    # Then: only the incomplete batch crosses canonical and projection boundaries.
+    assert result.batch_count == 1
+    assert result.skipped_completed_count == 1
+    assert checkpoint.recorded == ["snap_002"]
+
+
+def test_rematerialization_stops_at_a_bounded_number_of_incomplete_batches() -> None:
+    # Given: two incomplete accepted Raw batches and a one-batch process budget.
+    checkpoint = _Checkpoint()
+
+    # When: replay reaches its explicit batch bound.
+    result = rematerialize_batches(
+        RematerializationJob(
+            replay_registry(),
+            ("daily",),
+            _Reader(("snap_001", "snap_002")),
+            _CanonicalSink(),
+            _Projector(),
+            checkpoint,
+        ),
+        max_batches=1,
+    )
+
+    # Then: one batch is durably complete and the result signals more work.
+    assert result.batch_count == 1
+    assert result.has_more is True
+    assert checkpoint.recorded == ["snap_001"]
+
+
+def test_rematerialization_does_not_mark_completion_when_projection_fails() -> None:
+    # Given: an accepted Raw batch whose owned PIT projection will fail closed.
+    checkpoint = _Checkpoint()
+    job = RematerializationJob(
+        replay_registry(),
+        ("daily",),
+        _Reader(),
+        _CanonicalSink(),
+        _FailingProjector(),
+        checkpoint,
+    )
+
+    # When / Then: the projection error propagates without final completion evidence.
+    with pytest.raises(SchemaContractError, match="owned PIT projection failed"):
+        rematerialize_batches(job, max_batches=1)
+    assert checkpoint.recorded == []
 
 
 def test_canonical_only_projector_records_an_explicit_zero_event_projection() -> None:
