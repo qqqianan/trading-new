@@ -19,6 +19,7 @@ def test_required_engineering_structure_exists() -> None:
         SOURCE_ROOT / "ml" / "trainers" / "__init__.py",
         SOURCE_ROOT / "portfolio" / "__init__.py",
         SOURCE_ROOT / "research" / "datasets" / "__init__.py",
+        SOURCE_ROOT / "research" / "artifacts" / "__init__.py",
         SOURCE_ROOT / "research" / "features" / "__init__.py",
         SOURCE_ROOT / "research" / "labels" / "__init__.py",
         SOURCE_ROOT / "research" / "preprocessing" / "__init__.py",
