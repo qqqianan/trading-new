@@ -50,6 +50,12 @@ def test_mongo_universe_reader_normalizes_governed_rows_and_amount_units() -> No
                         "quality_status": "ACCEPTED",
                         "schema_manifest_id": "schema_market",
                     },
+                    {
+                        "cal_date": "20260716",
+                        "is_open": 1,
+                        "quality_status": "ACCEPTED",
+                        "schema_manifest_id": "schema_market",
+                    },
                 )
             ),
             "pit_security_events": Collection((_security_event_document(),)),

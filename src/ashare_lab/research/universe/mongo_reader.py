@@ -69,6 +69,21 @@ class UniverseReaderError(Exception):
         return f"universe reader requires ashare_quant, got {self.database_name}"
 
 
+class UniverseCalendarConflictError(Exception):
+    """One natural calendar key carries conflicting accepted states."""
+
+    __slots__ = ("cal_date",)
+
+    def __init__(self, cal_date: str) -> None:
+        """Record the ambiguous provider calendar date."""
+        super().__init__()
+        self.cal_date = cal_date
+
+    def __str__(self) -> str:
+        """Return the stable conflict rule and affected date."""
+        return f"calendar_natural_key_conflict: {self.cal_date}"
+
+
 class MongoUniversePanelReader:
     """Load exact-schema accepted calendar, lifecycle, and daily evidence."""
 
@@ -111,7 +126,6 @@ class MongoUniversePanelReader:
             "schema_manifest_id": schema_manifest_id,
             "quality_status": "ACCEPTED",
             "exchange": "SSE",
-            "is_open": 1,
             "cal_date": {"$gte": _date_string(start_date), "$lte": _date_string(end_date)},
         }
         projection: BsonDocument = {
@@ -124,15 +138,15 @@ class MongoUniversePanelReader:
             CalendarDocument.model_validate(document)
             for document in self._database["canonical_trade_calendar"].find(query, projection)
         )
-        return tuple(
-            sorted(
-                parse_date(item.cal_date)
-                for item in parsed
-                if item.is_open == 1
-                and item.quality_status == "ACCEPTED"
-                and item.schema_manifest_id == schema_manifest_id
-            )
-        )
+        states: dict[str, int] = {}
+        for item in parsed:
+            if item.quality_status != "ACCEPTED" or item.schema_manifest_id != schema_manifest_id:
+                continue
+            previous = states.get(item.cal_date)
+            if previous is not None and previous != item.is_open:
+                raise UniverseCalendarConflictError(item.cal_date)
+            states[item.cal_date] = item.is_open
+        return tuple(sorted(parse_date(day) for day, is_open in states.items() if is_open == 1))
 
     def events(
         self,
