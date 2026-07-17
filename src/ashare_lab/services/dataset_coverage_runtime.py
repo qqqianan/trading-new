@@ -8,6 +8,7 @@ from pymongo import MongoClient
 
 from ashare_lab.data.bson_types import BsonDocument
 from ashare_lab.data.config import DataSettings
+from ashare_lab.data.mongo_store import MongoRawStore
 from ashare_lab.data.schema_registry import SchemaRegistry
 from ashare_lab.research.datasets.artifact_store import MongoDatasetArtifactStore
 from ashare_lab.research.datasets.coverage import CoverageRequest, DatasetComponent
@@ -37,6 +38,7 @@ def qualify_default_dataset(
         ),
         industry=SchemaRegistry.load(Path("schemas/tushare_industry_v1.json")),
     )
+    artifact_schema = SchemaRegistry.load(Path("schemas/research_dataset_v1.json"))
     components = (
         DatasetComponent.MARKET_DAILY,
         DatasetComponent.UNIVERSE,
@@ -49,6 +51,7 @@ def qualify_default_dataset(
         settings.mongodb_uri,
         serverSelectionTimeoutMS=8_000,
     ) as client:
+        MongoRawStore(client, settings.mongodb_database).initialize(artifact_schema)
         reader = MongoCoverageEvidenceReader(
             client[settings.mongodb_database],
             schemas,

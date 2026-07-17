@@ -20,6 +20,7 @@ from ashare_lab.research.datasets.coverage import (
     build_input_manifest,
     qualify_dataset,
 )
+from ashare_lab.research.datasets.identity_chunks import IdentityKind, build_identity_chunks
 from tests.test_balance_sheet_store import Database
 
 ROOT = Path(__file__).parents[1]
@@ -197,14 +198,28 @@ def test_dataset_artifact_schema_closes_report_component_and_manifest_collection
     # When: Mongo validators are generated.
     plan = MongoSchemaBuilder(registry).collection_plan()
 
-    # Then: all three immutable artifact boundaries are registered without source endpoints.
-    assert registry.schema_version == "1.0.0"
+    # Then: reports, matrices, manifests, and bounded identity chunks are registered.
+    assert registry.schema_version == "1.1.0"
     assert registry.endpoint_names == ()
     assert set(plan) == {
         "dataset_component_coverage",
         "dataset_coverage_reports",
+        "dataset_identity_chunks",
         "dataset_input_manifests",
     }
+
+
+def test_identity_chunks_are_bounded_content_addressed_and_complete() -> None:
+    # Given: more immutable lineage IDs than one bounded Mongo chunk may contain.
+    identities = tuple(f"lineage_{index:04d}" for index in range(2_001))
+
+    # When: the identity manifest is split for append-only persistence.
+    chunks = build_identity_chunks("manifest_001", IdentityKind.LINEAGE_EDGE, identities)
+
+    # Then: every identity appears once and repeated construction is stable.
+    assert tuple(identity for chunk in chunks for identity in chunk.identity_ids) == identities
+    assert tuple(len(chunk.identity_ids) for chunk in chunks) == (1_000, 1_000, 1)
+    assert chunks == build_identity_chunks("manifest_001", IdentityKind.LINEAGE_EDGE, identities)
 
 
 def test_dataset_artifact_store_appends_report_matrix_and_manifest() -> None:
@@ -230,4 +245,5 @@ def test_dataset_artifact_store_appends_report_matrix_and_manifest() -> None:
     assert result.component_count == 1
     assert database["dataset_coverage_reports"].update_calls == 1
     assert database["dataset_component_coverage"].bulk_calls == 1
+    assert database["dataset_identity_chunks"].bulk_calls == 1
     assert database["dataset_input_manifests"].update_calls == 1

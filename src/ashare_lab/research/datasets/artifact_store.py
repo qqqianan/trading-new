@@ -15,6 +15,11 @@ from ashare_lab.research.datasets.coverage import (
     DatasetInputManifest,
     QualificationStatus,
 )
+from ashare_lab.research.datasets.identity_chunk_store import (
+    identity_chunk_document,
+    identity_reference_fields,
+    owner_identity_chunks,
+)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -32,6 +37,8 @@ class DatasetArtifactWriteResult:
     component_count: int
     component_inserted_count: int
     manifest_count: int
+    identity_chunk_count: int = 0
+    identity_chunk_inserted_count: int = 0
 
 
 class MongoDatasetArtifactStore:
@@ -59,6 +66,36 @@ class MongoDatasetArtifactStore:
             {"$setOnInsert": coverage_report_document(report, recorded_at)},
             upsert=True,
         )
+        chunks = tuple(
+            chunk
+            for component in report.components
+            for chunk in owner_identity_chunks(
+                _component_id(report.report_id, component.component.value),
+                component.source_snapshot_ids,
+                component.lineage_edge_ids,
+            )
+        )
+        if manifest is not None:
+            chunks += owner_identity_chunks(
+                manifest.manifest_id,
+                manifest.source_snapshot_ids,
+                manifest.lineage_edge_ids,
+            )
+        chunk_operations = [
+            UpdateOne(
+                {"_id": chunk.chunk_id},
+                {"$setOnInsert": identity_chunk_document(chunk)},
+                upsert=True,
+            )
+            for chunk in chunks
+        ]
+        chunks_inserted = (
+            self._database["dataset_identity_chunks"]
+            .bulk_write(chunk_operations, ordered=False)
+            .upserted_count
+            if chunk_operations
+            else 0
+        )
         operations = [
             UpdateOne(
                 {"_id": _component_id(report.report_id, component.component.value)},
@@ -85,6 +122,8 @@ class MongoDatasetArtifactStore:
             component_count=len(report.components),
             component_inserted_count=inserted,
             manifest_count=1 if manifest is not None else 0,
+            identity_chunk_count=len(chunks),
+            identity_chunk_inserted_count=chunks_inserted,
         )
 
 
@@ -117,17 +156,23 @@ def input_manifest_document(
     recorded_at: datetime,
 ) -> BsonDocument:
     """Serialize one closed input manifest document."""
-    return {
+    document: BsonDocument = {
         "_id": manifest.manifest_id,
         "manifest_id": manifest.manifest_id,
         "coverage_report_id": manifest.coverage_report_id,
         "schema_manifest_id": manifest.schema_manifest_id,
         "lineage_manifest_id": manifest.lineage_manifest_id,
         "input_schema_manifest_ids": list(manifest.input_schema_manifest_ids),
-        "source_snapshot_ids": list(manifest.source_snapshot_ids),
-        "lineage_edge_ids": list(manifest.lineage_edge_ids),
         "created_at": recorded_at,
     }
+    document.update(
+        identity_reference_fields(
+            manifest.manifest_id,
+            manifest.source_snapshot_ids,
+            manifest.lineage_edge_ids,
+        )
+    )
+    return document
 
 
 def _component_id(report_id: str, component: str) -> str:
@@ -140,7 +185,7 @@ def _component_document(
     component: ComponentCoverage,
 ) -> BsonDocument:
     identity = _component_id(report_id, component.component.value)
-    return {
+    document: BsonDocument = {
         "_id": identity,
         "component_coverage_id": identity,
         "report_id": report_id,
@@ -148,9 +193,15 @@ def _component_document(
         "start_date": component.start_date.strftime("%Y%m%d") if component.start_date else None,
         "end_date": component.end_date.strftime("%Y%m%d") if component.end_date else None,
         "schema_manifest_ids": list(component.schema_manifest_ids),
-        "source_snapshot_ids": list(component.source_snapshot_ids),
-        "lineage_edge_ids": list(component.lineage_edge_ids),
         "quality_passed": component.quality_passed,
         "point_in_time": component.point_in_time,
         "blockers": list(component.blockers),
     }
+    document.update(
+        identity_reference_fields(
+            identity,
+            component.source_snapshot_ids,
+            component.lineage_edge_ids,
+        )
+    )
+    return document

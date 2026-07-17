@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0", "database": "ashare_quant", "source": "derived",
+  "schema_version": "1.1.0", "database": "ashare_quant", "source": "derived",
   "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
   "raw_envelope": [["_id","string",false,"content_id","lineage","audit"]],
   "canonical_envelope": [["_id","string",false,"content_id","lineage","audit"]],
@@ -17,15 +17,25 @@
       ["_id","string",false,"content_id","lineage","audit"], ["component_coverage_id","string",false,"content_id","lineage","audit"],
       ["report_id","string",false,"content_id","lineage","audit"], ["component","string",false,"enum","none","filter"],
       ["start_date","date_yyyymmdd",true,"calendar_date","event_time","audit"], ["end_date","date_yyyymmdd",true,"calendar_date","event_time","audit"],
-      ["schema_manifest_ids","array_string",false,"content_id","lineage","audit"], ["source_snapshot_ids","array_string",false,"content_id","lineage","audit"],
-      ["lineage_edge_ids","array_string",false,"content_id","lineage","audit"], ["quality_passed","bool",false,"none","none","filter"],
+      ["schema_manifest_ids","array_string",false,"content_id","lineage","audit"], ["source_snapshot_chunk_ids","array_string",false,"content_id","lineage","audit"],
+      ["source_snapshot_count","int",false,"count","none","audit"], ["source_snapshot_sha256","string",false,"sha256","lineage","audit"],
+      ["lineage_edge_chunk_ids","array_string",false,"content_id","lineage","audit"], ["lineage_edge_count","int",false,"count","none","audit"],
+      ["lineage_edge_sha256","string",false,"sha256","lineage","audit"], ["quality_passed","bool",false,"none","none","filter"],
       ["point_in_time","bool",false,"none","none","filter"], ["blockers","array_string",false,"rule_code","none","audit"]
+    ]},
+    "dataset_identity_chunks": {"natural_key": ["identity_chunk_id"], "fields": [
+      ["_id","string",false,"content_id","lineage","audit"], ["identity_chunk_id","string",false,"content_id","lineage","audit"],
+      ["owner_id","string",false,"content_id","lineage","filter"], ["identity_kind","string",false,"enum_source_snapshot_lineage_edge","none","filter"],
+      ["chunk_index","int",false,"ordinal","none","audit"], ["identity_ids","array_string",false,"content_id","lineage","audit"],
+      ["identity_count","int",false,"count","none","audit"], ["content_sha256","string",false,"sha256","lineage","audit"]
     ]},
     "dataset_input_manifests": {"natural_key": ["manifest_id"], "fields": [
       ["_id","string",false,"content_id","lineage","audit"], ["manifest_id","string",false,"content_id","lineage","audit"],
       ["coverage_report_id","string",false,"content_id","lineage","audit"], ["schema_manifest_id","string",false,"content_id","lineage","audit"],
       ["lineage_manifest_id","string",false,"content_id","lineage","audit"], ["input_schema_manifest_ids","array_string",false,"content_id","lineage","audit"],
-      ["source_snapshot_ids","array_string",false,"content_id","lineage","audit"], ["lineage_edge_ids","array_string",false,"content_id","lineage","audit"],
+      ["source_snapshot_chunk_ids","array_string",false,"content_id","lineage","audit"], ["source_snapshot_count","int",false,"count","none","audit"],
+      ["source_snapshot_sha256","string",false,"sha256","lineage","audit"], ["lineage_edge_chunk_ids","array_string",false,"content_id","lineage","audit"],
+      ["lineage_edge_count","int",false,"count","none","audit"], ["lineage_edge_sha256","string",false,"sha256","lineage","audit"],
       ["created_at","datetime",false,"Asia/Shanghai","ingested_at","audit"]
     ]}
   },
