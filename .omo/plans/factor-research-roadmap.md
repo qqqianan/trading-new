@@ -115,7 +115,7 @@
   QA scenarios: `uv run pytest tests/test_research_preflight.py -q` 覆盖正常身份、缺 Git、脏树晋级、错误数据库、重复 final holdout；Evidence `.omo/evidence/task-1-preflight.txt`
   Commit: Y | `chore(research): establish reproducible project identity` | `.gitignore`, `src/ashare_lab/research/preflight.py`, tests
 
-- [ ] 2. 从 Mongo 治理证据生成真实 DatasetCoverageReport
+- [x] 2. 从 Mongo 治理证据生成真实 DatasetCoverageReport
   What to do: 实现只读 `MongoCoverageEvidenceReader`，对 market daily bundle、universe PIT、benchmark daily、financial PIT 及可选 industry PIT 分别收集共同日期范围、当前 schema ID、accepted Raw snapshot、canonical/PIT lineage 和通过的 quality report；lineage 的 `code_commit` 必须是真实 Git SHA。现有 `workspace_unversioned` 证据一律阻断，并通过从不可变 Raw 追加新转换版本的受治理重物化解除，禁止修改旧 lineage。将现有纯函数 `qualify_dataset()` 作为唯一裁决器，并通过 service/CLI 持久化 coverage report 与 input manifest。零行批次只有完整证据链时算完成。
   Must NOT do: 不让 CLI 手工声明 `quality_passed=True` 或 `point_in_time=True`；不以最新文档时间代替完整覆盖。
   Parallelization: Can parallel Y | Wave 1 | Blocks 3,4,5,6
