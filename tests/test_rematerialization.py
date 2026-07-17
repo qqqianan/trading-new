@@ -17,6 +17,7 @@ from ashare_lab.data.rematerialization import (
     RematerializationResult,
     rematerialize_batches,
 )
+from ashare_lab.data.rematerialization_checkpoint import MongoRematerializationCheckpoint
 from ashare_lab.data.rematerialization_projectors import (
     CanonicalOnlyProjector,
     FinancialIndicatorProjector,
@@ -109,6 +110,27 @@ class _Checkpoint:
         del canonical
         self.completed.add(batch.snapshot.snapshot_id)
         self.recorded.append(batch.snapshot.snapshot_id)
+
+
+class _StoredCheckpointCollection:
+    def __init__(self) -> None:
+        self.last_query: dict[str, str] = {}
+
+    def find_one(
+        self,
+        query: dict[str, str],
+        _projection: dict[str, int],
+    ) -> dict[str, str]:
+        self.last_query = query
+        return {"_id": "lineage_from_prior_non_material_commit"}
+
+
+class _StoredCheckpointDatabase:
+    def __init__(self) -> None:
+        self.collection = _StoredCheckpointCollection()
+
+    def __getitem__(self, _name: str) -> _StoredCheckpointCollection:
+        return self.collection
 
 
 class _UniverseStore:
@@ -244,6 +266,21 @@ def test_rematerialization_does_not_mark_completion_when_projection_fails() -> N
     with pytest.raises(SchemaContractError, match="owned PIT projection failed"):
         rematerialize_batches(job, max_batches=1)
     assert checkpoint.recorded == []
+
+
+def test_checkpoint_reuses_same_version_completion_across_code_commits() -> None:
+    # Given: completion evidence from the same material transform version and schema.
+    database = _StoredCheckpointDatabase()
+    checkpoint = MongoRematerializationCheckpoint.__new__(MongoRematerializationCheckpoint)
+    checkpoint.__dict__["_database"] = database
+    checkpoint.__dict__["_code_commit"] = "new_commit"
+
+    # When: current replay checks whether the stored Raw batch is complete.
+    completed = checkpoint.is_complete("snap_001", "schema_abc")
+
+    # Then: code identity remains audited but is not a non-material replay cursor.
+    assert completed is True
+    assert "code_commit" not in database.collection.last_query
 
 
 def test_canonical_only_projector_records_an_explicit_zero_event_projection() -> None:

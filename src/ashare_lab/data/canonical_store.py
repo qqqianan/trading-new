@@ -26,6 +26,7 @@ _SHANGHAI = ZoneInfo("Asia/Shanghai")
 _MARKET_ENDPOINTS: Final[frozenset[str]] = frozenset(
     {"daily", "adj_factor", "daily_basic", "stk_limit", "suspend_d"}
 )
+_REPLAY_WRITE_CHUNK_SIZE: Final = 500
 
 
 class _SnapshotEvidence(BaseModel):
@@ -126,7 +127,11 @@ class MongoCanonicalStore:
             for record in batch.records
             if record.record_id not in existing
         ]
-        return collection.bulk_write(operations, ordered=False).upserted_count if operations else 0
+        inserted = 0
+        for start in range(0, len(operations), _REPLAY_WRITE_CHUNK_SIZE):
+            chunk = operations[start : start + _REPLAY_WRITE_CHUNK_SIZE]
+            inserted += collection.bulk_write(chunk, ordered=False).upserted_count
+        return inserted
 
     def completed_market_dates(
         self,

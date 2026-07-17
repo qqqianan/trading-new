@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -234,6 +235,55 @@ def test_canonical_replay_does_not_upsert_rows_that_already_exist() -> None:
     assert result.inserted_count == 0
     assert database[schema.canonical_collection].bulk_calls == 0
     assert database["meta_lineage_edges"].update_calls == 1
+
+
+def test_canonical_replay_chunks_large_missing_record_writes() -> None:
+    # Given: one replay batch with more missing rows than a safe Mongo write chunk.
+    registry = SchemaRegistry.load(PROJECT_ROOT / "schemas" / "tushare_p0_v1.json")
+    schema = registry.endpoint("daily")
+    query = TushareQuery(
+        endpoint="daily",
+        params=(QueryParam("trade_date", "20260710"),),
+        fields=schema.field_names,
+    )
+    values = (
+        "000001.SZ",
+        "20260710",
+        10.1,
+        10.3,
+        10.0,
+        10.2,
+        10.0,
+        0.2,
+        2.0,
+        1234.0,
+        5678.0,
+    )
+    observed = datetime(2026, 7, 14, 18, 30, tzinfo=SHANGHAI)
+    raw = build_raw_snapshot(
+        query,
+        TushareClient.table_for_test(schema.field_names, (values,)),
+        schema,
+        registry.manifest_id,
+        SnapshotTiming(observed, observed),
+    )
+    canonical = canonicalize_batch(raw, schema, registry.manifest_id)
+    record = canonical.records[0]
+    large_batch = replace(
+        canonical,
+        records=tuple(
+            replace(record, record_id=f"{record.record_id}_{index}") for index in range(501)
+        ),
+    )
+    database = FakeDatabase()
+    store = MongoCanonicalStore.__new__(MongoCanonicalStore)
+    store.__dict__["_database"] = database
+
+    # When: offline replay writes the missing content-addressed rows.
+    store.write_replayed(schema, large_batch)
+
+    # Then: no single Mongo operation contains the entire oversized batch.
+    assert database[schema.canonical_collection].bulk_calls == 2
 
 
 def test_current_security_master_is_quarantined_from_historical_pit() -> None:

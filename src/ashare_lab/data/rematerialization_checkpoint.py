@@ -35,14 +35,13 @@ class MongoRematerializationCheckpoint:
         self._code_commit = load_git_commit(Path.cwd())
 
     def is_complete(self, snapshot_id: str, schema_manifest_id: str) -> bool:
-        """Check the indexed Raw/schema pair for this exact code completion edge."""
+        """Check the indexed Raw/schema pair for this material transform version."""
         evidence = self._database["meta_lineage_edges"].find_one(
             {
                 "upstream_artifact_id": snapshot_id,
                 "output_schema_id": schema_manifest_id,
                 "transform_name": _TRANSFORM_NAME,
                 "transform_version": _TRANSFORM_VERSION,
-                "code_commit": self._code_commit,
             },
             {"_id": 1},
         )
