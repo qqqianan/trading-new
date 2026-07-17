@@ -2,5 +2,6 @@
 
 from ashare_lab.ml.contracts import ModelArtifact
 from ashare_lab.ml.registry import ModelRecord, ModelStatus
+from ashare_lab.research.experiments import ModelFamily
 
-__all__ = ["ModelArtifact", "ModelRecord", "ModelStatus"]
+__all__ = ["ModelArtifact", "ModelFamily", "ModelRecord", "ModelStatus"]

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from ashare_lab.research.experiments.manifest import ExperimentManifest
+from ashare_lab.research.experiments.manifest import ExperimentManifest, ModelFamily
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
 
 
@@ -20,6 +20,11 @@ class ModelArtifact:
 
 class Trainer(Protocol):
     """Capability implemented by Ridge, LightGBM, and future trainers."""
+
+    @property
+    def model_family(self) -> ModelFamily:
+        """Return the exact experiment family this adapter implements."""
+        ...
 
     def train(
         self,

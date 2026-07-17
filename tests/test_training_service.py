@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from ashare_lab.ml.contracts import ModelArtifact
-from ashare_lab.research.experiments.manifest import ExperimentManifest
+from ashare_lab.research.experiments.manifest import ExperimentManifest, ModelFamily
 from ashare_lab.research.model_governance import (
     ModelGovernanceError,
     ModelPurpose,
@@ -11,7 +11,7 @@ from ashare_lab.research.model_governance import (
     ValidationScheme,
 )
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
-from ashare_lab.services.training import TrainingService
+from ashare_lab.services.training import TrainingService, TrainingServiceError
 
 
 class RecordingTrainer:
@@ -20,6 +20,10 @@ class RecordingTrainer:
     def __init__(self) -> None:
         self.calls = 0
         self.fold_count = 0
+
+    @property
+    def model_family(self) -> ModelFamily:
+        return ModelFamily.RIDGE
 
     def train(
         self,
@@ -45,7 +49,7 @@ def _experiment() -> ExperimentManifest:
         lineage_manifest_id="lineage_abc123",
         rulebook_version="1.1.0",
         git_commit="abcdef1",
-        model_family="ridge",
+        model_family=ModelFamily.RIDGE,
         feature_names=("momentum_20d",),
         label_name="open_to_open_20d",
         split_protocol="purged_walk_forward_v1",
@@ -101,3 +105,15 @@ def test_training_service_calls_trainer_after_governance_approval() -> None:
     assert trainer.fold_count == 1
     assert result.artifact.training_run_id == "run_001"
     assert result.approval.approved is True
+
+
+def test_training_service_rejects_trainer_from_another_model_family() -> None:
+    # Given: a Ridge trainer bound to an experiment declared as a LightGBM ranker.
+    trainer = RecordingTrainer()
+    service = TrainingService(trainer)
+    experiment = _experiment().model_copy(update={"model_family": ModelFamily.LIGHTGBM_RANKER})
+
+    # When / Then: orchestration rejects the mismatch before trainer code executes.
+    with pytest.raises(TrainingServiceError, match="model family"):
+        service.train(_protocol(complete_data_lineage=True), experiment, ())
+    assert trainer.calls == 0

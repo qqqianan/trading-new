@@ -124,3 +124,39 @@ Git commit、模型族、特征清单、标签、split 协议、随机种子和�
 4. 多标的组合回测与组合级风控。
 5. Ridge 基线训练器。
 6. LightGBM Ranker、实验比较和模型注册 UI。
+
+## 9. 模型工程目录与扩展边界
+
+模型算法是可替换适配器，不拥有数据治理、预处理、组合、风控或成交规则。目录固定为：
+
+```text
+research/
+  datasets/          # DatasetSpec、资格证据和不可变训练数据引用
+  features/          # 与模型无关的 PIT 原始因子
+  labels/            # 与特征物理隔离的未来标签
+  preprocessing/     # 只在当前训练 fold 拟合的统一预处理
+  splits/            # purge、embargo、walk-forward 和最终测试封存
+  experiments/       # ModelFamily、ExperimentManifest 和试验账本
+
+ml/
+  contracts.py       # Trainer Protocol 和模型产物公共契约
+  trainers/          # 具体算法库适配器
+    ridge.py         # 第一阶段；只实现 Ridge 的拟合、预测和序列化
+    lightgbm_ranker.py # 后续阶段；未满足晋级条件前不得实现或启用
+  registry.py        # 与算法无关的 DRAFT/VALIDATED/REJECTED/RETIRED 生命周期
+
+services/
+  training.py        # 唯一训练入口；校验模型族并先执行 ModelTrainingGuard
+
+portfolio/           # 模型分数到目标权重，不导入具体训练器
+backtest/            # 风控后的订单、成交和账户事实来源
+```
+
+硬边界：
+
+- `Trainer` 必须声明一个闭集 `ModelFamily`。实验声明与实现不一致时，训练开始前拒绝。
+- `ml/trainers/` 不得导入 `api`、`data`、`services`、`portfolio`、`backtest` 或 `strategies`。
+- Ridge 和 LightGBM 必须读取相同的 DatasetSpec、fold 与预处理产物；不得在算法文件中各自清洗数据。
+- 新模型只新增一个 trainer adapter 和对应测试，不修改特征、标签、组合、风险或回测规则。
+- 具体 trainer 不调用 `ModelTrainingGuard`。所有训练统一由 `TrainingService` 先审批再调用一次。
+- LightGBM 只有在相同快照、split、组合、成本和风险参数下稳定胜过 Ridge 后才可申请晋级。

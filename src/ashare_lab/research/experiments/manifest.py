@@ -1,6 +1,16 @@
 """Versioned lineage for one model-training experiment."""
 
+from enum import StrEnum, unique
+
 from pydantic import BaseModel, ConfigDict, Field
+
+
+@unique
+class ModelFamily(StrEnum):
+    """Closed model families permitted by governed experiments."""
+
+    RIDGE = "ridge"
+    LIGHTGBM_RANKER = "lightgbm_ranker"
 
 
 class ExperimentManifest(BaseModel):
@@ -14,7 +24,7 @@ class ExperimentManifest(BaseModel):
     lineage_manifest_id: str = Field(pattern=r"^lineage_[0-9a-f]+$")
     rulebook_version: str = Field(min_length=1)
     git_commit: str = Field(pattern=r"^[0-9a-f]{7,40}$")
-    model_family: str = Field(min_length=1)
+    model_family: ModelFamily
     feature_names: tuple[str, ...] = Field(min_length=1)
     label_name: str = Field(min_length=1)
     split_protocol: str = Field(min_length=1)

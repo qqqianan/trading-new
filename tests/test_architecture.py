@@ -16,10 +16,12 @@ def test_required_engineering_structure_exists() -> None:
         PROJECT_ROOT / "docs" / "ML_SYSTEM_ARCHITECTURE.md",
         SOURCE_ROOT / "governance" / "__init__.py",
         SOURCE_ROOT / "ml" / "__init__.py",
+        SOURCE_ROOT / "ml" / "trainers" / "__init__.py",
         SOURCE_ROOT / "portfolio" / "__init__.py",
         SOURCE_ROOT / "research" / "datasets" / "__init__.py",
         SOURCE_ROOT / "research" / "features" / "__init__.py",
         SOURCE_ROOT / "research" / "labels" / "__init__.py",
+        SOURCE_ROOT / "research" / "preprocessing" / "__init__.py",
         SOURCE_ROOT / "research" / "splits" / "__init__.py",
         SOURCE_ROOT / "research" / "experiments" / "__init__.py",
     )
@@ -108,4 +110,24 @@ def test_runtime_code_never_references_legacy_database() -> None:
     ]
 
     # Then: no supported execution path can read the legacy database.
+    assert violations == []
+
+
+def test_concrete_trainers_do_not_depend_on_orchestration_or_trading_layers() -> None:
+    # Given: concrete model adapters and layers they must never control.
+    trainer_root = SOURCE_ROOT / "ml" / "trainers"
+    forbidden = {"api", "backtest", "data", "portfolio", "services", "strategies"}
+    violations: list[str] = []
+
+    # When: imports in every concrete trainer module are inspected.
+    for path in trainer_root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.module is None:
+                continue
+            parts = node.module.split(".")
+            if len(parts) >= 2 and parts[0] == "ashare_lab" and parts[1] in forbidden:
+                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}")
+
+    # Then: model libraries remain replaceable behind the shared Trainer protocol.
     assert violations == []

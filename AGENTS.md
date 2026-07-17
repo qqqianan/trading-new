@@ -54,6 +54,8 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - `research/splits/`：Walk-forward、purge 和 embargo。
 - `research/experiments/`：可复现实验清单。
 - `ml/`：训练器协议、模型产物和模型注册。
+- `ml/trainers/`：具体模型适配器；Ridge 与未来 LightGBM 平行实现，不得包含数据清洗、组合、风控或成交逻辑。
+- `research/preprocessing/`：所有模型共用的训练折内预处理，具体 trainer 不得复制。
 - `portfolio/`：预测分数到目标权重，不能创建成交。
 - `backtest/`：A 股成交、费用、持仓与风险执行的唯一事实来源。
 - `services/`：编排用例，不复制领域规则。
