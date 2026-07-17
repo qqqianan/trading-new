@@ -16,7 +16,7 @@
 - 特征、标签、股票池、schema、转换、参数和代码版本都内容寻址并具备字段级 lineage。
 - 原始因子物化与标签物理隔离；去极值、填充、标准化、行业/规模中性化只在训练折内拟合。
 - 因子研究必须登记全部试验并执行 Benjamini-Hochberg FDR 控制，禁止只留下表现最好的结果。
-- Top 30 等权组合，默认现金 5%、单票上限 5%、单行业上限 20%、单次调仓换手上限 25%、成交量参与率上限 5%。
+- Top 30 等权组合，默认现金 5%、单票上限 5%、单次调仓换手上限 25%、成交量参与率上限 5%；单行业上限 20% 仅在当时已有 PIT 行业证据时强制。
 - 回测保留 T+1、100 股一手、停牌、涨跌停、费用、滑点、成交量、未成交和受阻退出。
 - 最终测试区独立封存，只有特征、组合、成本、风险和模型参数全部冻结后才允许一次性打开。
 
@@ -38,7 +38,8 @@
 - 开发 Walk-forward：初始训练 504 个交易日、验证 126 个交易日、滚动步长 63 个交易日、purge 20、embargo 5；最终测试区不属于任何开发 fold。
 - 股票准入：历史时点已上市至少 120 个交易日、ST/名称状态已知且非 ST、过去 60 日中至少 50 日有行情、过去 20 日成交额中位数不少于 2,000 万元。
 - 停牌、涨跌停属于当日可交易性与成交约束，不得通过删除历史样本消失；持仓标的即使不再允许新买也继续进入盯市和退出流程。
-- 因子原值不做跨期拟合。训练折预处理顺序固定为：按训练折估计 1%/99% 边界 -> 截面中位数填充并附缺失指示器 -> 截面 z-score -> 可选行业与 `log(total_mv)` 中性化。
+- 因子原值不做跨期拟合。训练折预处理顺序固定为：按训练折估计 1%/99% 边界 -> 截面中位数填充并附缺失指示器 -> 截面 z-score -> `log(total_mv)` 中性化；行业中性化仅能用于首次 PIT 观察后的区间。
+- 当前申万成员的最早 `available_at` 是 2026 年，禁止回填到 2020 年。因此 2020-2025 的行业暴露只能标记为 `UNAVAILABLE`，对应研究状态保持 `DRAFT`，不能声称通过完整组合风险门禁。
 
 ## First factor catalog
 
@@ -115,11 +116,11 @@
   Commit: Y | `chore(research): establish reproducible project identity` | `.gitignore`, `src/ashare_lab/research/preflight.py`, tests
 
 - [ ] 2. 从 Mongo 治理证据生成真实 DatasetCoverageReport
-  What to do: 实现只读 `MongoCoverageEvidenceReader`，对 market daily bundle、universe PIT、benchmark daily、financial PIT、industry PIT 分别收集共同日期范围、当前 schema ID、accepted Raw snapshot、canonical/PIT lineage 和通过的 quality report；将现有纯函数 `qualify_dataset()` 作为唯一裁决器，并通过 service/CLI 持久化 coverage report 与 input manifest。零行批次只有完整证据链时算完成。
+  What to do: 实现只读 `MongoCoverageEvidenceReader`，对 market daily bundle、universe PIT、benchmark daily、financial PIT 及可选 industry PIT 分别收集共同日期范围、当前 schema ID、accepted Raw snapshot、canonical/PIT lineage 和通过的 quality report；lineage 的 `code_commit` 必须是真实 Git SHA。现有 `workspace_unversioned` 证据一律阻断，并通过从不可变 Raw 追加新转换版本的受治理重物化解除，禁止修改旧 lineage。将现有纯函数 `qualify_dataset()` 作为唯一裁决器，并通过 service/CLI 持久化 coverage report 与 input manifest。零行批次只有完整证据链时算完成。
   Must NOT do: 不让 CLI 手工声明 `quality_passed=True` 或 `point_in_time=True`；不以最新文档时间代替完整覆盖。
   Parallelization: Can parallel Y | Wave 1 | Blocks 3,4,5,6
   References: `src/ashare_lab/research/datasets/coverage.py:29`; `src/ashare_lab/research/datasets/coverage_models.py:8`; `src/ashare_lab/research/datasets/artifact_store.py:1`; `src/ashare_lab/data/canonical_store.py:94`; `docs/ML_SYSTEM_ARCHITECTURE.md:72`
-  Acceptance criteria: 对 `2020-01-02` 至冻结截止日生成可复现报告；删去任一模拟 quality/lineage/Raw 证据立即变为 `BLOCKED`；重复执行 ID 不变且不重复插入；生产只读 Mongo reader 不访问 legacy database。
+  Acceptance criteria: 对 `2020-01-02` 至冻结截止日生成可复现报告；未重物化前明确报告 `unversioned_lineage`，重物化后旧证据仍保留而新证据绑定真实 Git SHA；删去任一模拟 quality/lineage/Raw 证据立即变为 `BLOCKED`；重复执行 ID 不变且不重复插入；生产只读 Mongo reader 不访问 legacy database。
   QA scenarios: `uv run pytest tests/test_dataset_evidence_reader.py tests/test_dataset_coverage_service.py -q`；本机只读 dry-run 输出组件矩阵到 `.omo/evidence/task-2-coverage.json`
   Commit: Y | `feat(dataset): derive qualification from governed mongo evidence` | `research/datasets`, `services`, CLI, tests
 
@@ -187,7 +188,7 @@
   Commit: Y | `feat(research): add audited factor diagnostics` | `research/factors`, `research/experiments`, reports, tests
 
 - [ ] 10. 实现周频 Top 30 组合构建器与组合级事前风控
-  What to do: 简单基线先按已准入候选因子的等权 z-score 合成分数，按 symbol 稳定打破并列，选择 Top 30，目标总仓位 95%。组合构建器只产生目标权重；组合 RiskEngine 检查单票 5%、持仓 30、行业 20%、现金 5%、调仓换手 25%、成交量参与率 5%、集中度和容量，并输出 resize/reject 事件。无法新买不等于强制卖出，退出意图持续保留。
+  What to do: 简单基线先按已准入候选因子的等权 z-score 合成分数，按 symbol 稳定打破并列，选择 Top 30，目标总仓位 95%。组合构建器只产生目标权重；组合 RiskEngine 检查单票 5%、持仓 30、现金 5%、调仓换手 25%、成交量参与率 5%、集中度和容量，并输出 resize/reject 事件；行业 PIT 已知时另强制单行业 20%，未知时记录 `INDUSTRY_EXPOSURE_UNAVAILABLE` 并阻止研究晋级为 `VALIDATED`。无法新买不等于强制卖出，退出意图持续保留。
   Must NOT do: 不在策略、API 或模型中复制风险规则，不让 target weight 直接成为成交。
   Parallelization: Can parallel N | Wave 4 | Blocks 11
   References: `src/ashare_lab/portfolio/contracts.py:1`; `src/ashare_lab/backtest/risk.py:17`; `src/ashare_lab/domain/risk.py`; `docs/ML_SYSTEM_ARCHITECTURE.md:107`
@@ -243,5 +244,5 @@
 - 21 个基础因子和独立标签均有 schema、PIT 证明、quality、lineage 和稳定 artifact ID。
 - 因子报告包含全部试验、FDR、分段、最差区间、换手、费用和容量，不挑选性展示。
 - Top 30 周频组合只能通过组合风控进入多标的回测，所有缩量、拒绝、未成交和退出受阻均可审计。
-- Ridge 只能通过 TrainingService 和实际证据驱动的 ModelTrainingGuard 训练，默认 DRAFT，最终测试最多一次。
+- Ridge 只能通过 TrainingService 和实际证据驱动的 ModelTrainingGuard 训练，默认 DRAFT，最终测试最多一次；历史行业 PIT 缺口未解决前不得晋级为完整风险门禁下的 `VALIDATED`。
 - `make check` 全部通过且覆盖率不低于 90%；没有未来函数、生存者偏差、财务修订泄漏或风控旁路。
