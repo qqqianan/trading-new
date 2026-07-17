@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.2", "database": "ashare_quant", "source": "tushare",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id","string",false,"content_id","lineage","audit"], ["snapshot_id","string",false,"none","lineage","audit"],
+    ["row_ordinal","int",false,"row","none","audit"], ["ingested_at","datetime",false,"Asia/Shanghai","ingested_at","audit"],
+    ["row_sha256","string",false,"sha256","lineage","audit"], ["payload","document",false,"provider_native","source","normalization"]
+  ],
+  "canonical_envelope": [
+    ["_id","string",false,"content_id","lineage","audit"], ["record_id","string",false,"content_id","lineage","audit"],
+    ["schema_manifest_id","string",false,"content_id","lineage","audit"], ["source_snapshot_id","string",false,"content_id","lineage","audit"],
+    ["source_row_sha256","string",false,"sha256","lineage","audit"], ["transform_name","string",false,"none","lineage","audit"],
+    ["transform_version","string",false,"semver","lineage","audit"], ["event_time","datetime",false,"Asia/Shanghai","event_time","audit"],
+    ["available_at","datetime",false,"Asia/Shanghai","available_at","audit"], ["ingested_at","datetime",false,"Asia/Shanghai","ingested_at","audit"],
+    ["quality_status","string",false,"enum","none","filter"], ["quality_report_id","string",false,"content_id","lineage","audit"]
+  ],
+  "governance_collections": {},
+  "managed_collections": {
+    "pit_index_weights": {"natural_key": ["event_id"], "fields": [
+      ["_id","string",false,"content_id","lineage","audit"], ["event_id","string",false,"content_id","lineage","audit"],
+      ["event_type","string",false,"enum_INDEX_WEIGHT_PUBLISHED","event_time","benchmark"], ["effective_at","datetime",false,"Asia/Shanghai","event_time","benchmark"],
+      ["available_at","datetime",false,"Asia/Shanghai","available_at","benchmark"], ["ingested_at","datetime",false,"Asia/Shanghai","ingested_at","audit"],
+      ["source_snapshot_id","string",false,"content_id","lineage","audit"], ["source_row_sha256","string",false,"sha256","lineage","audit"],
+      ["input_schema_manifest_id","string",false,"content_id","lineage","audit"], ["schema_manifest_id","string",false,"content_id","lineage","audit"],
+      ["transform_name","string",false,"none","lineage","audit"], ["transform_version","string",false,"semver","lineage","audit"],
+      ["quality_status","string",false,"enum_ACCEPTED","none","filter"], ["quality_report_id","string",false,"content_id","lineage","audit"],
+      ["index_code","string",false,"index_code","identity","filter"], ["con_code","string",false,"security_code","identity","filter"],
+      ["trade_date","string",false,"calendar_date","event_time","filter"], ["weight","float",false,"percent","attribute","feature"]
+    ]}
+  },
+  "endpoints": {
+    "index_basic": {"raw_collection":"raw_tushare_index_basic","canonical_collection":"canonical_index_master","natural_key":["ts_code"],"event_time_field":"ts_code","available_at_policy":"observed_master_snapshot","fields":[
+      ["ts_code","string",false,"index_code","identity","filter"], ["name","string",false,"none","attribute","feature"],
+      ["fullname","string",true,"none","attribute","feature"], ["market","string",false,"provider_enum","attribute","filter"],
+      ["publisher","string",true,"none","attribute","audit"], ["index_type","string",true,"provider_enum","attribute","filter"],
+      ["category","string",true,"provider_enum","attribute","filter"], ["base_date","date_yyyymmdd",true,"calendar_date","attribute","audit"],
+      ["base_point","float",true,"index_point","attribute","audit"], ["list_date","date_yyyymmdd",true,"calendar_date","attribute","audit"],
+      ["weight_rule","string",true,"none","attribute","audit"], ["desc","string",true,"none","attribute","audit"]
+    ]},
+    "index_daily": {"raw_collection":"raw_tushare_index_daily","canonical_collection":"canonical_index_daily_bar","natural_key":["ts_code","trade_date"],"event_time_field":"trade_date","available_at_policy":"trade_date_close_plus_provider_delay","fields":[
+      ["ts_code","string",false,"index_code","identity","filter"], ["trade_date","date_yyyymmdd",false,"calendar_date","event_time","filter"],
+      ["close","float",false,"index_point","attribute","benchmark"], ["open","float",true,"index_point","attribute","benchmark"],
+      ["high","float",true,"index_point","attribute","benchmark"], ["low","float",true,"index_point","attribute","benchmark"],
+      ["pre_close","float",true,"index_point","attribute","benchmark"], ["change","float",true,"index_point","attribute","benchmark"],
+      ["pct_chg","float",true,"percent","attribute","benchmark"], ["vol","float",true,"provider_native","attribute","audit"],
+      ["amount","float",true,"provider_native","attribute","audit"]
+    ]},
+    "index_weight": {"raw_collection":"raw_tushare_index_weight","canonical_collection":"canonical_index_membership","natural_key":["index_code","con_code","trade_date"],"event_time_field":"trade_date","available_at_policy":"trade_date_close_plus_provider_delay","fields":[
+      ["index_code","string",false,"index_code","identity","filter"], ["con_code","string",false,"security_code","identity","filter"],
+      ["trade_date","date_yyyymmdd",false,"calendar_date","event_time","filter"], ["weight","float",false,"percent","attribute","feature"]
+    ]}
+  }
+}

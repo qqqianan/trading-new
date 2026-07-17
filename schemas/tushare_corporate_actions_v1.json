@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0.0",
+  "database": "ashare_quant",
+  "source": "tushare",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["snapshot_id", "string", false, "none", "lineage", "audit"],
+    ["row_ordinal", "int", false, "row", "none", "audit"],
+    ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["row_sha256", "string", false, "sha256", "lineage", "audit"],
+    ["payload", "document", false, "provider_native", "source", "normalization"]
+  ],
+  "canonical_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["record_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_snapshot_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_row_sha256", "string", false, "sha256", "lineage", "audit"],
+    ["transform_name", "string", false, "none", "lineage", "audit"],
+    ["transform_version", "string", false, "semver", "lineage", "audit"],
+    ["event_time", "datetime", false, "Asia/Shanghai", "event_time", "audit"],
+    ["available_at", "datetime", false, "Asia/Shanghai", "available_at", "audit"],
+    ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["quality_status", "string", false, "enum", "none", "filter"],
+    ["quality_report_id", "string", false, "content_id", "lineage", "audit"]
+  ],
+  "governance_collections": {},
+  "managed_collections": {
+    "pit_dividend_events": {
+      "natural_key": ["event_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["event_id", "string", false, "content_id", "lineage", "audit"],
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["end_date", "string", false, "calendar_date", "event_time", "filter"],
+        ["event_type", "string", false, "enum_PLAN_IMPLEMENTATION", "event_time", "corporate_action"],
+        ["effective_at", "datetime", false, "Asia/Shanghai", "event_time", "corporate_action"],
+        ["available_at", "datetime", false, "Asia/Shanghai", "available_at", "corporate_action"],
+        ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+        ["div_proc", "string", true, "none", "attribute", "corporate_action"],
+        ["stk_div", "float", true, "share_per_share", "attribute", "corporate_action"],
+        ["stk_bo_rate", "float", true, "share_per_share", "attribute", "corporate_action"],
+        ["stk_co_rate", "float", true, "share_per_share", "attribute", "corporate_action"],
+        ["cash_div", "float", true, "CNY_per_share_pre_tax", "attribute", "corporate_action"],
+        ["cash_div_tax", "float", true, "CNY_per_share_after_tax", "attribute", "corporate_action"],
+        ["record_date", "string", true, "calendar_date", "event_time", "corporate_action"],
+        ["ex_date", "string", true, "calendar_date", "event_time", "corporate_action"],
+        ["pay_date", "string", true, "calendar_date", "event_time", "corporate_action"],
+        ["div_listdate", "string", true, "calendar_date", "event_time", "corporate_action"],
+        ["source_snapshot_id", "string", false, "content_id", "lineage", "audit"],
+        ["source_row_sha256", "string", false, "sha256", "lineage", "audit"],
+        ["input_schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+        ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+        ["transform_name", "string", false, "none", "lineage", "audit"],
+        ["transform_version", "string", false, "semver", "lineage", "audit"],
+        ["quality_status", "string", false, "enum", "none", "filter"],
+        ["quality_report_id", "string", false, "content_id", "lineage", "audit"]
+      ]
+    }
+  },
+  "endpoints": {
+    "dividend": {
+      "raw_collection": "raw_tushare_dividend",
+      "canonical_collection": "canonical_dividend_event",
+      "natural_key": ["ts_code", "end_date", "ann_date", "div_proc", "imp_ann_date"],
+      "event_time_field": "end_date",
+      "available_at_policy": "announcement_date_or_observed",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["end_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["ann_date", "date_yyyymmdd", true, "calendar_date", "available_at", "corporate_action"],
+        ["div_proc", "string", true, "provider_enum", "attribute", "corporate_action"],
+        ["stk_div", "float", true, "share_per_share", "attribute", "corporate_action"],
+        ["stk_bo_rate", "float", true, "share_per_share", "attribute", "corporate_action"],
+        ["stk_co_rate", "float", true, "share_per_share", "attribute", "corporate_action"],
+        ["cash_div", "float", true, "CNY_per_share_pre_tax", "attribute", "corporate_action"],
+        ["cash_div_tax", "float", true, "CNY_per_share_after_tax", "attribute", "corporate_action"],
+        ["record_date", "date_yyyymmdd", true, "calendar_date", "event_time", "corporate_action"],
+        ["ex_date", "date_yyyymmdd", true, "calendar_date", "event_time", "corporate_action"],
+        ["pay_date", "date_yyyymmdd", true, "calendar_date", "event_time", "corporate_action"],
+        ["div_listdate", "date_yyyymmdd", true, "calendar_date", "event_time", "corporate_action"],
+        ["imp_ann_date", "date_yyyymmdd", true, "calendar_date", "available_at", "corporate_action"],
+        ["base_date", "date_yyyymmdd", true, "calendar_date", "event_time", "audit"],
+        ["base_share", "float", true, "ten_thousand_shares", "attribute", "audit"]
+      ]
+    }
+  }
+}

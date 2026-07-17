@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0", "database": "ashare_quant", "source": "derived",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [["_id","string",false,"content_id","lineage","audit"]],
+  "canonical_envelope": [["_id","string",false,"content_id","lineage","audit"]],
+  "governance_collections": {},
+  "managed_collections": {
+    "dataset_coverage_reports": {"natural_key": ["report_id"], "fields": [
+      ["_id","string",false,"content_id","lineage","audit"], ["report_id","string",false,"content_id","lineage","audit"],
+      ["requested_start","date_yyyymmdd",false,"calendar_date","event_time","filter"], ["requested_end","date_yyyymmdd",false,"calendar_date","event_time","filter"],
+      ["required_components","array_string",false,"component","none","audit"], ["status","string",false,"enum_QUALIFIED_BLOCKED","none","filter"],
+      ["qualified_start","date_yyyymmdd",true,"calendar_date","event_time","audit"], ["qualified_end","date_yyyymmdd",true,"calendar_date","event_time","audit"],
+      ["blockers","array_string",false,"rule_code","none","audit"], ["rulebook_version","string",false,"semver","none","audit"],
+      ["computed_at","datetime",false,"Asia/Shanghai","ingested_at","audit"]
+    ]},
+    "dataset_component_coverage": {"natural_key": ["component_coverage_id"], "fields": [
+      ["_id","string",false,"content_id","lineage","audit"], ["component_coverage_id","string",false,"content_id","lineage","audit"],
+      ["report_id","string",false,"content_id","lineage","audit"], ["component","string",false,"enum","none","filter"],
+      ["start_date","date_yyyymmdd",true,"calendar_date","event_time","audit"], ["end_date","date_yyyymmdd",true,"calendar_date","event_time","audit"],
+      ["schema_manifest_ids","array_string",false,"content_id","lineage","audit"], ["source_snapshot_ids","array_string",false,"content_id","lineage","audit"],
+      ["lineage_edge_ids","array_string",false,"content_id","lineage","audit"], ["quality_passed","bool",false,"none","none","filter"],
+      ["point_in_time","bool",false,"none","none","filter"], ["blockers","array_string",false,"rule_code","none","audit"]
+    ]},
+    "dataset_input_manifests": {"natural_key": ["manifest_id"], "fields": [
+      ["_id","string",false,"content_id","lineage","audit"], ["manifest_id","string",false,"content_id","lineage","audit"],
+      ["coverage_report_id","string",false,"content_id","lineage","audit"], ["schema_manifest_id","string",false,"content_id","lineage","audit"],
+      ["lineage_manifest_id","string",false,"content_id","lineage","audit"], ["input_schema_manifest_ids","array_string",false,"content_id","lineage","audit"],
+      ["source_snapshot_ids","array_string",false,"content_id","lineage","audit"], ["lineage_edge_ids","array_string",false,"content_id","lineage","audit"],
+      ["created_at","datetime",false,"Asia/Shanghai","ingested_at","audit"]
+    ]}
+  },
+  "endpoints": {}
+}

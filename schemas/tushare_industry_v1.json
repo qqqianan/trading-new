@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.1", "database": "ashare_quant", "source": "tushare",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id","string",false,"content_id","lineage","audit"], ["snapshot_id","string",false,"none","lineage","audit"],
+    ["row_ordinal","int",false,"row","none","audit"], ["ingested_at","datetime",false,"Asia/Shanghai","ingested_at","audit"],
+    ["row_sha256","string",false,"sha256","lineage","audit"], ["payload","document",false,"provider_native","source","normalization"]
+  ],
+  "canonical_envelope": [
+    ["_id","string",false,"content_id","lineage","audit"], ["record_id","string",false,"content_id","lineage","audit"],
+    ["schema_manifest_id","string",false,"content_id","lineage","audit"], ["source_snapshot_id","string",false,"content_id","lineage","audit"],
+    ["source_row_sha256","string",false,"sha256","lineage","audit"], ["transform_name","string",false,"none","lineage","audit"],
+    ["transform_version","string",false,"semver","lineage","audit"], ["event_time","datetime",false,"Asia/Shanghai","event_time","audit"],
+    ["available_at","datetime",false,"Asia/Shanghai","available_at","audit"], ["ingested_at","datetime",false,"Asia/Shanghai","ingested_at","audit"],
+    ["quality_status","string",false,"enum","none","filter"], ["quality_report_id","string",false,"content_id","lineage","audit"]
+  ],
+  "governance_collections": {},
+  "managed_collections": {
+    "pit_industry_memberships": {"natural_key": ["membership_id"], "fields": [
+      ["_id","string",false,"content_id","lineage","audit"], ["membership_id","string",false,"content_id","lineage","audit"],
+      ["available_at","datetime",false,"Asia/Shanghai","available_at","filter"], ["ingested_at","datetime",false,"Asia/Shanghai","ingested_at","audit"],
+      ["effective_from","datetime",false,"Asia/Shanghai","event_time","filter"], ["effective_to","datetime",true,"Asia/Shanghai","event_time","filter"],
+      ["source_snapshot_id","string",false,"content_id","lineage","audit"], ["source_row_sha256","string",false,"sha256","lineage","audit"],
+      ["input_schema_manifest_id","string",false,"content_id","lineage","audit"], ["schema_manifest_id","string",false,"content_id","lineage","audit"],
+      ["transform_name","string",false,"none","lineage","audit"], ["transform_version","string",false,"semver","lineage","audit"],
+      ["quality_status","string",false,"enum_ACCEPTED","none","filter"], ["quality_report_id","string",false,"content_id","lineage","audit"],
+      ["index_code","string",false,"industry_code","identity","filter"], ["con_code","string",false,"security_code","identity","filter"],
+      ["in_date","date_yyyymmdd",false,"calendar_date","event_time","audit"], ["out_date","date_yyyymmdd",true,"calendar_date","event_time","audit"],
+      ["is_new","string",true,"provider_enum_Y_N","attribute","audit"]
+    ]}
+  },
+  "endpoints": {
+    "index_classify": {"raw_collection":"raw_tushare_index_classify","canonical_collection":"canonical_industry_master","natural_key":["index_code"],"event_time_field":"index_code","available_at_policy":"observed_master_snapshot","fields":[
+      ["index_code","string",false,"industry_code","identity","filter"], ["industry_name","string",false,"none","attribute","feature"],
+      ["level","string",false,"provider_enum_L1_L2_L3","attribute","filter"], ["industry_code","string",true,"industry_code","attribute","audit"],
+      ["is_pub","string",true,"provider_enum_Y_N","attribute","audit"], ["parent_code","string",true,"industry_code","attribute","filter"],
+      ["src","string",false,"provider_enum","attribute","filter"]
+    ]},
+    "index_member": {"raw_collection":"raw_tushare_index_member","canonical_collection":"canonical_industry_membership","natural_key":["index_code","con_code","in_date","out_date"],"event_time_field":"in_date","available_at_policy":"observed_membership_snapshot","fields":[
+      ["index_code","string",false,"industry_code","identity","filter"], ["con_code","string",false,"security_code","identity","filter"],
+      ["in_date","date_yyyymmdd",false,"calendar_date","event_time","audit"], ["out_date","date_yyyymmdd",true,"calendar_date","event_time","audit"],
+      ["is_new","string",true,"provider_enum_Y_N","attribute","audit"]
+    ]}
+  }
+}

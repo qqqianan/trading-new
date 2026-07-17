@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.1.1",
+  "database": "ashare_quant",
+  "source": "tushare",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["snapshot_id", "string", false, "none", "lineage", "audit"],
+    ["row_ordinal", "int", false, "row", "none", "audit"],
+    ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["row_sha256", "string", false, "sha256", "lineage", "audit"],
+    ["payload", "document", false, "provider_native", "source", "normalization"]
+  ],
+  "canonical_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["record_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_snapshot_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_row_sha256", "string", false, "sha256", "lineage", "audit"],
+    ["transform_name", "string", false, "none", "lineage", "audit"],
+    ["transform_version", "string", false, "semver", "lineage", "audit"],
+    ["event_time", "datetime", false, "Asia/Shanghai", "event_time", "feature"],
+    ["available_at", "datetime", false, "Asia/Shanghai", "available_at", "feature"],
+    ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["quality_status", "string", false, "enum", "none", "filter"],
+    ["quality_report_id", "string", false, "content_id", "lineage", "audit"]
+  ],
+  "governance_collections": {},
+  "managed_collections": {
+    "pit_security_events": {
+      "natural_key": ["event_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["event_id", "string", false, "content_id", "lineage", "audit"],
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["event_type", "string", false, "enum_LISTED_FIRST_TRADED_DELISTED_NAME_STATUS", "event_time", "universe"],
+        ["effective_at", "datetime", false, "Asia/Shanghai", "event_time", "universe"],
+        ["available_at", "datetime", false, "Asia/Shanghai", "available_at", "universe"],
+        ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+        ["name", "string", true, "none", "attribute", "display"],
+        ["is_st", "bool", true, "boolean", "attribute", "universe"],
+        ["source_endpoint", "string", false, "none", "lineage", "audit"],
+        ["source_snapshot_id", "string", false, "content_id", "lineage", "audit"],
+        ["source_row_sha256", "string", false, "sha256", "lineage", "audit"],
+        ["input_schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+        ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+        ["transform_name", "string", false, "none", "lineage", "audit"],
+        ["transform_version", "string", false, "semver", "lineage", "audit"],
+        ["quality_status", "string", false, "enum", "none", "filter"],
+        ["quality_report_id", "string", false, "content_id", "lineage", "audit"]
+      ]
+    }
+  },
+  "endpoints": {
+    "stock_basic": {
+      "raw_collection": "raw_tushare_stock_basic",
+      "canonical_collection": "canonical_security_master",
+      "natural_key": ["ts_code", "list_status", "list_date", "delist_date"],
+      "event_time_field": "list_date",
+      "available_at_policy": "source_snapshot_observed_at",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["symbol", "string", false, "security_code", "identity", "filter"],
+        ["name", "string", false, "none", "attribute", "display"],
+        ["area", "string", true, "none", "attribute", "feature"],
+        ["industry", "string", true, "none", "attribute", "quarantine_only"],
+        ["fullname", "string", true, "none", "attribute", "display"],
+        ["enname", "string", true, "none", "attribute", "display"],
+        ["cnspell", "string", true, "none", "attribute", "display"],
+        ["market", "string", true, "market_code", "attribute", "filter"],
+        ["exchange", "string", false, "exchange_code", "attribute", "filter"],
+        ["curr_type", "string", false, "currency", "attribute", "filter"],
+        ["list_status", "string", false, "enum_LPD", "event_time", "audit"],
+        ["list_date", "date_yyyymmdd", false, "calendar_date", "event_time", "universe"],
+        ["delist_date", "date_yyyymmdd", true, "calendar_date", "event_time", "universe"],
+        ["is_hs", "string", true, "enum_NHSH", "attribute", "feature"],
+        ["act_name", "string", true, "none", "attribute", "audit"],
+        ["act_ent_type", "string", true, "none", "attribute", "audit"]
+      ]
+    },
+    "namechange": {
+      "raw_collection": "raw_tushare_namechange",
+      "canonical_collection": "canonical_security_name_history",
+      "natural_key": ["ts_code", "name", "start_date", "end_date", "ann_date"],
+      "event_time_field": "start_date",
+      "available_at_policy": "announcement_date_or_observed",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["name", "string", false, "none", "attribute", "universe"],
+        ["start_date", "date_yyyymmdd", false, "calendar_date", "event_time", "universe"],
+        ["end_date", "date_yyyymmdd", true, "calendar_date", "attribute", "audit"],
+        ["ann_date", "date_yyyymmdd", true, "calendar_date", "available_at", "universe"],
+        ["change_reason", "string", true, "none", "attribute", "audit"]
+      ]
+    }
+  }
+}

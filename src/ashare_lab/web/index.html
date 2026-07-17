@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="面向个人投资者的本地 A 股量化研究台" />
+    <title>A 股量化研究台</title>
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="A 股量化研究台首页">
+        <span class="brand-mark">量</span>
+        <span>
+          <strong>A 股量化研究台</strong>
+          <small>ASHARE RESEARCH DESK</small>
+        </span>
+      </a>
+      <div class="topbar-meta">
+        <span class="source-pill"><span class="status-dot"></span>演示数据</span>
+        <span id="clock" class="clock">--:--:--</span>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar" aria-label="主导航">
+        <nav>
+          <a class="nav-item active" href="#overview" data-section="overview">
+            <i data-lucide="layout-dashboard"></i><span>研究总览</span>
+          </a>
+          <a class="nav-item" href="#backtest" data-section="backtest">
+            <i data-lucide="flask-conical"></i><span>策略回测</span>
+          </a>
+          <a class="nav-item" href="#trades" data-section="trades">
+            <i data-lucide="list-checks"></i><span>成交复盘</span>
+          </a>
+        </nav>
+        <div class="sidebar-foot">
+          <i data-lucide="shield-check"></i>
+          <span>本地研究模式</span>
+        </div>
+      </aside>
+
+      <main>
+        <section id="overview" class="section-block">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">MARKET OVERVIEW</p>
+              <h1>研究总览</h1>
+            </div>
+            <div class="as-of">数据日期 <strong id="asOfDate">--</strong></div>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel market-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="panel-label">等权观察池</p>
+                  <div class="market-value"><span id="marketValue">--</span><small>基点</small></div>
+                </div>
+                <span id="marketChange" class="change neutral">--</span>
+              </div>
+              <div id="marketChart" class="chart market-chart" aria-label="观察池近 90 个交易日走势"></div>
+            </article>
+
+            <article class="panel breadth-panel">
+              <div class="panel-heading compact">
+                <div>
+                  <p class="panel-label">市场宽度</p>
+                  <h2>观察池涨跌分布</h2>
+                </div>
+                <i data-lucide="activity"></i>
+              </div>
+              <div class="breadth-counts">
+                <div><span class="up" id="advancing">--</span><small>上涨</small></div>
+                <div><span id="unchanged">--</span><small>平盘</small></div>
+                <div><span class="down" id="declining">--</span><small>下跌</small></div>
+              </div>
+              <div class="breadth-bar" aria-hidden="true">
+                <span id="advanceBar"></span><span id="flatBar"></span><span id="declineBar"></span>
+              </div>
+              <div class="risk-note">
+                <i data-lucide="info"></i>
+                <p>演示行情仅用于验证研究流程，不能用于判断策略有效性。</p>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel watch-panel">
+            <div class="panel-heading compact">
+              <div>
+                <p class="panel-label">WATCHLIST</p>
+                <h2>关注标的</h2>
+              </div>
+              <span class="record-count" id="watchCount">0 只</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>标的</th><th>代码</th><th>收盘价</th><th>涨跌幅</th><th>成交量</th></tr>
+                </thead>
+                <tbody id="watchlistBody"><tr><td colspan="5" class="loading-cell">正在载入行情...</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section id="backtest" class="section-block">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">STRATEGY LAB</p>
+              <h1>策略回测</h1>
+            </div>
+            <span class="rule-chip">T+1 · 100 股/手 · 成本后</span>
+          </div>
+
+          <div class="research-layout">
+            <form id="backtestForm" class="panel config-panel">
+              <div class="panel-heading compact">
+                <div><p class="panel-label">PARAMETERS</p><h2>运行参数</h2></div>
+                <button type="button" id="resetButton" class="icon-button" title="恢复默认参数" aria-label="恢复默认参数"><i data-lucide="rotate-ccw"></i></button>
+              </div>
+
+              <label class="field"><span>研究标的</span><select id="symbol" name="symbol" required></select></label>
+              <label class="field"><span>策略</span><select id="strategy" name="strategy"><option value="moving_average_cross">双均线趋势</option></select></label>
+              <label class="field"><span>初始资金</span><div class="input-unit"><span>¥</span><input id="initialCash" name="initial_cash" type="number" min="10000" max="100000000" step="10000" value="1000000" /></div></label>
+
+              <div class="field-grid">
+                <label class="field"><span>短周期</span><div class="input-unit suffix"><input id="shortWindow" name="short_window" type="number" min="2" max="120" value="10" /><span>日</span></div></label>
+                <label class="field"><span>长周期</span><div class="input-unit suffix"><input id="longWindow" name="long_window" type="number" min="5" max="250" value="30" /><span>日</span></div></label>
+              </div>
+
+              <label class="field allocation-field">
+                <span>资金使用率 <output id="allocationOutput">95%</output></span>
+                <input id="allocation" name="allocation" type="range" min="10" max="100" step="5" value="95" />
+              </label>
+
+              <fieldset class="risk-fields">
+                <legend><i data-lucide="shield-check"></i>风控引擎</legend>
+                <div class="risk-input-grid">
+                  <label><span>单票上限</span><div class="compact-unit"><input id="maxPositionWeight" type="number" min="5" max="100" value="95" /><span>%</span></div></label>
+                  <label><span>现金缓冲</span><div class="compact-unit"><input id="minimumCashWeight" type="number" min="0" max="50" value="5" /><span>%</span></div></label>
+                  <label><span>成交量参与率</span><div class="compact-unit"><input id="maxVolumeParticipation" type="number" min="0.1" max="100" step="0.1" value="10" /><span>%</span></div></label>
+                  <label><span>组合回撤熔断</span><div class="compact-unit"><input id="riskMaxDrawdown" type="number" min="3" max="80" value="20" /><span>%</span></div></label>
+                  <label><span>单日亏损熔断</span><div class="compact-unit"><input id="maxDailyLoss" type="number" min="1" max="50" value="8" /><span>%</span></div></label>
+                  <label><span>持仓止损</span><div class="compact-unit"><input id="maxPositionLoss" type="number" min="2" max="80" value="15" /><span>%</span></div></label>
+                </div>
+              </fieldset>
+
+              <div class="assumption-list">
+                <span><i data-lucide="check"></i>次日开盘成交</span>
+                <span><i data-lucide="check"></i>点时数据门禁</span>
+                <span><i data-lucide="check"></i>成本与滑点</span>
+                <span><i data-lucide="check"></i>风险事件留痕</span>
+              </div>
+
+              <p id="formError" class="form-error" role="alert"></p>
+              <button type="submit" id="runButton" class="primary-button"><i data-lucide="play"></i><span>运行回测</span></button>
+            </form>
+
+            <div class="results-column">
+              <div class="metric-strip" aria-live="polite">
+                <article><span>总收益</span><strong id="totalReturn">--</strong><small>成本后</small></article>
+                <article><span>年化收益</span><strong id="annualReturn">--</strong><small>252 日</small></article>
+                <article><span>最大回撤</span><strong id="maxDrawdown">--</strong><small>峰谷值</small></article>
+                <article><span>夏普比率</span><strong id="sharpeRatio">--</strong><small>无风险 0%</small></article>
+              </div>
+
+              <article class="panel result-panel">
+                <div class="panel-heading chart-heading">
+                  <div><p class="panel-label" id="resultSymbol">等待运行</p><h2 id="resultTitle">策略净值</h2></div>
+                  <div class="segmented" role="tablist" aria-label="图表模式">
+                    <button type="button" class="segment active" data-chart-mode="equity" role="tab" aria-selected="true">净值</button>
+                    <button type="button" class="segment" data-chart-mode="drawdown" role="tab" aria-selected="false">回撤</button>
+                  </div>
+                </div>
+                <div id="equityChart" class="chart equity-chart" aria-label="回测净值曲线"></div>
+                <div class="result-footer">
+                  <span>成交 <strong id="tradeCount">--</strong> 笔</span>
+                  <span>胜率 <strong id="winRate">--</strong></span>
+                  <span>波动率 <strong id="volatility">--</strong></span>
+                  <span>总费用 <strong id="totalFees">--</strong></span>
+                  <span>风控 <strong id="riskState">--</strong></span>
+                </div>
+              </article>
+
+              <article class="panel governance-panel">
+                <div class="panel-heading compact">
+                  <div><p class="panel-label">RESEARCH GOVERNANCE</p><h2>研究纪律与风控审计</h2></div>
+                  <span id="qualityBadge" class="quality-badge pending">等待校验</span>
+                </div>
+                <div class="governance-facts">
+                  <div><span>规则版本</span><strong id="rulebookVersion">--</strong></div>
+                  <div><span>信号时钟</span><strong id="signalTiming">--</strong></div>
+                  <div><span>数据口径</span><strong id="dataBasis">--</strong></div>
+                  <div><span>点时校验</span><strong id="pointInTime">--</strong></div>
+                </div>
+                <div class="risk-audit-heading">
+                  <span>风险事件</span><strong id="riskEventCount">0</strong>
+                </div>
+                <div id="riskEventList" class="risk-event-list">
+                  <div class="risk-empty"><i data-lucide="shield"></i><span>运行回测后显示风控决策</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="trades" class="section-block">
+          <div class="section-heading">
+            <div><p class="eyebrow">EXECUTION REVIEW</p><h1>成交复盘</h1></div>
+          </div>
+          <article class="panel trades-panel">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>交易日</th><th>方向</th><th>数量</th><th>成交价</th><th>成交额</th><th>费用</th><th>已实现盈亏</th></tr></thead>
+                <tbody id="tradesBody"><tr><td colspan="7" class="empty-cell">运行回测后显示成交记录</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <footer><span>ASHARE LAB 0.1.0</span><span>仅供研究，不构成投资建议</span></footer>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

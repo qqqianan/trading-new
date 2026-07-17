@@ -1,0 +1,230 @@
+{
+  "schema_version": "1.1.1",
+  "database": "ashare_quant",
+  "source": "tushare",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["snapshot_id", "string", false, "none", "lineage", "audit"],
+    ["row_ordinal", "int", false, "row", "none", "audit"],
+    ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["row_sha256", "string", false, "sha256", "lineage", "audit"],
+    ["payload", "document", false, "provider_native", "source", "normalization"]
+  ],
+  "canonical_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["record_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_snapshot_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_row_sha256", "string", false, "sha256", "lineage", "audit"],
+    ["transform_name", "string", false, "none", "lineage", "audit"],
+    ["transform_version", "string", false, "semver", "lineage", "audit"],
+    ["event_time", "datetime", false, "Asia/Shanghai", "event_time", "feature"],
+    ["available_at", "datetime", false, "Asia/Shanghai", "available_at", "feature"],
+    ["ingested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["quality_status", "string", false, "enum", "none", "filter"],
+    ["quality_report_id", "string", false, "content_id", "lineage", "audit"]
+  ],
+  "governance_collections": {
+    "meta_sync_runs": {
+      "natural_key": ["run_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["run_id", "string", false, "content_id", "lineage", "audit"],
+        ["endpoint", "string", false, "none", "none", "audit"],
+        ["mode", "string", false, "enum", "none", "audit"],
+        ["started_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+        ["completed_at", "datetime", true, "Asia/Shanghai", "ingested_at", "audit"],
+        ["status", "string", false, "enum", "none", "audit"],
+        ["snapshot_ids", "array_string", false, "content_id", "lineage", "audit"],
+        ["error_code", "string", true, "none", "none", "audit"]
+      ]
+    },
+    "meta_source_snapshots": {
+      "natural_key": ["snapshot_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["snapshot_id", "string", false, "content_id", "lineage", "audit"],
+        ["source", "string", false, "none", "none", "audit"],
+        ["endpoint", "string", false, "none", "none", "audit"],
+        ["request_params_canonical", "string", false, "json", "none", "audit"],
+        ["requested_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+        ["completed_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+        ["provider_version", "string", true, "none", "none", "audit"],
+        ["row_count", "int", false, "row", "none", "audit"],
+        ["payload_sha256", "string", false, "sha256", "lineage", "audit"],
+        ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+        ["status", "string", false, "enum", "none", "filter"]
+      ]
+    },
+    "meta_schema_manifests": {
+      "natural_key": ["schema_manifest_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+        ["schema_version", "string", false, "semver", "none", "audit"],
+        ["bundle_sha256", "string", false, "sha256", "lineage", "audit"],
+        ["database", "string", false, "none", "none", "audit"],
+        ["collections", "array_string", false, "none", "none", "audit"],
+        ["registered_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"]
+      ]
+    },
+    "meta_lineage_edges": {
+      "natural_key": ["lineage_edge_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["lineage_edge_id", "string", false, "content_id", "lineage", "audit"],
+        ["upstream_artifact_id", "string", false, "content_id", "lineage", "audit"],
+        ["downstream_artifact_id", "string", false, "content_id", "lineage", "audit"],
+        ["transform_name", "string", false, "none", "lineage", "audit"],
+        ["transform_version", "string", false, "semver", "lineage", "audit"],
+        ["code_commit", "string", false, "git_sha", "lineage", "audit"],
+        ["input_schema_ids", "array_string", false, "content_id", "lineage", "audit"],
+        ["output_schema_id", "string", false, "content_id", "lineage", "audit"],
+        ["parameters_sha256", "string", false, "sha256", "lineage", "audit"],
+        ["field_mappings", "array_string", false, "mapping", "lineage", "audit"],
+        ["executed_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"]
+      ]
+    },
+    "meta_quality_reports": {
+      "natural_key": ["quality_report_id"],
+      "fields": [
+        ["_id", "string", false, "content_id", "lineage", "audit"],
+        ["quality_report_id", "string", false, "content_id", "lineage", "audit"],
+        ["artifact_id", "string", false, "content_id", "lineage", "audit"],
+        ["rulebook_version", "string", false, "semver", "none", "audit"],
+        ["checks", "array_string", false, "none", "none", "audit"],
+        ["passed", "bool", false, "none", "none", "filter"],
+        ["failure_codes", "array_string", false, "none", "none", "audit"],
+        ["checked_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"]
+      ]
+    }
+  },
+  "endpoints": {
+    "trade_cal": {
+      "raw_collection": "raw_tushare_trade_cal",
+      "canonical_collection": "canonical_trade_calendar",
+      "natural_key": ["exchange", "cal_date"],
+      "event_time_field": "cal_date",
+      "available_at_policy": "observed_calendar_snapshot",
+      "fields": [
+        ["exchange", "string", false, "exchange_code", "attribute", "filter"],
+        ["cal_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["is_open", "int", false, "0_or_1", "attribute", "filter"],
+        ["pretrade_date", "date_yyyymmdd", true, "calendar_date", "attribute", "filter"]
+      ]
+    },
+    "stock_basic": {
+      "raw_collection": "raw_tushare_stock_basic",
+      "canonical_collection": "canonical_security_master",
+      "natural_key": ["ts_code", "list_status", "list_date", "delist_date"],
+      "event_time_field": "list_date",
+      "available_at_policy": "source_snapshot_observed_at",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["symbol", "string", false, "security_code", "identity", "filter"],
+        ["name", "string", false, "none", "attribute", "display"],
+        ["area", "string", true, "none", "attribute", "feature"],
+        ["industry", "string", true, "none", "attribute", "quarantine_only"],
+        ["fullname", "string", true, "none", "attribute", "display"],
+        ["enname", "string", true, "none", "attribute", "display"],
+        ["cnspell", "string", true, "none", "attribute", "display"],
+        ["market", "string", true, "market_code", "attribute", "filter"],
+        ["exchange", "string", false, "exchange_code", "attribute", "filter"],
+        ["curr_type", "string", false, "currency", "attribute", "filter"],
+        ["list_status", "string", false, "enum_LPD", "event_time", "universe"],
+        ["list_date", "date_yyyymmdd", false, "calendar_date", "event_time", "universe"],
+        ["delist_date", "date_yyyymmdd", true, "calendar_date", "event_time", "universe"],
+        ["is_hs", "string", true, "enum_NHSH", "attribute", "feature"],
+        ["act_name", "string", true, "none", "attribute", "audit"],
+        ["act_ent_type", "string", true, "none", "attribute", "audit"]
+      ]
+    },
+    "daily": {
+      "raw_collection": "raw_tushare_daily",
+      "canonical_collection": "canonical_daily_bar",
+      "natural_key": ["ts_code", "trade_date"],
+      "event_time_field": "trade_date",
+      "available_at_policy": "trade_date_close_plus_provider_delay",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["trade_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["open", "float", false, "CNY_per_share_raw", "market_value", "execution"],
+        ["high", "float", false, "CNY_per_share_raw", "market_value", "execution"],
+        ["low", "float", false, "CNY_per_share_raw", "market_value", "execution"],
+        ["close", "float", false, "CNY_per_share_raw", "market_value", "execution"],
+        ["pre_close", "float", true, "CNY_per_share_raw", "market_value", "quality"],
+        ["change", "float", true, "CNY_per_share", "market_value", "feature"],
+        ["pct_chg", "float", true, "percent", "market_value", "feature"],
+        ["vol", "float", false, "hundred_shares", "market_value", "execution"],
+        ["amount", "float", false, "thousand_CNY", "market_value", "execution"]
+      ]
+    },
+    "adj_factor": {
+      "raw_collection": "raw_tushare_adj_factor",
+      "canonical_collection": "canonical_adjustment_factor",
+      "natural_key": ["ts_code", "trade_date"],
+      "event_time_field": "trade_date",
+      "available_at_policy": "trade_date_close_plus_provider_delay",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["trade_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["adj_factor", "float", false, "factor", "market_value", "feature_only"]
+      ]
+    },
+    "daily_basic": {
+      "raw_collection": "raw_tushare_daily_basic",
+      "canonical_collection": "canonical_daily_valuation",
+      "natural_key": ["ts_code", "trade_date"],
+      "event_time_field": "trade_date",
+      "available_at_policy": "trade_date_close_plus_provider_delay",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["trade_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["close", "float", true, "CNY_per_share_raw", "market_value", "quality"],
+        ["turnover_rate", "float", true, "percent", "market_value", "feature"],
+        ["turnover_rate_f", "float", true, "percent", "market_value", "feature"],
+        ["volume_ratio", "float", true, "ratio", "market_value", "feature"],
+        ["pe", "float", true, "ratio", "market_value", "feature"],
+        ["pe_ttm", "float", true, "ratio", "market_value", "feature"],
+        ["pb", "float", true, "ratio", "market_value", "feature"],
+        ["ps", "float", true, "ratio", "market_value", "feature"],
+        ["ps_ttm", "float", true, "ratio", "market_value", "feature"],
+        ["dv_ratio", "float", true, "percent", "market_value", "feature"],
+        ["dv_ttm", "float", true, "percent", "market_value", "feature"],
+        ["total_share", "float", true, "ten_thousand_shares", "market_value", "feature"],
+        ["float_share", "float", true, "ten_thousand_shares", "market_value", "feature"],
+        ["free_share", "float", true, "ten_thousand_shares", "market_value", "feature"],
+        ["total_mv", "float", true, "ten_thousand_CNY", "market_value", "feature"],
+        ["circ_mv", "float", true, "ten_thousand_CNY", "market_value", "feature"]
+      ]
+    },
+    "stk_limit": {
+      "raw_collection": "raw_tushare_stk_limit",
+      "canonical_collection": "canonical_daily_price_limit",
+      "natural_key": ["ts_code", "trade_date"],
+      "event_time_field": "trade_date",
+      "available_at_policy": "known_before_trade_date_open",
+      "fields": [
+        ["trade_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["pre_close", "float", true, "CNY_per_share_raw", "market_value", "quality"],
+        ["up_limit", "float", false, "CNY_per_share_raw", "market_value", "execution"],
+        ["down_limit", "float", false, "CNY_per_share_raw", "market_value", "execution"]
+      ]
+    },
+    "suspend_d": {
+      "raw_collection": "raw_tushare_suspend_d",
+      "canonical_collection": "canonical_suspension_event",
+      "natural_key": ["ts_code", "trade_date", "suspend_type"],
+      "event_time_field": "trade_date",
+      "available_at_policy": "known_before_trade_date_open",
+      "fields": [
+        ["ts_code", "string", false, "security_code", "identity", "filter"],
+        ["trade_date", "date_yyyymmdd", false, "calendar_date", "event_time", "filter"],
+        ["suspend_timing", "string", true, "none", "attribute", "execution"],
+        ["suspend_type", "string", false, "enum_S_R", "attribute", "execution"]
+      ]
+    }
+  }
+}

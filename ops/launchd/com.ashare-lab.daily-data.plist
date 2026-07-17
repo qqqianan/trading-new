@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ashare-lab.daily-data</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/qianan/.local/bin/uv</string>
+        <string>run</string>
+        <string>ashare-data</string>
+        <string>nightly-maintenance</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/qianan/Projects/personel/new_trading</string>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>18</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/qianan/Projects/personel/new_trading/logs/data-sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/qianan/Projects/personel/new_trading/logs/data-sync-error.log</string>
+</dict>
+</plist>
