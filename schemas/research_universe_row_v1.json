@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_kind": "universe",
+  "fields": [
+    {"name":"symbol","data_type":"string","nullable":false,"unit":"tushare_ts_code","null_semantics":"never null","time_role":"entity_key","allowed_use":"universe_key"},
+    {"name":"decision_time","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"decision_time","allowed_use":"universe_key"},
+    {"name":"available_at","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"available_at","allowed_use":"pit_guard"},
+    {"name":"eligible_for_new_risk","data_type":"bool","nullable":false,"unit":"boolean","null_semantics":"never null; unknown historical state maps to false","time_role":"as_of_decision_time","allowed_use":"universe_filter"},
+    {"name":"must_continue_marking","data_type":"bool","nullable":false,"unit":"boolean","null_semantics":"never null","time_role":"as_of_decision_time","allowed_use":"position_accounting"},
+    {"name":"reason_codes","data_type":"list_string","nullable":false,"unit":"stable_reason_codes","null_semantics":"empty list means no exclusion reason","time_role":"as_of_decision_time","allowed_use":"universe_audit"}
+  ]
+}

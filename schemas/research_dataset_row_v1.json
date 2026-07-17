@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_kind": "dataset",
+  "fields": [
+    {"name":"symbol","data_type":"string","nullable":false,"unit":"tushare_ts_code","null_semantics":"never null","time_role":"entity_key","allowed_use":"dataset_key"},
+    {"name":"decision_time","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"decision_time","allowed_use":"dataset_key"},
+    {"name":"feature_artifact_ids","data_type":"list_string","nullable":false,"unit":"content_ids","null_semantics":"never null or empty for an assembled dataset row","time_role":"lineage","allowed_use":"feature_reference"},
+    {"name":"label_artifact_id","data_type":"string","nullable":false,"unit":"content_id","null_semantics":"never null","time_role":"lineage","allowed_use":"label_reference_only"},
+    {"name":"universe_artifact_id","data_type":"string","nullable":false,"unit":"content_id","null_semantics":"never null","time_role":"lineage","allowed_use":"universe_reference"}
+  ]
+}

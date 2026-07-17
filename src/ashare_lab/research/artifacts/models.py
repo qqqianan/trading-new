@@ -27,7 +27,7 @@ class ArtifactWriteRequest(BaseModel):
     schema_manifest_id: str = Field(pattern=r"^schema_[0-9a-f]+$")
     upstream_artifact_ids: tuple[str, ...] = Field(min_length=1)
     upstream_lineage_edge_ids: tuple[str, ...]
-    field_mappings: tuple[str, ...]
+    field_mappings: tuple["ArtifactFieldMapping", ...]
     transform_name: str = Field(min_length=1)
     transform_version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     parameters_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -45,7 +45,7 @@ class ArtifactManifest(BaseModel):
     upstream_artifact_ids: tuple[str, ...]
     upstream_lineage_edge_ids: tuple[str, ...]
     lineage_edge_id: str
-    field_mappings: tuple[str, ...]
+    field_mappings: tuple["ArtifactFieldMapping", ...]
     transform_name: str
     transform_version: str
     parameters_sha256: str
@@ -77,6 +77,8 @@ class ArtifactRule(StrEnum):
     MISSING_LINEAGE = "missing_lineage"
     CONTENT_MISMATCH = "content_mismatch"
     INVALID_MANIFEST = "invalid_manifest"
+    INVALID_SCHEMA = "invalid_schema"
+    SCHEMA_MISMATCH = "schema_mismatch"
 
 
 class ResearchArtifactError(Exception):
@@ -93,3 +95,14 @@ class ResearchArtifactError(Exception):
     def __str__(self) -> str:
         """Return the stable rule and concrete failure detail."""
         return f"{self.rule.value}: {self.detail}"
+
+
+class ArtifactFieldMapping(BaseModel):
+    """One output column traced to an upstream artifact field."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    output_field: str = Field(min_length=1)
+    upstream_artifact_id: str = Field(min_length=1)
+    upstream_field: str = Field(min_length=1)
+    transformation: str = Field(min_length=1)

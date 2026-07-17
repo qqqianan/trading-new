@@ -69,6 +69,12 @@ flowchart LR
 
 任一输入变化都会生成新的 `ds_*` 标识。
 
+研究 payload 固定为 Parquet，manifest 固定 transform name/version、参数哈希、真实 Git commit、
+上游 artifact/snapshot IDs、上游 lineage 和逐输出字段映射。writer 先写同 kind 下的临时目录，
+校验 schema、row count 和 SHA-256 后才原子发布到 `<kind>/<artifact_id>/`。feature、label、
+universe 和 dataset 各有独立机器 schema；读取时必须同时验证固定路径、kind、manifest 和 payload，
+禁止把 label descriptor 重标记为 feature 或从其他目录读取。
+
 `DatasetCoverageReport` 先对必需组件的日期区间、accepted 质量、PIT、Raw 快照和 lineage 做
 共同覆盖检查。只有 `QUALIFIED` 报告才能生成 `DatasetInputManifest`；input manifest 仍不是
 训练数据集，必须等特征和标签分别物化并产生独立 lineage 后才能装配 `DatasetSpec`。

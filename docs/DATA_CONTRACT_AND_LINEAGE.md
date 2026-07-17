@@ -200,6 +200,14 @@ canonical。`canonical_index_membership` 必须保持 `QUARANTINED`，每条权�
 `ExperimentManifest` 再次固定 dataset、schema 和 lineage ID，避免训练完成后替换文档。
 schema、血缘、数据或转换任一物质变化都必须生成新的 dataset ID。
 
+研究表使用 `schemas/research_feature_row_v1.json`、`research_label_row_v1.json`、
+`research_universe_row_v1.json` 和 `research_dataset_row_v1.json` 四个机器可读精确列契约。
+`ResearchSchemaCatalog` 以文件字节计算 schema ID；`ParquetArtifactStore` 只接受 catalog 中登记的
+kind/schema 组合，并在原子发布前校验列顺序、物理类型、非空约束、row count 和 SHA-256。
+每个输出列必须通过结构化 `ArtifactFieldMapping` 指向已声明的上游 artifact/snapshot 字段和转换，
+部分字段映射不算完整 lineage。feature 与 label 使用独立物理目录，读取 descriptor 不能跨 kind
+重标记；截断 payload、manifest 不一致或 schema 漂移均 fail closed。
+
 跨表覆盖产物使用 `schemas/research_dataset_v1.json`。`dataset_coverage_reports` 保存请求区间、
 必需组件和资格结果；`dataset_component_coverage` 分别固定每个组件的日期、schema、Raw 快照、
 lineage、质量与 PIT 证据；只有 `QUALIFIED` 报告可以生成 `dataset_input_manifests`。BLOCKED
@@ -246,13 +254,14 @@ industry schema `1.0.1` 当前 manifest 为
 历史回填完成状态必须由 accepted Raw、当前 schema lineage 与通过的 canonical 质量报告联合
 证明，不使用独立游标冒充数据事实。
 
-18 个 P0 接口已具有字段清单，但跨表组合质量门禁、观察日前历史行业可得性、特征和标签
-lineage 尚未完成。baseline 输入覆盖报告
-`coverage_79a6511780bf5ddefe13a0bfedfececde195ac897107649a306a983b9d95b0e5`
-已对 `2020-01-02` 至 `2026-06-16` 的五表日频、PIT 股票池和沪深 300 日线完成资格审查；
-对应 input manifest 为
-`inputs_dfb1ee67335e98b1fb29975c6c552cd4e4054912e50dab04d3403bbe55298a84`，固定
-7,850 个 Raw 快照和 34,017 条输入 lineage。行业组件最早可得日为 `2026-07-17`，未进入该
-历史 baseline。特征和标签尚未物化，因此没有生成 `DatasetSpec`，正式训练门禁保持关闭，
-不得把当前 Raw
-或 canonical 快照直接作为训练数据集。
+18 个 P0 接口已具有字段清单，但观察日前历史行业可得性、特征和标签物化 lineage 尚未完成。
+当前输入覆盖报告
+`coverage_b25d100af1004281b57e8b38abc6198e491b0fb02b955328727456af9923c273`
+已对 `2020-01-02` 至 `2026-07-16` 的日频 bundle、PIT 股票池、财务指标 PIT 和中证 500 日线
+完成资格审查；对应 input manifest 为
+`inputs_6749e8d049d37b0051bb6988101edd034cfebb70d5f485fb33fee89575646371`，固定
+13,829 个 Raw 快照和 285,828 条输入 lineage。身份集合使用最多 1,000 个 ID 的内容寻址块保存，
+主文档同时固定完整集合的数量与 SHA-256；重复资格审查不会追加重复证据。行业组件最早可得日为
+`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。特征和标签尚未
+物化，因此没有生成 `DatasetSpec`，正式训练门禁保持关闭，不得把当前 Raw 或 canonical 快照
+直接作为训练数据集。

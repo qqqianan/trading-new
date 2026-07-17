@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_kind": "feature",
+  "fields": [
+    {"name":"symbol","data_type":"string","nullable":false,"unit":"tushare_ts_code","null_semantics":"never null","time_role":"entity_key","allowed_use":"feature_key"},
+    {"name":"decision_time","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"decision_time","allowed_use":"feature_key"},
+    {"name":"feature_id","data_type":"string","nullable":false,"unit":"registered_feature_id","null_semantics":"never null","time_role":"none","allowed_use":"feature_definition"},
+    {"name":"feature_version","data_type":"string","nullable":false,"unit":"semver","null_semantics":"never null","time_role":"none","allowed_use":"feature_definition"},
+    {"name":"value","data_type":"float64","nullable":true,"unit":"feature_defined","null_semantics":"null when history, source value, or PIT evidence is unavailable; null_reason is required","time_role":"as_of_decision_time","allowed_use":"model_feature_only"},
+    {"name":"available_at","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"available_at","allowed_use":"pit_guard"},
+    {"name":"quality_status","data_type":"string","nullable":false,"unit":"quality_status_code","null_semantics":"never null","time_role":"none","allowed_use":"quality_filter"},
+    {"name":"null_reason","data_type":"string","nullable":true,"unit":"stable_reason_code","null_semantics":"null only when value is present","time_role":"none","allowed_use":"quality_audit"}
+  ]
+}
