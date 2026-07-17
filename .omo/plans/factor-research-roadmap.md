@@ -124,7 +124,7 @@
   QA scenarios: `uv run pytest tests/test_dataset_evidence_reader.py tests/test_dataset_coverage_service.py -q`；本机只读 dry-run 输出组件矩阵到 `.omo/evidence/task-2-coverage.json`
   Commit: Y | `feat(dataset): derive qualification from governed mongo evidence` | `research/datasets`, `services`, CLI, tests
 
-- [ ] 3. 建立不可变研究产物存储、schema 与 lineage 注册
+- [x] 3. 建立不可变研究产物存储、schema 与 lineage 注册
   What to do: 增加 `duckdb` 依赖并实现 Parquet artifact writer/reader；临时文件写完、校验 row count/schema/SHA-256 后原子 rename，路径由 artifact ID 决定。定义 feature row、label row、universe row、dataset row 的机器可读 schema；每个产物登记 transform name/version、参数哈希、代码提交、字段映射、上游 artifact/snapshot IDs。特征与标签写入物理分离目录。
   Must NOT do: 不在 Parquet 内放动态列，不覆盖同 ID 的不同内容，不把 Mongo `ingested_at` 当成市场可得时间。
   Parallelization: Can parallel Y | Wave 1 | Blocks 3,4,5,6
