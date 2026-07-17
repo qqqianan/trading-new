@@ -14,6 +14,7 @@ from ashare_lab.research.universe.mongo_documents import (
     DAILY_FIELDS,
     EVENT_FIELDS,
     CalendarDocument,
+    ParsedMarketObservation,
     market_observation,
     parse_date,
     security_event,
@@ -82,6 +83,22 @@ class UniverseCalendarConflictError(Exception):
     def __str__(self) -> str:
         """Return the stable conflict rule and affected date."""
         return f"calendar_natural_key_conflict: {self.cal_date}"
+
+
+class UniverseMarketConflictError(Exception):
+    """One symbol-date key carries conflicting accepted market facts."""
+
+    __slots__ = ("symbol", "trading_date")
+
+    def __init__(self, symbol: str, trading_date: date) -> None:
+        """Record the ambiguous natural market key."""
+        super().__init__()
+        self.symbol = symbol
+        self.trading_date = trading_date
+
+    def __str__(self) -> str:
+        """Return the stable conflict rule and natural key."""
+        return f"market_natural_key_conflict: {self.symbol}:{self.trading_date:%Y%m%d}"
 
 
 class MongoUniversePanelReader:
@@ -189,12 +206,31 @@ class MongoUniversePanelReader:
             market_observation(document)
             for document in self._database["canonical_daily_bar"].find(query, projection)
         )
-        return tuple(
-            observation
-            for observation, observed_schema in parsed
-            if observation.quality_status == "ACCEPTED" and observed_schema == schema_manifest_id
+        qualified = tuple(
+            item
+            for item in parsed
+            if item.observation.quality_status == "ACCEPTED"
+            and item.schema_manifest_id == schema_manifest_id
         )
+        return _fold_market_replays(qualified)
 
 
 def _date_string(value: date) -> str:
     return value.strftime("%Y%m%d")
+
+
+def _fold_market_replays(
+    parsed: tuple[ParsedMarketObservation, ...],
+) -> tuple[UniverseMarketObservation, ...]:
+    folded: dict[tuple[str, date], ParsedMarketObservation] = {}
+    for item in parsed:
+        key = (item.observation.symbol, item.observation.trading_date)
+        previous = folded.get(key)
+        if previous is not None and previous.material_identity != item.material_identity:
+            raise UniverseMarketConflictError(*key)
+        if (
+            previous is None
+            or item.observation.source_artifact_id < previous.observation.source_artifact_id
+        ):
+            folded[key] = item
+    return tuple(folded[key].observation for key in sorted(folded))

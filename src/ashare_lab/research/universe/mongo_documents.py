@@ -1,5 +1,6 @@
 """Typed parsing of Mongo universe materialization documents."""
 
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Final
 from zoneinfo import ZoneInfo
@@ -40,6 +41,8 @@ DAILY_FIELDS: Final = (
     "amount",
     "quality_status",
     "schema_manifest_id",
+    "source_snapshot_id",
+    "source_row_sha256",
 )
 
 
@@ -54,6 +57,26 @@ class CalendarDocument(BaseModel):
     schema_manifest_id: str
 
 
+@dataclass(frozen=True, slots=True)
+class ParsedMarketObservation:
+    """Normalized observation with source identity for replay folding."""
+
+    observation: UniverseMarketObservation
+    schema_manifest_id: str
+    source_snapshot_id: str
+    source_row_sha256: str
+
+    @property
+    def material_identity(self) -> tuple[datetime, float, str, str]:
+        """Return fields that must agree for one natural market key."""
+        return (
+            self.observation.available_at,
+            self.observation.amount_cny,
+            self.source_snapshot_id,
+            self.source_row_sha256,
+        )
+
+
 class DailyDocument(BaseModel):
     """Accepted daily fields used by admission rules."""
 
@@ -66,6 +89,8 @@ class DailyDocument(BaseModel):
     amount: float
     quality_status: str
     schema_manifest_id: str
+    source_snapshot_id: str
+    source_row_sha256: str
 
 
 def security_event(document: BsonDocument) -> SecurityEvent:
@@ -73,7 +98,7 @@ def security_event(document: BsonDocument) -> SecurityEvent:
     return security_event_from_document(document)
 
 
-def market_observation(document: BsonDocument) -> tuple[UniverseMarketObservation, str]:
+def market_observation(document: BsonDocument) -> ParsedMarketObservation:
     """Normalize Tushare thousand-yuan amount and retain its schema identity."""
     parsed = DailyDocument.model_validate(document)
     observation = UniverseMarketObservation(
@@ -84,7 +109,12 @@ def market_observation(document: BsonDocument) -> tuple[UniverseMarketObservatio
         quality_status=parsed.quality_status,
         source_artifact_id=parsed.record_id,
     )
-    return observation, parsed.schema_manifest_id
+    return ParsedMarketObservation(
+        observation,
+        parsed.schema_manifest_id,
+        parsed.source_snapshot_id,
+        parsed.source_row_sha256,
+    )
 
 
 def parse_date(value: str) -> date:

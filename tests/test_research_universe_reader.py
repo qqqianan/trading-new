@@ -69,6 +69,19 @@ def test_mongo_universe_reader_normalizes_governed_rows_and_amount_units() -> No
                         "amount": 25_000.0,
                         "quality_status": "ACCEPTED",
                         "schema_manifest_id": "schema_market",
+                        "source_snapshot_id": "snapshot_daily_001",
+                        "source_row_sha256": "b" * 64,
+                    },
+                    {
+                        "record_id": "record_daily_replay",
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260716",
+                        "available_at": datetime(2026, 7, 16, 8, tzinfo=UTC),
+                        "amount": 25_000.0,
+                        "quality_status": "ACCEPTED",
+                        "schema_manifest_id": "schema_market",
+                        "source_snapshot_id": "snapshot_daily_001",
+                        "source_row_sha256": "b" * 64,
                     },
                 )
             ),
@@ -86,6 +99,7 @@ def test_mongo_universe_reader_normalizes_governed_rows_and_amount_units() -> No
     # Then: dates, PIT events, RMB amounts, and Shanghai availability are normalized.
     assert evidence.open_dates == (date(2026, 7, 16),)
     assert evidence.events[0].event_id == "event_001"
+    assert len(evidence.observations) == 1
     assert evidence.observations[0].amount_cny == 25_000_000.0
     assert evidence.observations[0].available_at.hour == 16
 
