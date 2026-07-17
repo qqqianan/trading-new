@@ -30,6 +30,7 @@ dev = [
 [project.scripts]
 ashare-lab = "ashare_lab.main:run"
 ashare-data = "ashare_lab.data.cli:run"
+ashare-coverage = "ashare_lab.coverage_cli:run"
 
 [build-system]
 requires = ["hatchling"]
