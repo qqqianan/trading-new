@@ -105,7 +105,7 @@
 
 ## Todos
 
-- [ ] 1. 建立可复现工程身份与研究预检
+- [x] 1. 建立可复现工程身份与研究预检
   What to do: 确认当前目录没有 Git 元数据后执行非破坏性的 `git init`，建立主分支和首个受治理基线提交；新增 research preflight，读取真实 Git SHA、规则版本、Python/uv lock 哈希、Mongo 数据库名和最终测试访问状态。无 Git、脏工作树用于可晋级训练、数据库不是 `ashare_quant`、lock 不匹配或最终测试已被重复打开时 fail closed。补充 `.gitignore`，确保数据、模型、Token、日志和 `.omo/evidence` 不提交。
   Must NOT do: 不提交 `.env`、Mongo 数据、Parquet、模型二进制或现有日志；不伪造 Git SHA。
   Parallelization: Can parallel Y | Wave 1 | Blocks 2,12
