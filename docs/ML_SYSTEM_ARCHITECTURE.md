@@ -75,6 +75,12 @@ flowchart LR
 universe 和 dataset 各有独立机器 schema；读取时必须同时验证固定路径、kind、manifest 和 payload，
 禁止把 label descriptor 重标记为 feature 或从其他目录读取。
 
+历史股票池先按 lifecycle `effective_at` 与 `available_at` 双时钟回放，再应用版本化的上市年龄、
+名称/ST 已知性、60 日行情覆盖和 20 日成交额中位数规则。输出同时保留
+`eligible_for_new_risk` 与 `must_continue_marking`：退市、ST、低流动性或历史不足只关闭新增风险，
+不能让已持仓标的从盯市和退出路径消失。周频决策只取每个完整 ISO 周最后一个开市日，冻结区间
+末尾的不完整周不得形成信号。
+
 `DatasetCoverageReport` 先对必需组件的日期区间、accepted 质量、PIT、Raw 快照和 lineage 做
 共同覆盖检查。只有 `QUALIFIED` 报告才能生成 `DatasetInputManifest`；input manifest 仍不是
 训练数据集，必须等特征和标签分别物化并产生独立 lineage 后才能装配 `DatasetSpec`。

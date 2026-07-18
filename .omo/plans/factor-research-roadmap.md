@@ -133,7 +133,7 @@
   QA scenarios: `uv run pytest tests/test_research_artifact_store.py tests/test_research_schema_registry.py -q`; Evidence `.omo/evidence/task-3-artifacts.txt`
   Commit: Y | `feat(research): add immutable parquet artifact store` | `pyproject.toml`, `uv.lock`, schemas, `research/artifacts`, tests
 
-- [ ] 4. 构造周频决策日与历史 PIT 股票池面板
+- [x] 4. 构造周频决策日与历史 PIT 股票池面板
   What to do: 从 accepted trade calendar 选择每个 ISO 周最后开市日；使用 `UniverseBuilder` 的双时钟事件回放构造每个决策日可见股票池。应用版本化准入规则：上市满 120 个交易日、ST 状态已知且非 ST、60 日至少 50 个行情观测、20 日成交额中位数不低于 2,000 万元。分别输出 `eligible_for_new_risk` 与 `must_continue_marking`，避免退市、停牌或持仓退出受阻样本被删除。
   Must NOT do: 不读当前 `stock_basic` 快照重建历史，不把未知 `is_st` 当非 ST，不因未来退市或亏损删除样本。
   Parallelization: Can parallel N | Wave 2 | Blocks 5,6,7

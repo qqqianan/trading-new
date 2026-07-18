@@ -265,3 +265,15 @@ industry schema `1.0.1` 当前 manifest 为
 `2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。特征和标签尚未
 物化，因此没有生成 `DatasetSpec`，正式训练门禁保持关闭，不得把当前 Raw 或 canonical 快照
 直接作为训练数据集。
+
+周频 PIT 股票池已物化为
+`universe_artifact_a5e618d3b4273bc97b8720bc8a31808fed91d00446cfb5e60a6f9cac6040de1b`，
+绑定 input manifest `inputs_6749e8d049d37b0051bb6988101edd034cfebb70d5f485fb33fee89575646371`、
+lineage manifest `lineage_01f090433e379b2ac0077894f87ffe495c6fadcf913181f9fc45739c133f9b2e`、
+代码提交 `831bb3cb6a790b9ffcc7cd74f9bad2ab594dfe90` 和规则版本
+`universe_rules_d13c287805d7ae8cb6b13ea90d4ee37f815e1fa27334096cb30ffc0aa09a6d6b`。
+产物覆盖 334 个完整周决策、5,866 个历史代码和 1,712,992 行；首末决策分别为
+`2020-01-03 18:00 +08:00` 与 `2026-07-10 18:00 +08:00`，不把截止于周四的
+`2026-07-16` 误当成完整周。自然键重复和 `available_at > decision_time` 均为 0。
+现有 accepted 交易日历从 2020 年开始，因此此前上市标的在累计到 120 个有证据交易日之前仍
+保守标记为 `INSUFFICIENT_LISTING_AGE`；不使用自然日猜测或当前状态放宽该门禁。
