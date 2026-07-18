@@ -1,104 +1,35 @@
 """Read-only Mongo adapter for weekly universe materialization evidence."""
 
-from collections.abc import Iterable
+from __future__ import annotations
+
 from datetime import date, datetime, time
-from typing import Protocol
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict
-
-from ashare_lab.data.bson_types import BsonDocument
-from ashare_lab.data.universe import SecurityEvent
-from ashare_lab.research.universe.models import UniverseMarketObservation
+from ashare_lab.research.universe.mongo_contracts import (
+    UniverseCalendarConflictError,
+    UniverseDatabase,
+    UniverseEvidence,
+    UniverseMarketConflictError,
+    UniverseReaderError,
+)
 from ashare_lab.research.universe.mongo_documents import (
     DAILY_FIELDS,
     EVENT_FIELDS,
     CalendarDocument,
     ParsedMarketObservation,
+    daily_snapshot,
     market_observation,
     parse_date,
     security_event,
 )
 
+if TYPE_CHECKING:
+    from ashare_lab.data.bson_types import BsonDocument
+    from ashare_lab.data.universe import SecurityEvent
+    from ashare_lab.research.universe.models import UniverseMarketObservation
+
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
-
-
-class UniverseCollection(Protocol):
-    """Minimal read capability used from one Mongo collection."""
-
-    def find(
-        self,
-        query: BsonDocument,
-        projection: BsonDocument | None = None,
-    ) -> Iterable[BsonDocument]:
-        """Return documents matching one governed query."""
-        ...
-
-
-class UniverseDatabase(Protocol):
-    """Minimal database capability required by the read-only adapter."""
-
-    name: str
-
-    def __getitem__(self, name: str) -> UniverseCollection:
-        """Return a named governed collection."""
-        ...
-
-
-class UniverseEvidence(BaseModel):
-    """Validated bounded inputs for pure PIT panel construction."""
-
-    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
-
-    open_dates: tuple[date, ...]
-    events: tuple[SecurityEvent, ...]
-    observations: tuple[UniverseMarketObservation, ...]
-
-
-class UniverseReaderError(Exception):
-    """The reader is bound outside its governed database."""
-
-    __slots__ = ("database_name",)
-
-    def __init__(self, database_name: str) -> None:
-        """Record only the rejected database name, never credentials."""
-        super().__init__()
-        self.database_name = database_name
-
-    def __str__(self) -> str:
-        """Return the fixed database isolation failure."""
-        return f"universe reader requires ashare_quant, got {self.database_name}"
-
-
-class UniverseCalendarConflictError(Exception):
-    """One natural calendar key carries conflicting accepted states."""
-
-    __slots__ = ("cal_date",)
-
-    def __init__(self, cal_date: str) -> None:
-        """Record the ambiguous provider calendar date."""
-        super().__init__()
-        self.cal_date = cal_date
-
-    def __str__(self) -> str:
-        """Return the stable conflict rule and affected date."""
-        return f"calendar_natural_key_conflict: {self.cal_date}"
-
-
-class UniverseMarketConflictError(Exception):
-    """One symbol-date key carries conflicting accepted market facts."""
-
-    __slots__ = ("symbol", "trading_date")
-
-    def __init__(self, symbol: str, trading_date: date) -> None:
-        """Record the ambiguous natural market key."""
-        super().__init__()
-        self.symbol = symbol
-        self.trading_date = trading_date
-
-    def __str__(self) -> str:
-        """Return the stable conflict rule and natural key."""
-        return f"market_natural_key_conflict: {self.symbol}:{self.trading_date:%Y%m%d}"
 
 
 class MongoUniversePanelReader:
@@ -196,9 +127,13 @@ class MongoUniversePanelReader:
         schema_manifest_id: str,
     ) -> tuple[UniverseMarketObservation, ...]:
         """Load accepted daily admission observations for one bounded batch."""
+        snapshot_ids = self._daily_snapshot_ids(start_date, end_date, schema_manifest_id)
+        if not snapshot_ids:
+            return ()
         query: BsonDocument = {
             "schema_manifest_id": schema_manifest_id,
             "quality_status": "ACCEPTED",
+            "source_snapshot_id": {"$in": list(snapshot_ids)},
             "trade_date": {"$gte": _date_string(start_date), "$lte": _date_string(end_date)},
         }
         projection: BsonDocument = dict.fromkeys(DAILY_FIELDS, 1)
@@ -213,6 +148,38 @@ class MongoUniversePanelReader:
             and item.schema_manifest_id == schema_manifest_id
         )
         return _fold_market_replays(qualified)
+
+    def _daily_snapshot_ids(
+        self,
+        start_date: date,
+        end_date: date,
+        schema_manifest_id: str,
+    ) -> tuple[str, ...]:
+        query: BsonDocument = {
+            "schema_manifest_id": schema_manifest_id,
+            "status": "ACCEPTED",
+            "endpoint": "daily",
+        }
+        projection: BsonDocument = {
+            "snapshot_id": 1,
+            "endpoint": 1,
+            "request_params_canonical": 1,
+            "schema_manifest_id": 1,
+            "status": 1,
+        }
+        parsed = tuple(
+            daily_snapshot(document)
+            for document in self._database["meta_source_snapshots"].find(query, projection)
+        )
+        return tuple(
+            sorted(
+                snapshot_id
+                for snapshot_id, trade_date, observed_schema, status in parsed
+                if start_date <= trade_date <= end_date
+                and observed_schema == schema_manifest_id
+                and status == "ACCEPTED"
+            )
+        )
 
 
 def _date_string(value: date) -> str:

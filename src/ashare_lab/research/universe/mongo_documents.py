@@ -93,9 +93,41 @@ class DailyDocument(BaseModel):
     source_row_sha256: str
 
 
+class DailySnapshotDocument(BaseModel):
+    """Accepted Raw snapshot envelope used to reach indexed canonical rows."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    snapshot_id: str
+    endpoint: str
+    request_params_canonical: str
+    schema_manifest_id: str
+    status: str
+
+
+class DailyRequestParams(BaseModel):
+    """Closed request shape for one date-partitioned daily snapshot."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    trade_date: str
+
+
 def security_event(document: BsonDocument) -> SecurityEvent:
     """Parse one closed lifecycle event through its existing trust boundary."""
     return security_event_from_document(document)
+
+
+def daily_snapshot(document: BsonDocument) -> tuple[str, date, str, str]:
+    """Parse a daily Raw snapshot identity and its structured request date."""
+    parsed = DailySnapshotDocument.model_validate(document)
+    params = DailyRequestParams.model_validate_json(parsed.request_params_canonical)
+    return (
+        parsed.snapshot_id,
+        parse_date(params.trade_date),
+        parsed.schema_manifest_id,
+        parsed.status,
+    )
 
 
 def market_observation(document: BsonDocument) -> ParsedMarketObservation:

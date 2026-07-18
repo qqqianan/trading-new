@@ -59,6 +59,17 @@ def test_mongo_universe_reader_normalizes_governed_rows_and_amount_units() -> No
                 )
             ),
             "pit_security_events": Collection((_security_event_document(),)),
+            "meta_source_snapshots": Collection(
+                (
+                    {
+                        "snapshot_id": "snapshot_daily_001",
+                        "endpoint": "daily",
+                        "request_params_canonical": '{"trade_date":"20260716"}',
+                        "schema_manifest_id": "schema_market",
+                        "status": "ACCEPTED",
+                    },
+                )
+            ),
             "canonical_daily_bar": Collection(
                 (
                     {
@@ -102,6 +113,8 @@ def test_mongo_universe_reader_normalizes_governed_rows_and_amount_units() -> No
     assert len(evidence.observations) == 1
     assert evidence.observations[0].amount_cny == 25_000_000.0
     assert evidence.observations[0].available_at.hour == 16
+    daily_query = database["canonical_daily_bar"].queries[0]
+    assert daily_query["source_snapshot_id"] == {"$in": ["snapshot_daily_001"]}
 
 
 def test_mongo_universe_reader_rejects_non_governed_database() -> None:
