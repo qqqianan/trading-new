@@ -262,9 +262,9 @@ industry schema `1.0.1` 当前 manifest 为
 `inputs_6749e8d049d37b0051bb6988101edd034cfebb70d5f485fb33fee89575646371`，固定
 13,829 个 Raw 快照和 285,828 条输入 lineage。身份集合使用最多 1,000 个 ID 的内容寻址块保存，
 主文档同时固定完整集合的数量与 SHA-256；重复资格审查不会追加重复证据。行业组件最早可得日为
-`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。特征和标签尚未
-物化，因此没有生成 `DatasetSpec`，正式训练门禁保持关闭，不得把当前 Raw 或 canonical 快照
-直接作为训练数据集。
+`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。15 个行情类特征
+已经物化，但 6 个财务特征和标签尚未物化，因此仍没有生成 `DatasetSpec`，正式训练门禁保持关闭，
+不得把当前 Raw、canonical 或孤立 feature artifact 直接作为训练数据集。
 
 周频 PIT 股票池已物化为
 `universe_artifact_a5e618d3b4273bc97b8720bc8a31808fed91d00446cfb5e60a6f9cac6040de1b`，
@@ -277,3 +277,32 @@ lineage manifest `lineage_01f090433e379b2ac0077894f87ffe495c6fadcf913181f9fc4573
 `2026-07-16` 误当成完整周。自然键重复和 `available_at > decision_time` 均为 0。
 现有 accepted 交易日历从 2020 年开始，因此此前上市标的在累计到 120 个有证据交易日之前仍
 保守标记为 `INSUFFICIENT_LISTING_AGE`；不使用自然日猜测或当前状态放宽该门禁。
+
+15 个行情、风险、流动性、规模与估值因子已使用代码提交
+`ed164be79870b37f33da8b1447ba4b453594b3e2` 物化。每个因子独立保存 1,712,992 行，绑定同一
+input manifest、universe artifact 和各自字段映射/lineage edge；feature row schema 为
+`schema_90618062b54a7d5b45d543dcd3b3da5dcdf2aab4952aadb3d6826afd5e7ce922`。
+
+| Feature | Artifact ID |
+|---|---|
+| `mom_20` | `feature_artifact_caabbff8de5c733df39f35f5404761bed004d3288451f75d820882c83dbc3fd6` |
+| `mom_60` | `feature_artifact_95da0f68b63e71675eb7604640351501d07ce111e2dc5d8978306b5c80b1b57c` |
+| `mom_120` | `feature_artifact_2dad0a3fc639f46fdb4bec53be4da329857cbace7aaa05325dcbc472b661307b` |
+| `reversal_5` | `feature_artifact_9fefdc76972748084a4ea43941568fa230e2fffe5d9ff5f8e069130e1b28c9ef` |
+| `vol_20` | `feature_artifact_9ee479f7fabec8cb4e007ca629c9f3a6865226c7c4924ce4a4b974d7d41b349a` |
+| `vol_60` | `feature_artifact_b01b0f8092fe141c05c823c080b500b654f19a62e797423c4ea7cfa8d9eff614` |
+| `max_drawdown_60` | `feature_artifact_e5cea4b1191cc88b971ed67e9705f94b0426b97072c59b086341a27e68c0d4ab` |
+| `turnover_mean_20` | `feature_artifact_20ce7b9420137c53c9e4579648d3eeb93c90ed54d0f0aa05a516886f70360b16` |
+| `amount_median_20` | `feature_artifact_933eacb3bded0208d822979db3dfa4dd495c9eb810956f35c9fe310ab09f475d` |
+| `amihud_20` | `feature_artifact_27dc65a0e691d615cc7cca8139baf1841c27e30b3f5ecbc426c07d1d4fdbdaf4` |
+| `log_total_mv` | `feature_artifact_92b4fd47dfe095080814a5a11edbc883d66d51873aa0b8b0e1260c042fe2bc62` |
+| `earnings_yield_ttm` | `feature_artifact_e72c64147d7829c7a90e7104025c6a9c628a6efe4e588446a8ccfe0b8be69fb9` |
+| `book_yield` | `feature_artifact_d3a123ae52913ec7c4c49b9bb793d1fbfc73d88097f43c962328ec95b650b315` |
+| `sales_yield_ttm` | `feature_artifact_3c0317ac3d3ea47100ee09dbac0e2aa243b57fa8b013cb31d8eee69ff4e79a9f` |
+| `dividend_yield_ttm` | `feature_artifact_545346fce4bcafc379e2ec559b74fb47efb502465423a3991406845f1f4bf6f8` |
+
+全量审计覆盖 25,694,880 行：重复 `(symbol, decision_time, feature_id)`、PIT 越界、质量状态
+语义错误、股票池缺键/多键和每键非 15 因子均为 0。读取期发现的相同自然键重放只有物质字段一致
+时才折叠；冲突会停止整批。`MISSING_DECISION_BAR` 75,750 行和
+`MISSING_REQUIRED_BUNDLE` 3,283 行全部来自当时 `eligible_for_new_risk=false` 的股票池键，仍保留
+在产物中。因子阶段不执行填充、去极值、标准化或中性化，也不删除停牌、退市、低流动性或缺失样本。

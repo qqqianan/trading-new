@@ -142,7 +142,7 @@
   QA scenarios: `uv run pytest tests/test_research_calendar.py tests/test_research_universe_panel.py -q`; 本机抽取 10 个历史变更代码做时间切片审计 `.omo/evidence/task-4-universe.json`
   Commit: Y | `feat(research): materialize weekly pit universe` | `research/universe`, schemas, tests
 
-- [ ] 5. 实现行情、风险、流动性、规模与估值因子
+- [x] 5. 实现行情、风险、流动性、规模与估值因子
   What to do: 建立闭集 feature registry 和 Polars 计算器，物化表中定义的 15 个非财务因子。复权连续收益使用当时可得的 `close * adj_factor`，成交模拟仍只用原始价；单位严格转换为人民币/股。每个输出行包含 symbol、decision_time、feature ID/version、value、available_at、artifact ID 和质量状态；缺历史窗口输出 null 与原因，不删除股票。
   Must NOT do: 不使用未来复权因子，不对非正 PE/PB/PS 取绝对值或强制填零，不在此阶段全样本标准化。
   Parallelization: Can parallel Y | Wave 2 | Blocks 7
@@ -150,6 +150,10 @@
   Acceptance criteria: 手算夹具精确匹配 15 个公式；窗口不足、零成交额、非正估值、停牌和复权因子变化均有稳定空值/结果语义；任一输入行 `available_at` 越界时整批拒绝。
   QA scenarios: `uv run pytest tests/test_market_factors.py tests/test_feature_pit_guard.py -q`; 对 3 只股票 3 个决策日导出手算比对 `.omo/evidence/task-5-market-factors.csv`
   Commit: Y | `feat(features): add governed market factor family` | `research/features`, schemas, tests
+  Completed: 15 个独立 feature artifacts 各 1,712,992 行，共 25,694,880 行；重复键、PIT 违规、
+  股票池键差异和质量语义违规均为 0。3 只股票 × 3 个决策日的 `mom_20`、`log_total_mv` 和
+  `earnings_yield_ttm` 已从 canonical 字段独立手算并逐值匹配。代码提交为 `f4d69bc`、
+  `6909349` 和 `ed164be`；artifact IDs 与空值分布记录在 `docs/DATA_CONTRACT_AND_LINEAGE.md`。
 
 - [ ] 6. 实现财务质量与成长因子
   What to do: 基于 accepted PIT financial indicator 版本物化 `roe`, `grossprofit_margin`, `ocf_to_debt`, `debt_to_assets`, `q_sales_yoy`, `q_netprofit_yoy`。对每个决策点只选 `available_at <= decision_time` 的最新已公告版本，保留版本 ID、报告期、公告时钟、update_flag 和字段级 lineage；同日多版本使用稳定的版本排序规则，绝不覆盖旧版。
