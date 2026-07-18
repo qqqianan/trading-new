@@ -96,7 +96,7 @@ class ParquetArtifactStore:
             )
         verify_parquet(
             descriptor.parquet_path,
-            self._schemas.polars_schema(descriptor.kind),
+            self._schemas.polars_schema(descriptor.kind, descriptor.schema_manifest_id),
             descriptor.row_count,
             descriptor.data_sha256,
         )

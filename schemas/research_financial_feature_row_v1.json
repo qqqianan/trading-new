@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_kind": "feature",
+  "fields": [
+    {"name":"symbol","data_type":"string","nullable":false,"unit":"tushare_ts_code","null_semantics":"never null","time_role":"entity_key","allowed_use":"feature_key"},
+    {"name":"decision_time","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"decision_time","allowed_use":"feature_key"},
+    {"name":"feature_id","data_type":"string","nullable":false,"unit":"registered_feature_id","null_semantics":"never null","time_role":"none","allowed_use":"feature_definition"},
+    {"name":"feature_version","data_type":"string","nullable":false,"unit":"semver","null_semantics":"never null","time_role":"none","allowed_use":"feature_definition"},
+    {"name":"value","data_type":"float64","nullable":true,"unit":"provider_defined","null_semantics":"null when no visible version or selected source field is missing","time_role":"as_of_decision_time","allowed_use":"model_feature_only"},
+    {"name":"available_at","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"available_at","allowed_use":"pit_guard"},
+    {"name":"quality_status","data_type":"string","nullable":false,"unit":"quality_status_code","null_semantics":"never null","time_role":"none","allowed_use":"quality_filter"},
+    {"name":"null_reason","data_type":"string","nullable":true,"unit":"stable_reason_code","null_semantics":"null only when value is present","time_role":"none","allowed_use":"quality_audit"},
+    {"name":"source_event_id","data_type":"string","nullable":true,"unit":"pit_event_id","null_semantics":"null only when no financial version was visible","time_role":"lineage","allowed_use":"audit"},
+    {"name":"source_report_period","data_type":"string","nullable":true,"unit":"YYYYMMDD","null_semantics":"null only when no financial version was visible","time_role":"event_time","allowed_use":"audit"},
+    {"name":"source_available_at","data_type":"datetime_asia_shanghai","nullable":true,"unit":"Asia/Shanghai","null_semantics":"null only when no financial version was visible","time_role":"available_at","allowed_use":"audit"},
+    {"name":"source_update_flag","data_type":"string","nullable":true,"unit":"provider_version_flag","null_semantics":"provider may omit; null also when no version was visible","time_role":"none","allowed_use":"audit"},
+    {"name":"source_snapshot_id","data_type":"string","nullable":true,"unit":"raw_snapshot_id","null_semantics":"null only when no financial version was visible","time_role":"lineage","allowed_use":"audit"},
+    {"name":"source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null only when no financial version was visible","time_role":"lineage","allowed_use":"audit"}
+  ]
+}

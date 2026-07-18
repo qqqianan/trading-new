@@ -20,18 +20,22 @@ def test_research_schema_catalog_registers_all_materialized_row_kinds() -> None:
     # When: the catalog parses and content-addresses every schema.
     catalog = ResearchSchemaCatalog.load(SCHEMA_PATHS)
 
-    # Then: every materialized dataset boundary has exactly one schema.
+    # Then: every materialized boundary kind is registered.
     assert catalog.kinds == (
         ArtifactKind.DATASET,
         ArtifactKind.FEATURE,
         ArtifactKind.LABEL,
         ArtifactKind.UNIVERSE,
     )
+    assert len(catalog.schemas(ArtifactKind.FEATURE)) == 2
 
 
 def test_research_schema_rejects_null_in_required_field() -> None:
     # Given: a feature row whose required symbol is null.
     catalog = ResearchSchemaCatalog.load(SCHEMA_PATHS)
+    feature_schema = next(
+        schema for schema in catalog.schemas(ArtifactKind.FEATURE) if len(schema.fields) == 8
+    )
     available_at = datetime(2026, 7, 16, 18, tzinfo=ZoneInfo("Asia/Shanghai"))
     frame = pl.DataFrame(
         {
@@ -44,12 +48,12 @@ def test_research_schema_rejects_null_in_required_field() -> None:
             "quality_status": ["ACCEPTED"],
             "null_reason": [None],
         },
-        schema=catalog.polars_schema(ArtifactKind.FEATURE),
+        schema=catalog.polars_schema(ArtifactKind.FEATURE, feature_schema.manifest_id),
     )
 
     # When / Then: nullable metadata is enforced, not merely documented.
     with pytest.raises(ResearchArtifactError, match="schema_mismatch"):
-        catalog.validate(ArtifactKind.FEATURE, frame)
+        catalog.validate(ArtifactKind.FEATURE, frame, feature_schema.manifest_id)
 
 
 def test_research_schema_documents_training_semantics_for_every_field() -> None:
@@ -57,7 +61,12 @@ def test_research_schema_documents_training_semantics_for_every_field() -> None:
     catalog = ResearchSchemaCatalog.load(SCHEMA_PATHS)
 
     # When: field documentation is inspected through the typed registry.
-    fields = tuple(field for kind in catalog.kinds for field in catalog.schema(kind).fields)
+    fields = tuple(
+        field
+        for kind in catalog.kinds
+        for schema in catalog.schemas(kind)
+        for field in schema.fields
+    )
 
     # Then: training cannot encounter an undocumented type, unit, null, time, or use role.
     assert fields

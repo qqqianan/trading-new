@@ -30,17 +30,18 @@ class RegisteredResearchSchema:
 
 
 class ResearchSchemaCatalog:
-    """Closed artifact-kind lookup that rejects unregistered table shapes."""
+    """Content-addressed lookup supporting exact schemas within one kind."""
 
     def __init__(self, schemas: tuple[RegisteredResearchSchema, ...]) -> None:
-        """Create a catalog after duplicate kinds have been rejected."""
-        kinds = tuple(schema.artifact_kind for schema in schemas)
-        if len(kinds) != len(set(kinds)):
+        """Create a catalog after duplicate manifest IDs have been rejected."""
+        identities = tuple(schema.manifest_id for schema in schemas)
+        if len(identities) != len(set(identities)):
             raise ResearchArtifactError(
                 ArtifactRule.INVALID_SCHEMA,
-                "multiple research schemas register the same artifact kind",
+                "research schema manifest IDs must be unique",
             )
-        self._schemas = {schema.artifact_kind: schema for schema in schemas}
+        self._schemas = schemas
+        self._by_id = {schema.manifest_id: schema for schema in schemas}
 
     @classmethod
     def load(cls, paths: tuple[Path, ...]) -> "ResearchSchemaCatalog":
@@ -69,17 +70,41 @@ class ResearchSchemaCatalog:
     @property
     def kinds(self) -> tuple[ArtifactKind, ...]:
         """Return registered kinds in deterministic order."""
-        return tuple(sorted(self._schemas, key=lambda kind: kind.value))
+        return tuple(
+            sorted({schema.artifact_kind for schema in self._schemas}, key=lambda kind: kind.value)
+        )
 
-    def schema(self, kind: ArtifactKind) -> RegisteredResearchSchema:
-        """Return a registered kind or fail closed."""
-        try:
-            return self._schemas[kind]
-        except KeyError:
+    def schemas(self, kind: ArtifactKind) -> tuple[RegisteredResearchSchema, ...]:
+        """Return every registered schema for one artifact kind."""
+        values = tuple(schema for schema in self._schemas if schema.artifact_kind is kind)
+        if not values:
             raise ResearchArtifactError(
                 ArtifactRule.SCHEMA_MISMATCH,
                 f"artifact kind has no registered row schema: {kind.value}",
-            ) from None
+            )
+        return values
+
+    def schema(
+        self,
+        kind: ArtifactKind,
+        manifest_id: str | None = None,
+    ) -> RegisteredResearchSchema:
+        """Return an exact schema, rejecting ambiguous kind-only lookup."""
+        if manifest_id is not None:
+            schema = self._by_id.get(manifest_id)
+            if schema is None or schema.artifact_kind is not kind:
+                raise ResearchArtifactError(
+                    ArtifactRule.SCHEMA_MISMATCH,
+                    f"schema is not registered for {kind.value}: {manifest_id}",
+                )
+            return schema
+        values = self.schemas(kind)
+        if len(values) != 1:
+            raise ResearchArtifactError(
+                ArtifactRule.SCHEMA_MISMATCH,
+                f"artifact kind requires exact schema identity: {kind.value}",
+            )
+        return values[0]
 
     def validate(
         self,
@@ -88,13 +113,8 @@ class ResearchSchemaCatalog:
         manifest_id: str | None = None,
     ) -> None:
         """Require exact order, physical types, nullability, and schema identity."""
-        schema = self.schema(kind)
-        if manifest_id is not None and manifest_id != schema.manifest_id:
-            raise ResearchArtifactError(
-                ArtifactRule.SCHEMA_MISMATCH,
-                f"request schema is not registered for {kind.value}",
-            )
-        expected = self.polars_schema(kind)
+        schema = self.schema(kind, manifest_id)
+        expected = _schema_to_polars(schema)
         if frame.schema != expected:
             raise ResearchArtifactError(
                 ArtifactRule.SCHEMA_MISMATCH,
@@ -111,10 +131,17 @@ class ResearchSchemaCatalog:
                 f"required fields contain nulls: {','.join(required_with_nulls)}",
             )
 
-    def polars_schema(self, kind: ArtifactKind) -> pl.Schema:
+    def polars_schema(
+        self,
+        kind: ArtifactKind,
+        manifest_id: str | None = None,
+    ) -> pl.Schema:
         """Return the exact physical Polars schema for one registered kind."""
-        schema = self.schema(kind)
-        return pl.Schema({field.name: _polars_type(field.data_type) for field in schema.fields})
+        return _schema_to_polars(self.schema(kind, manifest_id))
+
+
+def _schema_to_polars(schema: RegisteredResearchSchema) -> pl.Schema:
+    return pl.Schema({field.name: _polars_type(field.data_type) for field in schema.fields})
 
 
 def _polars_type(field_type: ResearchFieldType) -> pl.DataType | type[pl.DataType]:
