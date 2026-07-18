@@ -1,10 +1,10 @@
 """Bounded orchestration for complete weekly market-factor artifacts."""
 
 from collections import defaultdict
-from dataclasses import replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
 import polars as pl
 from pydantic import ValidationError
@@ -14,21 +14,13 @@ from ashare_lab.research.artifacts import (
     ParquetArtifactStore,
     ResearchSchemaCatalog,
 )
-from ashare_lab.research.features.market.calculator import calculate_market_factors
 from ashare_lab.research.features.market.catalog import market_factor_catalog
 from ashare_lab.research.features.market.materialization import (
     MarketFeatureMaterializationRequest,
     market_factor_frame,
     materialize_market_factor_frame,
 )
-from ashare_lab.research.features.market.models import (
-    MarketFactorObservation,
-    MarketFactorRow,
-)
-from ashare_lab.research.features.market.mongo_contracts import (
-    MarketBundleReadResult,
-    MarketKey,
-)
+from ashare_lab.research.features.market.models import MarketFactorRow
 from ashare_lab.services.market_feature_contracts import (
     MarketFeatureEvidenceReader,
     MarketFeatureMaterializationResult,
@@ -37,6 +29,16 @@ from ashare_lab.services.market_feature_contracts import (
     MarketFeatureServiceRule,
     UniverseFeatureKey,
 )
+from ashare_lab.services.market_feature_evidence import (
+    MarketHistory,
+    market_factor_rows,
+    merge_market_history,
+    prepare_market_evidence,
+    retain_market_history,
+)
+
+if TYPE_CHECKING:
+    from ashare_lab.research.features.market.mongo_contracts import MarketKey
 
 
 def materialize_weekly_market_features(
@@ -63,6 +65,8 @@ def materialize_weekly_market_features(
     )
     _validate_calendar(calendar, decisions)
     rejection_keys: set[MarketKey] = set()
+    carry: MarketHistory = {}
+    previous_batch_end: date | None = None
     with TemporaryDirectory(prefix="market-features-") as temporary_name:
         staging = Path(temporary_name)
         batch_number = 0
@@ -70,16 +74,22 @@ def materialize_weekly_market_features(
             first_expected = tuple(day for day in calendar if day <= decision_batch[0].date())[
                 -121:
             ]
+            read_start = (
+                first_expected[0]
+                if previous_batch_end is None
+                else next(day for day in calendar if day > previous_batch_end)
+            )
             evidence = reader.read(
-                first_expected[0],
+                read_start,
                 decision_batch[-1].date(),
                 request.market_schema_manifest_id,
             )
-            observations, rejected = _prepare_evidence(evidence)
+            current, rejected = prepare_market_evidence(evidence)
+            observations = merge_market_history(carry, current)
             rejection_keys.update(rejected)
             for decision in decision_batch:
                 expected = tuple(day for day in calendar if day <= decision.date())[-121:]
-                rows = _rows_from_index(
+                rows = market_factor_rows(
                     tuple(key for key in universe_keys if key.decision_time == decision),
                     expected,
                     observations,
@@ -87,6 +97,8 @@ def materialize_weekly_market_features(
                 )
                 _stage_rows(staging, schemas, rows, batch_number)
                 batch_number += 1
+            previous_batch_end = decision_batch[-1].date()
+            carry = retain_market_history(observations, calendar, previous_batch_end)
         artifacts = _publish_staged(staging, store, schemas, request.materialization)
     return MarketFeatureMaterializationResult(
         artifacts=artifacts,
@@ -131,53 +143,6 @@ def _validate_calendar(
         )
 
 
-def _rows_from_index(
-    keys: tuple[UniverseFeatureKey, ...],
-    expected_dates: tuple[date, ...],
-    observations: dict[str, tuple[MarketFactorObservation, ...]],
-    rejected: set[MarketKey],
-) -> tuple[MarketFactorRow, ...]:
-    expected = set(expected_dates)
-    by_symbol: defaultdict[str, list[MarketFactorObservation]] = defaultdict(list)
-    for symbol, series in observations.items():
-        by_symbol[symbol].extend(item for item in series if item.bar.trading_date in expected)
-    rows: list[MarketFactorRow] = []
-    for key in keys:
-        decision = key.decision_time
-        current_key = (key.symbol, decision.date())
-        series = tuple(by_symbol[key.symbol])
-        if not series or series[-1].bar.trading_date != decision.date():
-            reason = (
-                "MISSING_REQUIRED_BUNDLE" if current_key in rejected else "MISSING_DECISION_BAR"
-            )
-            rows.extend(_null_rows(key, reason))
-            continue
-        rows.extend(calculate_market_factors(series, decision, expected_dates))
-    return tuple(rows)
-
-
-def _prepare_evidence(
-    evidence: MarketBundleReadResult,
-) -> tuple[dict[str, tuple[MarketFactorObservation, ...]], set[MarketKey]]:
-    suspended = set(evidence.suspended_keys)
-    indexed: dict[MarketKey, MarketFactorObservation] = {}
-    for item in evidence.observations:
-        key = (str(item.bar.symbol), item.bar.trading_date)
-        if key in indexed:
-            raise MarketFeatureServiceError(
-                MarketFeatureServiceRule.DUPLICATE_MARKET_OBSERVATION,
-                f"{key[0]}:{key[1]:%Y%m%d}",
-            )
-        indexed[key] = (
-            replace(item, bar=replace(item.bar, is_suspended=True)) if key in suspended else item
-        )
-    grouped: defaultdict[str, list[MarketFactorObservation]] = defaultdict(list)
-    for (symbol, _), item in sorted(indexed.items()):
-        grouped[symbol].append(item)
-    rejected = {(item.symbol, item.trading_date) for item in evidence.rejections}
-    return {symbol: tuple(values) for symbol, values in grouped.items()}, rejected
-
-
 def _quarter_groups(
     decisions: tuple[datetime, ...],
 ) -> tuple[tuple[datetime, ...], ...]:
@@ -185,22 +150,6 @@ def _quarter_groups(
     for decision in decisions:
         grouped[(decision.year, (decision.month - 1) // 3)].append(decision)
     return tuple(tuple(values) for values in grouped.values())
-
-
-def _null_rows(key: UniverseFeatureKey, reason: str) -> tuple[MarketFactorRow, ...]:
-    return tuple(
-        MarketFactorRow(
-            symbol=key.symbol,
-            decision_time=key.decision_time,
-            feature_id=definition.name,
-            feature_version=definition.version,
-            value=None,
-            available_at=key.available_at,
-            quality_status="INCOMPLETE",
-            null_reason=reason,
-        )
-        for definition in market_factor_catalog()
-    )
 
 
 def _stage_rows(

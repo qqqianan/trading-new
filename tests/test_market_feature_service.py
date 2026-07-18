@@ -30,6 +30,7 @@ class MarketEvidenceReader:
     def __init__(self, open_dates: tuple[date, ...]) -> None:
         self._open_dates = open_dates
         self.read_count = 0
+        self.read_ranges: list[tuple[date, date]] = []
         complete = market_observations(len(open_dates))
         missing_day = open_dates[-10]
         self._observations = tuple(
@@ -54,6 +55,7 @@ class MarketEvidenceReader:
     ) -> MarketBundleReadResult:
         assert schema_manifest_id
         self.read_count += 1
+        self.read_ranges.append((start_date, end_date))
         return MarketBundleReadResult(
             observations=tuple(
                 item
@@ -251,6 +253,60 @@ def test_market_feature_service_reuses_one_quarterly_bundle_read(tmp_path: Path)
     # Then: one bounded read is reused without dropping either decision key.
     assert reader.read_count == 1
     assert result.row_count == 30
+
+
+def test_market_feature_service_carries_history_without_rereading_prior_quarter(
+    tmp_path: Path,
+) -> None:
+    # Given: two decisions span adjacent quarters with continuous market evidence.
+    dates = _open_dates(70)
+    decisions = (
+        datetime.combine(dates[20], time(18), SHANGHAI),
+        datetime.combine(dates[-1], time(18), SHANGHAI),
+    )
+    catalog = ResearchSchemaCatalog.load(
+        (
+            ROOT / "schemas" / "research_feature_row_v1.json",
+            ROOT / "schemas" / "research_universe_row_v1.json",
+        )
+    )
+    store = ParquetArtifactStore(tmp_path, catalog)
+    universe = materialize_universe_panel(
+        store,
+        catalog,
+        tuple(_universe_row("000001.SZ", decision) for decision in decisions),
+        UniverseMaterializationRequest(
+            input_manifest_id="inputs_001",
+            input_lineage_manifest_id="lineage_inputs_001",
+            code_commit="a" * 40,
+        ),
+    )
+    reader = MarketEvidenceReader(dates)
+
+    # When: both quarterly groups are materialized.
+    materialize_weekly_market_features(
+        reader,
+        store,
+        catalog,
+        MarketFeatureRunRequest(
+            start_date=decisions[0].date(),
+            end_date=decisions[-1].date(),
+            market_schema_manifest_id="schema_market",
+            universe_artifact=universe,
+            materialization=MarketFeatureMaterializationRequest(
+                input_manifest_id="inputs_001",
+                input_lineage_manifest_id="lineage_inputs_001",
+                universe_artifact_id=universe.artifact_id,
+                universe_lineage_edge_id=universe.lineage_edge_id,
+                code_commit="a" * 40,
+            ),
+        ),
+    )
+
+    # Then: the second read starts after the first batch and relies on carried history.
+    assert reader.read_count == 2
+    assert reader.read_ranges[0] == (dates[0], decisions[0].date())
+    assert reader.read_ranges[1] == (dates[21], decisions[1].date())
 
 
 def _open_dates(count: int) -> tuple[date, ...]:
