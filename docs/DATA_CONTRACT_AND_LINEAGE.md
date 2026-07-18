@@ -254,7 +254,7 @@ industry schema `1.0.1` 当前 manifest 为
 历史回填完成状态必须由 accepted Raw、当前 schema lineage 与通过的 canonical 质量报告联合
 证明，不使用独立游标冒充数据事实。
 
-18 个 P0 接口已具有字段清单，但观察日前历史行业可得性、特征和标签物化 lineage 尚未完成。
+18 个 P0 接口已具有字段清单，但观察日前历史行业可得性和标签物化 lineage 尚未完成。
 当前输入覆盖报告
 `coverage_b25d100af1004281b57e8b38abc6198e491b0fb02b955328727456af9923c273`
 已对 `2020-01-02` 至 `2026-07-16` 的日频 bundle、PIT 股票池、财务指标 PIT 和中证 500 日线
@@ -262,8 +262,8 @@ industry schema `1.0.1` 当前 manifest 为
 `inputs_6749e8d049d37b0051bb6988101edd034cfebb70d5f485fb33fee89575646371`，固定
 13,829 个 Raw 快照和 285,828 条输入 lineage。身份集合使用最多 1,000 个 ID 的内容寻址块保存，
 主文档同时固定完整集合的数量与 SHA-256；重复资格审查不会追加重复证据。行业组件最早可得日为
-`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。15 个行情类特征
-已经物化，但 6 个财务特征和标签尚未物化，因此仍没有生成 `DatasetSpec`，正式训练门禁保持关闭，
+`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。全部 21 个基础特征
+已经物化，但标签尚未物化，因此仍没有生成 `DatasetSpec`，正式训练门禁保持关闭，
 不得把当前 Raw、canonical 或孤立 feature artifact 直接作为训练数据集。
 
 周频 PIT 股票池已物化为
@@ -306,3 +306,33 @@ input manifest、universe artifact 和各自字段映射/lineage edge；feature 
 时才折叠；冲突会停止整批。`MISSING_DECISION_BAR` 75,750 行和
 `MISSING_REQUIRED_BUNDLE` 3,283 行全部来自当时 `eligible_for_new_risk=false` 的股票池键，仍保留
 在产物中。因子阶段不执行填充、去极值、标准化或中性化，也不删除停牌、退市、低流动性或缺失样本。
+
+6 个财务质量与成长因子已使用代码提交
+`734d49c430794605e25a12175c54baa1bc72f306` 物化。读取层只访问当前
+financial-indicator schema
+`schema_3ba4da69c3ae11fc76008832f7346f195c3cad7cc31a234c17deeae050486915`
+下 `ACCEPTED` 的 `pit_financial_indicators`；feature row schema 为
+`schema_2188f37341fed23c1b341582583c4eddbd4a0ea54c32eb1c393480f60d208510`。
+每行保留所选版本的 event ID、报告期、公告时钟、update flag、Raw snapshot ID 和 Raw row
+SHA-256。每个因子独立保存 1,712,992 行：
+
+| Feature | Artifact ID |
+|---|---|
+| `roe` | `feature_artifact_86f2b99591d19d9a2684bbf9a4783354d353c47cf737ec756f236eee6ce463d5` |
+| `grossprofit_margin` | `feature_artifact_ac866e63cff57d6184441e1a41edeeb64de88d085ff6d8665dbad6249c7d51ed` |
+| `ocf_to_debt` | `feature_artifact_4d21cbbf44b5092bf2aea11d44c49e97db64ea30ff0e9d98434552a88a154b92` |
+| `debt_to_assets` | `feature_artifact_7d9de2fbdc3591ce537082bce4792d0a68c08c1cbd1149f7455197a507677cc7` |
+| `q_sales_yoy` | `feature_artifact_6540a20c8457f70d8cb4bccda18f455cf1ccceab8ed04b49309c7fff7069d99c` |
+| `q_netprofit_yoy` | `feature_artifact_fb959366e4ceab00ce239c2b5e54774ab6f1313a0edc1b2dc834061a2f58cc5c` |
+
+全量审计覆盖 10,277,952 行，区间为 `2020-01-03 18:00 +08:00` 至
+`2026-07-10 18:00 +08:00`。重复键、PIT 越界、质量语义错误、血缘字段不一致、股票池缺键/多键、
+每键非 6 因子及同键跨因子来源不一致均为 0。截止时点可见的 214,181 个 PIT 版本全部参与选择；
+库内另外 11 个 accepted 版本在截止时点之后发布，因此不得提前进入产物。9,662,721 行存在真实值，
+492,810 行因当时尚无已发布财务版本而标记 `NO_PUBLISHED_FINANCIAL`，122,421 行因所选版本的源字段
+为空而标记 `SOURCE_VALUE_MISSING`；两类缺失均未填充或删除。
+
+真实修订样本 `301589.SZ` 的 2023 年报 `roe` 在 `2024-04-18 18:00 +08:00` 前保持
+`33.0389` 和原 event ID；`2024-04-19` 决策才读取修订值 `33.0093` 及新 event ID。随后
+`2024-04-25` 发布 2024 一季报后，选择器才切换到较新报告期。该序列证明修订不会回写旧决策，
+且较新报告期优先于旧报告的后续版本。

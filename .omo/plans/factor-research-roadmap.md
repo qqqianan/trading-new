@@ -155,7 +155,7 @@
   `earnings_yield_ttm` 已从 canonical 字段独立手算并逐值匹配。代码提交为 `f4d69bc`、
   `6909349` 和 `ed164be`；artifact IDs 与空值分布记录在 `docs/DATA_CONTRACT_AND_LINEAGE.md`。
 
-- [ ] 6. 实现财务质量与成长因子
+- [x] 6. 实现财务质量与成长因子
   What to do: 基于 accepted PIT financial indicator 版本物化 `roe`, `grossprofit_margin`, `ocf_to_debt`, `debt_to_assets`, `q_sales_yoy`, `q_netprofit_yoy`。对每个决策点只选 `available_at <= decision_time` 的最新已公告版本，保留版本 ID、报告期、公告时钟、update_flag 和字段级 lineage；同日多版本使用稳定的版本排序规则，绝不覆盖旧版。
   Must NOT do: 不从 canonical 财务表直接研究，不按 `end_date` 提前生效，不以后见修订覆盖当时版本，不把缺公告日期回填到报告期末。
   Parallelization: Can parallel Y | Wave 2 | Blocks 7
@@ -163,6 +163,11 @@
   Acceptance criteria: 公告前为 null、公告后出现、修订发布前仍读旧值、修订后读新值；每个字段可追溯到确切 Raw payload 字段和 snapshot。
   QA scenarios: `uv run pytest tests/test_financial_factors.py tests/test_financial_factor_lineage.py -q`; 选择至少一个真实修订样本输出 as-of 序列 `.omo/evidence/task-6-financial-pit.json`
   Commit: Y | `feat(features): add pit financial factor family` | `research/features`, schemas, tests
+  Completed: 6 个独立 financial feature artifacts 各 1,712,992 行，共 10,277,952 行；重复键、
+  PIT 越界、股票池键差异、质量语义、血缘形状和跨因子来源差异均为 0。真实修订样本
+  `301589.SZ` 证明修订只在发布后生效，随后较新报告期按规则优先。基础层提交为 `dd3c39e`，
+  服务与全量物化提交为 `734d49c`；artifact IDs 和缺失分布记录在
+  `docs/DATA_CONTRACT_AND_LINEAGE.md`。
 
 - [ ] 7. 物化隔离标签并装配 DatasetSpec
   What to do: 单独 label service 计算 `t+1 open -> t+21 open` 个股与 `000905.SH` 同期简单收益差；使用交易日索引而非自然日偏移，无法进入/退出或基准缺失时保留 null 原因。特征服务不得导入 label 包，标签服务不得向 feature artifact 写列。完成 feature、label、universe artifact 后调用 `assemble_dataset_spec()`，固定全部 snapshot/schema/lineage/artifact ID。

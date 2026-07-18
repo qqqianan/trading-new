@@ -90,6 +90,13 @@ universe 和 dataset 各有独立机器 schema；读取时必须同时验证固�
 因子层禁止删除样本、填充、去极值、标准化和中性化；这些统计型变换只能在后续训练 fold 内拟合。
 滚动窗口必须同时满足观测数量和受治理交易日历连续性，不能用“数量够了”掩盖缺失交易日。
 
+财务因子读取层只允许访问当前 schema 下 accepted 的 PIT 财务指标事件，不允许读取 quarantined
+canonical。每个决策点先限制 `available_at <= decision_time`，再选择最新报告期及其当时可见版本；
+旧版本保持不可变，修订只影响发布后的决策。输出必须保留 event ID、报告期、公告时钟、update flag、
+Raw snapshot 和 Raw row hash。无可见公告或源字段为空时仍保留全部六个因子键并写稳定 null 原因，
+不得在因子层填充或删样本。当前 15 个行情因子和 6 个财务因子均已形成独立内容寻址产物；标签和
+`DatasetSpec` 尚未完成，因此训练入口仍必须关闭。
+
 ### ExperimentManifest
 
 每次训练至少记录：训练运行 ID、数据集 ID、schema 清单 ID、lineage 清单 ID、规则版本、
