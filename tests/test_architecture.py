@@ -197,3 +197,22 @@ def test_portfolio_layer_cannot_import_execution_capabilities() -> None:
 
     # Then: portfolio code remains target-only and cannot create execution objects.
     assert violations == []
+
+
+def test_portfolio_backtest_has_one_portfolio_risk_entrypoint() -> None:
+    # Given: the one approved multi-asset backtest orchestrator.
+    allowed = SOURCE_ROOT / "backtest" / "portfolio_engine.py"
+    violations: list[str] = []
+
+    # When: direct PortfolioRiskEngine imports in the backtest layer are inspected.
+    for path in (SOURCE_ROOT / "backtest").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.module is None:
+                continue
+            imports_engine = any(alias.name == "PortfolioRiskEngine" for alias in node.names)
+            if imports_engine and path != allowed:
+                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}")
+
+    # Then: generated execution code cannot create a second risk-bypass path.
+    assert violations == []

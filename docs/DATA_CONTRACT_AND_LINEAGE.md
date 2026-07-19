@@ -423,3 +423,20 @@ QA 报告 ID 为 `factor_report_d65b1509e2b5ac832edaa0c07100173bba9e9eb2903741e8
 
 固定合成风险情景记录在 `.omo/evidence/task-10-risk-decisions.json`，只用于验证缩量、拒绝、现金守恒、
 退出意图和阻断晋级的软件行为。该证据不使用真实行情，不打开 final holdout，也不证明组合有效。
+
+## 14. 多标的回测账本与报告契约
+
+`PortfolioBacktestResult` 同时固定初始/结束现金、费用与滑点假设、组合事前风控参数、收盘熔断参数、
+逐标的数据质量报告、组合风险决定、风险事件、订单尝试、成交、每日净值和最终 tax-lot 持仓。订单
+状态闭集为 `FILLED/PARTIAL/PENDING`，原因稳定记录停牌、涨跌停、T+1、成交量容量、现金不足和缺行情；
+每次尝试保存 requested/filled quantity、是否风险退出及实际成交量参与率。
+
+成交只使用下一交易日原始开盘价并加入方向性滑点；买卖双边佣金、最低佣金和卖出印花税逐笔进入
+现金与持仓成本。卖出按可卖 acquisition lot FIFO 释放成本，未到 T+1 的 lot 不与旧 lot 混为不可卖。
+缺行情的持仓使用最后可得价格继续盯市，不删除标的；退出被跌停、停牌或缺行情阻断时保留目标。
+
+`PortfolioPerformanceMetrics` 使用费用后净值，披露绝对/中证 500 基准/超额收益、年化波动、Sharpe、
+最大回撤、成交额换手、总费用、最大参与率、pending 订单、风险事件和年度分段。完整机器结构为
+`schemas/portfolio_backtest_report_v1.json`。五票固定合成账本见
+`.omo/evidence/task-11-trade-ledger.csv`，只证明软件记账和现金守恒，不证明真实策略有效；final holdout
+未打开。

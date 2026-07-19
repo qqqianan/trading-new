@@ -214,6 +214,19 @@ Top-Bottom 收益只用于诊断和成本感知，不是单一晋级规则。最
 研究目标，生成 `INDUSTRY_EXPOSURE_UNAVAILABLE/BLOCK_VALIDATION`，状态保持 `DRAFT`。
 机器契约见 `schemas/portfolio_risk_decision_v1.json`。
 
+组合回测保留原单标的 `BacktestEngine` 兼容入口，新增的 `PortfolioBacktestEngine` 是多标的唯一编排
+入口。每个交易日顺序固定为：开盘重试上期目标 -> 先卖后买逐笔结算 -> 收盘按原始价盯市 -> 组合
+熔断 -> 接收当日收盘目标 -> `PortfolioRiskEngine` -> 留待下一开盘执行。架构测试禁止第二个组合
+风险入口。
+
+账户按标的保存 acquisition tax lots，T+1 只允许卖出前一交易日及更早取得的份额。停牌、涨停买入、
+跌停卖出、零一手容量、现金不足和缺行情均生成稳定订单状态；部分成交或未成交目标跨日保留。风险
+熔断后不再接收新增目标，退出被阻断时每天生成 `EXIT_BLOCKED/RETRY_EXIT`。费用、滑点和最低现金
+缓冲共同参与结算，不能让佣金额外侵蚀 5% 现金底线。
+
+组合报告披露绝对、基准和超额收益、波动率、Sharpe、最大回撤、换手、费用、最大成交量参与率、
+pending 订单、风险事件及年度分段；结构见 `schemas/portfolio_backtest_report_v1.json`。
+
 ## 8. 实施顺序
 
 1. 真实数据适配器与不可变 Raw 层。

@@ -227,7 +227,7 @@
   禁止 portfolio 导入交易或回测能力，机器契约为 `portfolio_risk_decision_v1.json`，固定合成 QA 见
   `.omo/evidence/task-10-risk-decisions.json`。全仓 399 测试通过，覆盖率 90.26%，final holdout 未打开。
 
-- [ ] 11. 将单标的引擎升级为多标的 A 股组合回测
+- [x] 11. 将单标的引擎升级为多标的 A 股组合回测
   What to do: 保留现有单标的 API 兼容层，新增组合账户、每票 lot/成本/T+1 状态、挂单和逐日盯市。事件顺序固定为：读取可得信息 -> 目标 -> 事前风控 -> 下一开盘成交 -> 费用 -> 收盘盯市/熔断。涨停买单、跌停卖单、停牌与成交量不足订单保持 pending 并逐日审计；组合熔断停止新增风险并尝试退出。报告绝对/基准/超额收益、波动、回撤、Sharpe、换手、费用、容量、风险事件与分段结果。
   Must NOT do: 不假设全量成交，不净掉受阻退出，不用复权价成交，不删除退市/无行情持仓。
   Parallelization: Can parallel N | Wave 5 | Blocks 12
@@ -235,6 +235,12 @@
   Acceptance criteria: 多票现金与持仓逐笔守恒；佣金最低额、印花税、滑点、T+1、lot、涨跌停、停牌和参与率手算一致；风险退出受阻会跨日重试；旧单票测试继续通过。
   QA scenarios: `uv run pytest tests/test_portfolio_backtest.py tests/test_portfolio_accounting.py tests/test_backtest_risk_exits.py tests/test_backtest_engine.py -q`; 固定 5 票情景账本 `.omo/evidence/task-11-trade-ledger.csv`
   Commit: Y | `feat(backtest): add multi-asset ashare execution engine` | `backtest`, domain trading/risk, services, tests
+  Completed: 保留旧单标的 API，新增唯一 `PortfolioBacktestEngine`、多票现金/持仓/tax-lot 账户和逐日
+  盯市。所有目标强制经过组合风控并在下一开盘先卖后买；T+1、100 股一手、停牌、涨跌停、参与率、
+  部分成交、费用、滑点和现金缓冲均逐笔守恒，pending 与风险退出跨日保留。报告覆盖绝对/基准/超额
+  收益、波动、Sharpe、回撤、换手、费用、容量、风险事件和年度分段，机器契约为
+  `portfolio_backtest_report_v1.json`，五票合成 QA 见 `.omo/evidence/task-11-trade-ledger.csv`；不声称
+  投资有效。全仓 412 测试通过，覆盖率 90.35%，final holdout 未打开。
 
 - [ ] 12. 建立等权/线性基线与受治理 Ridge 训练
   What to do: 先保存等权因子组合的开发 fold 结果，再增加 scikit-learn Ridge 的 typed trainer；只通过 `TrainingService` 调用。每 fold 单独预处理、拟合与预测，超参数候选固定为 `alpha=(0.1,1,10,100)`，只由开发验证 folds 选择；保存全部候选结果、随机种子、DatasetSpec、ExperimentManifest、模型哈希和预测 lineage。`ModelTrainingGuard` 从实际 artifacts 验证证据，不能由调用者布尔声明。只有 Ridge 在相同快照/组合/成本下稳定优于简单基线且 final test 单次运行后，才可申请 `VALIDATED`。

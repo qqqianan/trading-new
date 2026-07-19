@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PortfolioBacktestReport v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result", "metrics"],
+  "properties": {
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initial_cash",
+        "ending_cash",
+        "total_fees",
+        "research_status",
+        "execution_assumptions",
+        "portfolio_risk_config",
+        "circuit_limits",
+        "data_quality",
+        "positions",
+        "risk_decisions",
+        "risk_events",
+        "orders",
+        "trades",
+        "equity_curve"
+      ],
+      "properties": {
+        "initial_cash": {"type": "number", "exclusiveMinimum": 0},
+        "ending_cash": {"type": "number", "minimum": 0},
+        "total_fees": {"type": "number", "minimum": 0},
+        "research_status": {"enum": ["DRAFT", "VALIDATION_ELIGIBLE"]},
+        "execution_assumptions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commission_rate",
+            "minimum_commission",
+            "stamp_duty_rate",
+            "slippage_rate",
+            "board_lot"
+          ],
+          "properties": {
+            "commission_rate": {"type": "number", "minimum": 0},
+            "minimum_commission": {"type": "number", "minimum": 0},
+            "stamp_duty_rate": {"type": "number", "minimum": 0},
+            "slippage_rate": {"type": "number", "minimum": 0},
+            "board_lot": {"const": 100}
+          }
+        },
+        "portfolio_risk_config": {"$ref": "#/$defs/portfolioRiskConfig"},
+        "circuit_limits": {"$ref": "#/$defs/circuitLimits"},
+        "data_quality": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/dataQuality"}
+        },
+        "positions": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/position"}
+        },
+        "risk_decisions": {
+          "type": "array",
+          "items": {"$ref": "portfolio_risk_decision_v1.json"}
+        },
+        "risk_events": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/riskEvent"}
+        },
+        "orders": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/order"}
+        },
+        "trades": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/trade"}
+        },
+        "equity_curve": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/equityPoint"}
+        }
+      }
+    },
+    "metrics": {"$ref": "#/$defs/metrics"}
+  },
+  "$defs": {
+    "portfolioRiskConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_position_weight",
+        "maximum_positions",
+        "minimum_cash_weight",
+        "maximum_turnover",
+        "maximum_volume_participation",
+        "maximum_industry_weight",
+        "maximum_concentration"
+      ],
+      "properties": {
+        "max_position_weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "maximum_positions": {"type": "integer", "minimum": 1},
+        "minimum_cash_weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "maximum_turnover": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "maximum_volume_participation": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "maximum_industry_weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "maximum_concentration": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+      }
+    },
+    "circuitLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_position_weight",
+        "minimum_cash_weight",
+        "max_volume_participation",
+        "max_drawdown",
+        "max_daily_loss",
+        "max_position_loss"
+      ],
+      "properties": {
+        "max_position_weight": {"type": "number"},
+        "minimum_cash_weight": {"type": "number"},
+        "max_volume_participation": {"type": "number"},
+        "max_drawdown": {"type": "number"},
+        "max_daily_loss": {"type": "number"},
+        "max_position_loss": {"type": "number"}
+      }
+    },
+    "dataQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "bar_count", "first_date", "last_date", "price_basis", "point_in_time", "checks"],
+      "properties": {
+        "passed": {"const": true},
+        "bar_count": {"type": "integer", "minimum": 1},
+        "first_date": {"type": "string", "format": "date"},
+        "last_date": {"type": "string", "format": "date"},
+        "price_basis": {"const": "raw"},
+        "point_in_time": {"const": true},
+        "checks": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbol", "shares", "total_cost", "acquired_on", "last_price"],
+      "properties": {
+        "symbol": {"type": "string"},
+        "shares": {"type": "integer", "minimum": 100, "multipleOf": 100},
+        "total_cost": {"type": "number", "exclusiveMinimum": 0},
+        "acquired_on": {"type": "string", "format": "date"},
+        "last_price": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "riskEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trading_date", "rule", "action", "observed", "limit", "message", "symbol"],
+      "properties": {
+        "trading_date": {"type": "string", "format": "date"},
+        "rule": {"type": "string"},
+        "action": {"type": "string"},
+        "observed": {"type": "number"},
+        "limit": {"type": "number"},
+        "message": {"type": "string"},
+        "symbol": {"type": ["string", "null"]}
+      }
+    },
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trading_date",
+        "symbol",
+        "side",
+        "requested_quantity",
+        "filled_quantity",
+        "status",
+        "reason",
+        "risk_exit",
+        "volume_participation"
+      ],
+      "properties": {
+        "trading_date": {"type": "string", "format": "date"},
+        "symbol": {"type": "string"},
+        "side": {"enum": ["buy", "sell"]},
+        "requested_quantity": {"type": "integer", "minimum": 0, "multipleOf": 100},
+        "filled_quantity": {"type": "integer", "minimum": 0, "multipleOf": 100},
+        "status": {"enum": ["FILLED", "PARTIAL", "PENDING"]},
+        "reason": {"type": "string"},
+        "risk_exit": {"type": "boolean"},
+        "volume_participation": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "trade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trading_date", "symbol", "side", "quantity", "price", "notional", "commission", "stamp_duty", "realized_pnl"],
+      "properties": {
+        "trading_date": {"type": "string", "format": "date"},
+        "symbol": {"type": "string"},
+        "side": {"enum": ["buy", "sell"]},
+        "quantity": {"type": "integer", "minimum": 100, "multipleOf": 100},
+        "price": {"type": "number", "exclusiveMinimum": 0},
+        "notional": {"type": "number", "exclusiveMinimum": 0},
+        "commission": {"type": "number", "minimum": 0},
+        "stamp_duty": {"type": "number", "minimum": 0},
+        "realized_pnl": {"type": ["number", "null"]}
+      }
+    },
+    "equityPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trading_date", "equity", "cash", "market_value"],
+      "properties": {
+        "trading_date": {"type": "string", "format": "date"},
+        "equity": {"type": "number", "exclusiveMinimum": 0},
+        "cash": {"type": "number", "minimum": 0},
+        "market_value": {"type": "number", "minimum": 0}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_return",
+        "benchmark_return",
+        "excess_return",
+        "annualized_volatility",
+        "sharpe_ratio",
+        "max_drawdown",
+        "turnover",
+        "total_fees",
+        "maximum_volume_participation",
+        "pending_order_count",
+        "risk_event_count",
+        "annual_segments"
+      ],
+      "properties": {
+        "total_return": {"type": "number"},
+        "benchmark_return": {"type": "number"},
+        "excess_return": {"type": "number"},
+        "annualized_volatility": {"type": "number", "minimum": 0},
+        "sharpe_ratio": {"type": "number"},
+        "max_drawdown": {"type": "number", "maximum": 0},
+        "turnover": {"type": "number", "minimum": 0},
+        "total_fees": {"type": "number", "minimum": 0},
+        "maximum_volume_participation": {"type": "number", "minimum": 0, "maximum": 1},
+        "pending_order_count": {"type": "integer", "minimum": 0},
+        "risk_event_count": {"type": "integer", "minimum": 0},
+        "annual_segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["year", "portfolio_return", "benchmark_return", "excess_return"],
+            "properties": {
+              "year": {"type": "integer"},
+              "portfolio_return": {"type": "number"},
+              "benchmark_return": {"type": "number"},
+              "excess_return": {"type": "number"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

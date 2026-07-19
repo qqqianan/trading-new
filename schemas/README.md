@@ -19,6 +19,7 @@
 - `factor_trial_batch_v1.json`：计算前登记的完整因子假设、方向、family、artifact、规则与代码身份。
 - `factor_research_report_v1.json`：全 trial 诊断、分段、缺失样本、BH-FDR 和候选/拒绝决定。
 - `portfolio_risk_decision_v1.json`：周频目标权重、现金、组合限制、研究状态和全部风险事件；不含订单或成交字段。
+- `portfolio_backtest_report_v1.json`：组合账户、冻结成本/风险假设、数据质量、订单、成交、净值、基准及分段指标。
 
 每份契约固定列顺序、Polars 物理类型、空值语义、单位、时间角色和允许用途。研究产物写入
 前必须匹配对应文件的内容哈希 `schema_manifest_id`；不允许调用方临时声明列结构。
