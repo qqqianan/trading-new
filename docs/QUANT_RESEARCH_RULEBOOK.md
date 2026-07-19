@@ -147,6 +147,12 @@
 - 多资产标签有重叠时采用 purged walk-forward，并在边界设置 embargo。
 - 标准化、降维、特征选择、缺失值处理全部只在训练折拟合。
 - 每次训练记录数据快照、代码提交、随机种子、特征清单和参数。
+- 中期选股开发期固定截止 `2024-12-31`，`2025-01-01` 起属于独立 final holdout。
+- final holdout 只能由绑定冻结协议的强类型授权打开；首次访问必须先原子追加账本，第二次 fail closed。
+- 中期协议固定初始训练 504、验证 126、滚动 63 个交易日，标签 purge 20、embargo 5。
+- 折内预处理顺序固定为训练折 1%/99% winsor、逐决策日横截面中位数填充并保留缺失指示、
+  横截面 z-score、使用训练折系数对 `log(total_mv)` 中性化。`log_total_mv` 自身只标准化，不对自身回归。
+- 历史 PIT 行业证据不可用时不得伪造行业中性化，产物必须记录 `UNAVAILABLE`，研究不得晋级完整验证状态。
 
 ### 5.2 绝对禁止
 
@@ -161,6 +167,8 @@
 - **FORBIDDEN**：未做多重检验控制就从大量试验中挑选最高收益模型。
 - **FORBIDDEN**：无法复现数据快照和特征生成过程的模型进入模拟或实盘。
 - **FORBIDDEN**：演示/合成行情训练可用于投资决策的模型。
+- **FORBIDDEN**：通过 `allow_final_test`、直接读取路径或删除访问账本重复打开 final holdout。
+- **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
 
 ## 6. 风控引擎
 

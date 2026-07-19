@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 from itertools import pairwise
+from typing import Final
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,18 @@ class WalkForwardFold:
     train: tuple[date, ...]
     validation: tuple[date, ...]
     test: tuple[date, ...]
+
+
+DEVELOPMENT_END: Final = date(2024, 12, 31)
+LABEL_HORIZON: Final = 20
+MEDIUM_HORIZON_CONFIG: Final = WalkForwardConfig(
+    minimum_train_size=504,
+    validation_size=126,
+    test_size=63,
+    step_size=63,
+    purge_size=20,
+    embargo_size=5,
+)
 
 
 class SplitIntegrityError(Exception):
@@ -67,6 +80,19 @@ def build_walk_forward_folds(
         )
         train_end += config.step_size
     return tuple(folds)
+
+
+def build_development_folds(dates: tuple[date, ...]) -> tuple[WalkForwardFold, ...]:
+    """Build the frozen protocol only from physically isolated development dates."""
+    if dates and dates[-1] > DEVELOPMENT_END:
+        detail = "development calendar contains a date from the final holdout"
+        raise SplitIntegrityError(detail)
+    folds = build_walk_forward_folds(dates, MEDIUM_HORIZON_CONFIG)
+    for fold in folds:
+        if dates.index(fold.validation[0]) - dates.index(fold.train[-1]) <= LABEL_HORIZON:
+            detail = "training label window overlaps validation"
+            raise SplitIntegrityError(detail)
+    return folds
 
 
 def _validate_inputs(dates: tuple[date, ...], config: WalkForwardConfig) -> None:

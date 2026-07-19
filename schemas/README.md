@@ -15,6 +15,9 @@
 - `research_label_row_v1.json`：未来标签长表，只允许作为训练目标。
 - `research_universe_row_v1.json`：双时钟股票池准入与持续盯市状态。
 - `research_dataset_row_v1.json`：特征、标签和股票池产物的装配引用。
+- `fold_preprocessor_artifact_v1.json`：训练折拟合范围、输入哈希、去极值、缺失兜底和规模中性化参数。
 
 每份契约固定列顺序、Polars 物理类型、空值语义、单位、时间角色和允许用途。研究产物写入
 前必须匹配对应文件的内容哈希 `schema_manifest_id`；不允许调用方临时声明列结构。
+预处理清单是内容寻址 JSON，不是市场数据 Parquet；它必须绑定 `DatasetSpec`、fold、训练日期范围、
+训练行内容哈希和有序特征，验证或测试数据不得出现在其拟合字段中。

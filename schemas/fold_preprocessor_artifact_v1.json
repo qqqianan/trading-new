@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FoldPreprocessingArtifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fold_id",
+    "dataset_snapshot_id",
+    "transform_version",
+    "feature_names",
+    "size_feature_name",
+    "training_start",
+    "training_end",
+    "training_row_count",
+    "training_data_sha256",
+    "size_fallback_median",
+    "feature_statistics",
+    "industry_neutralization_status",
+    "industry_neutralization_reason"
+  ],
+  "properties": {
+    "fold_id": {"type": "string", "minLength": 1},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "transform_version": {"const": "1.0.0"},
+    "feature_names": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "size_feature_name": {"type": "string", "minLength": 1},
+    "training_start": {"type": "string", "format": "date-time"},
+    "training_end": {"type": "string", "format": "date-time"},
+    "training_row_count": {"type": "integer", "minimum": 1},
+    "training_data_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "size_fallback_median": {"type": "number"},
+    "feature_statistics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "feature_name",
+          "lower_quantile",
+          "upper_quantile",
+          "fallback_median",
+          "neutralization_intercept",
+          "neutralization_slope"
+        ],
+        "properties": {
+          "feature_name": {"type": "string", "minLength": 1},
+          "lower_quantile": {"type": "number"},
+          "upper_quantile": {"type": "number"},
+          "fallback_median": {"type": "number"},
+          "neutralization_intercept": {"type": "number"},
+          "neutralization_slope": {"type": "number"}
+        }
+      }
+    },
+    "industry_neutralization_status": {"const": "UNAVAILABLE"},
+    "industry_neutralization_reason": {"type": "string", "minLength": 1}
+  }
+}

@@ -362,3 +362,22 @@ input manifest。合成 lineage manifest 为
 `lineage_e331b1619c729de4b721e3a0e10dc2fd6ca647b8053caa7ffbaa8ba5c8f1127c`，feature 与 label
 lineage 交集为 0。DatasetSpec 区间为 `2020-01-03` 至 `2026-07-10`；逻辑清单不复制特征或标签列，
 同一输入重复发布得到同一 `ds_*`，已有清单字节变化时 fail closed。
+
+## 11. Split、final holdout 与折内预处理血缘
+
+`ds_862d155145b89879b679` 的开发边界固定为 `2024-12-31`，`2025-01-01` 起只属于 final
+holdout。默认开发读取器会物理过滤后者；正式访问必须同时匹配 DatasetSpec、
+`FinalHoldoutSpec`、冻结协议和单次授权，并先写追加式 `HoldoutAccessRecord`。截至本节记录时，
+真实 final holdout 未被打开，开发期 validation/test 不能冒充 final test。
+
+中期 split 使用 504/126/63/63 个交易日的初始训练、验证、内部 test 和滚动步长，标签窗口
+purge=20、embargo=5。每个训练折产生独立 `FoldPreprocessingArtifact`，其血缘锚点为
+`dataset_snapshot_id + fold_id + training_start/end + training_data_sha256 + feature order`；产物保存
+训练折 winsor/fallback 与规模中性化系数，transform 不得改写这些字段。验证/内部 test 仅在各自
+决策日做同日横截面填充和 z-score，不进入拟合参数或训练输入哈希。机器结构文档为
+`schemas/fold_preprocessor_artifact_v1.json`，transform version 为 `1.0.0`。
+
+历史行业 PIT 证据未覆盖 2020-2025，因此每个预处理 artifact 必须记录
+`industry_neutralization_status=UNAVAILABLE`；不得以当前行业快照补历史，也不得据此把研究状态晋级为
+完整 `VALIDATED`。真实折预处理 artifact 将在后续研究运行时按内容生成，不在 Git 中提交市场数据
+派生产物。

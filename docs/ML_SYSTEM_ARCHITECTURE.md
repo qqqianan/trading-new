@@ -99,8 +99,9 @@ Raw snapshot 和 Raw row hash。无可见公告或源字段为空时仍保留全
 标签通过独立服务读取未来 Raw 开盘价与执行约束，固定为交易日 `t+1` 进入、`t+21` 退出并减去
 `000905.SH` 同期简单收益。停牌、涨停不可买、跌停不可卖或价格缺失只产生稳定 null 原因，不顺延
 窗口，也不删除宇宙键。标签行保留四个价格点以及入场/退出约束的 Raw snapshot/row 身份；feature
-与 label lineage 有任何交集时 DatasetSpec 装配直接拒绝。首个 21 因子逻辑数据集已经生成，但最终
-测试封存、purged walk-forward 和训练折预处理尚未完成，因此训练入口仍必须关闭。
+与 label lineage 有任何交集时 DatasetSpec 装配直接拒绝。首个 21 因子逻辑数据集已经生成；最终
+测试封存、purged walk-forward 和训练折预处理代码已具备，但尚未训练任何模型，也未打开真实 final
+holdout。模型训练仍须等待后续受治理训练服务读取真实 artifact 证据，不能由布尔声明提前开启。
 
 ### ExperimentManifest
 
@@ -122,7 +123,30 @@ Git commit、模型族、特征清单、标签、split 协议、随机种子和�
 [             train             ][purge][validation][embargo][test]
 ```
 
-`purge` 用于移除标签窗口与验证期重叠的训练样本，`embargo` 用于隔离相邻评估窗口。禁止随机 K 折用于金融时间序列。
+中期协议固定为初始训练 504、验证 126、内部开发 test 63、滚动 63 个交易日，purge 20、
+embargo 5。开发日期不得晚于 `2024-12-31`；`2025-01-01` 起是物理隔离的 final holdout。
+`purge` 用于移除标签窗口与验证期重叠的训练样本，`embargo` 用于隔离相邻评估窗口。禁止随机 K 折。
+
+### 5.1 Final holdout 封存
+
+`FinalHoldoutSpec` 绑定 DatasetSpec 和日期边界；`FrozenResearchProtocol` 再固定 split、预处理版本、
+代码提交和冻结人/时间。正式打开必须提交匹配该协议且晚于冻结时点的
+`FinalHoldoutAccessRequest`。`FinalHoldoutAccessLedger` 通过独占文件创建先登记
+`HoldoutAccessRecord`，再返回 holdout；已存在首条记录时第二次访问直接拒绝。开发读取器没有
+`allow_final_test` 参数，只能返回 development partition。当前真实账本计数为 0。
+
+### 5.2 Fold-local 预处理 artifact
+
+执行顺序固定为：训练折拟合 1%/99% winsor 边界；每个决策时点做横截面中位数填充并保留
+`<feature>_missing`；横截面 z-score；用训练折拟合的固定系数剔除 `log_total_mv` 暴露。
+同日横截面统计只使用该决策时点可见的股票，不跨日期；横截面全空时才使用训练折 fallback median。
+`log_total_mv` 自身保留标准化值，不做自回归残差化。历史行业 PIT 证据从 2026 年才可用，因此
+2020-2025 的行业中性化明确为 `UNAVAILABLE`。
+
+每个 `FoldPreprocessingArtifact` 固定 `dataset_snapshot_id`、fold、变换版本、有序特征、训练起止、
+行数、训练帧 SHA-256、winsor/fallback、规模回归系数和行业状态，并保存到
+`preprocessor/preprocessor_artifact_<sha256>/manifest.json`。schema 位于
+`schemas/fold_preprocessor_artifact_v1.json`；manifest 被修改或跨目录重标记时读取失败。
 
 ## 6. 推荐模型演进
 

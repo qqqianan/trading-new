@@ -183,7 +183,7 @@
   0。`ds_862d155145b89879b679` 固定 21 个 feature artifact 与独立 label lineage，二者交集为 0。
   代码提交为 `043c360`，完整身份和分布记录在 `docs/DATA_CONTRACT_AND_LINEAGE.md`。
 
-- [ ] 8. 建立最终测试封存、purged walk-forward 与训练折预处理
+- [x] 8. 建立最终测试封存、purged walk-forward 与训练折预处理
   What to do: 将最终测试日期单独建 `FinalHoldoutSpec` 和 append-only access ledger；开发代码默认只能读取 `2024-12-31` 及以前。扩展 split 合约，明确开发 fold 与 final holdout 不重叠，标签窗口 purge 20、embargo 5。实现 sklearn/Polars 的 typed fold preprocessor，所有拟合统计与中性化系数只来自当前训练 fold，并作为 artifact 保存。
   Must NOT do: 不允许配置 `allow_final_test=true` 绕过；不缓存全样本统计量；不把开发 fold 的内部 OOS 叫最终测试。
   Parallelization: Can parallel N | Wave 3 | Blocks 9,12
@@ -191,6 +191,12 @@
   Acceptance criteria: 任何 fold 的 scaler/imputer 参数只等于训练切片手算值；相邻标签窗口无重叠；默认 API/CLI 读取 final holdout 被拒；首次正式打开后 ledger 计数为 1，第二次拒绝。
   QA scenarios: `uv run pytest tests/test_walk_forward.py tests/test_fold_preprocessing.py tests/test_final_holdout.py -q`; Evidence `.omo/evidence/task-8-leakage-audit.json`
   Commit: Y | `feat(research): enforce sealed holdout and fold preprocessing` | `research/splits`, `research/preprocessing`, governance, tests
+  Completed: 开发截止固定为 `2024-12-31`，final holdout 从 `2025-01-01` 起由 DatasetSpec-bound
+  `FinalHoldoutSpec`、冻结协议授权和原子 append-only ledger 隔离；真实 holdout 未打开。开发切分固定
+  504/126/63/63、purge 20、embargo 5。预处理 `1.0.0` 仅从训练折拟合 winsor/fallback 和规模系数，
+  同日横截面填充保留 missing indicator，不删除样本；artifact 固定 DatasetSpec、训练日期、输入 SHA-256
+  与有序特征并内容寻址保存。历史行业 PIT 不足明确记录 `UNAVAILABLE`。全仓 358 测试通过，覆盖率
+  90.20%，审计见 `.omo/evidence/task-8-leakage-audit.json`。
 
 - [ ] 9. 建立因子诊断、试验账本和多重检验门禁
   What to do: 对开发 folds 计算 coverage、Rank IC/ICIR/方向一致率、五分组单调性、Top-Bottom 净收益、换手、自相关、行业/规模暴露、年度和市场状态分段。所有尝试先登记 immutable trial，再计算结果；按同一研究批次执行 BH-FDR `q<=0.10`。输出 `CANDIDATE/REJECTED` 及稳定原因代码，相关性去冗余按预定义 family/lineage 简洁度优先级执行。

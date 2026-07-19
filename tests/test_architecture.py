@@ -132,3 +132,16 @@ def test_concrete_trainers_do_not_depend_on_orchestration_or_trading_layers() ->
 
     # Then: model libraries remain replaceable behind the shared Trainer protocol.
     assert violations == []
+
+
+def test_runtime_code_has_no_boolean_final_holdout_bypass() -> None:
+    # Given: every production Python module and the forbidden bypass spelling.
+    # When: source code is searched for a caller-controlled final-test switch.
+    violations = [
+        str(path.relative_to(PROJECT_ROOT))
+        for path in SOURCE_ROOT.rglob("*.py")
+        if "allow_final_test" in path.read_text(encoding="utf-8")
+    ]
+
+    # Then: final access can only use the frozen protocol and append-only ledger.
+    assert violations == []
