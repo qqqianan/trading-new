@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Factor Research Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["batch_id", "dataset_snapshot_id", "maximum_q", "diagnostics", "decisions"],
+  "properties": {
+    "batch_id": {"type": "string", "pattern": "^trial_batch_[0-9a-f]{64}$"},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "maximum_q": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+    "diagnostics": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/FactorDiagnosticReport"}},
+    "decisions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/FactorDecision"}}
+  },
+  "$defs": {
+    "SegmentMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["segment", "observations", "mean_rank_ic"],
+      "properties": {
+        "segment": {"type": "string", "minLength": 1},
+        "observations": {"type": "integer", "minimum": 0},
+        "mean_rank_ic": {"type": "number"}
+      }
+    },
+    "FactorDiagnosticReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trial_id",
+        "dataset_snapshot_id",
+        "feature_name",
+        "expected_direction",
+        "total_sample_count",
+        "valid_pair_count",
+        "missing_feature_count",
+        "missing_label_count",
+        "coverage",
+        "raw_mean_rank_ic",
+        "oriented_mean_rank_ic",
+        "icir",
+        "direction_consistency",
+        "p_value",
+        "quintile_mean_labels",
+        "quintile_monotonicity",
+        "top_bottom_gross_return",
+        "average_turnover",
+        "top_bottom_net_return",
+        "factor_autocorrelation",
+        "size_exposure",
+        "yearly_segments",
+        "regime_segments",
+        "industry_segments",
+        "worst_year",
+        "worst_industry"
+      ],
+      "properties": {
+        "trial_id": {"type": "string", "pattern": "^factor_trial_[0-9a-f]{64}$"},
+        "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+        "feature_name": {"type": "string", "minLength": 1},
+        "expected_direction": {"enum": ["higher_is_better", "lower_is_better"]},
+        "total_sample_count": {"type": "integer", "minimum": 1},
+        "valid_pair_count": {"type": "integer", "minimum": 0},
+        "missing_feature_count": {"type": "integer", "minimum": 0},
+        "missing_label_count": {"type": "integer", "minimum": 0},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "raw_mean_rank_ic": {"type": "number"},
+        "oriented_mean_rank_ic": {"type": "number"},
+        "icir": {"type": "number"},
+        "direction_consistency": {"type": "number", "minimum": 0, "maximum": 1},
+        "p_value": {"type": "number", "minimum": 0, "maximum": 1},
+        "quintile_mean_labels": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"type": "number"}},
+        "quintile_monotonicity": {"type": "number", "minimum": 0, "maximum": 1},
+        "top_bottom_gross_return": {"type": "number"},
+        "average_turnover": {"type": "number", "minimum": 0, "maximum": 1},
+        "top_bottom_net_return": {"type": "number"},
+        "factor_autocorrelation": {"type": "number", "minimum": -1, "maximum": 1},
+        "size_exposure": {"type": "number", "minimum": -1, "maximum": 1},
+        "yearly_segments": {"type": "array", "items": {"$ref": "#/$defs/SegmentMetric"}},
+        "regime_segments": {"type": "array", "items": {"$ref": "#/$defs/SegmentMetric"}},
+        "industry_segments": {"type": "array", "items": {"$ref": "#/$defs/SegmentMetric"}},
+        "worst_year": {"anyOf": [{"$ref": "#/$defs/SegmentMetric"}, {"type": "null"}]},
+        "worst_industry": {"anyOf": [{"$ref": "#/$defs/SegmentMetric"}, {"type": "null"}]}
+      }
+    },
+    "FactorDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trial_id", "feature_name", "status", "reasons", "p_value", "q_value"],
+      "properties": {
+        "trial_id": {"type": "string", "pattern": "^factor_trial_[0-9a-f]{64}$"},
+        "feature_name": {"type": "string", "minLength": 1},
+        "status": {"enum": ["CANDIDATE", "REJECTED"]},
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"enum": ["PASSES_DIAGNOSTIC_GATES", "INSUFFICIENT_COVERAGE", "FDR_NOT_SIGNIFICANT", "DIRECTION_INCONSISTENT", "REDUNDANT_HIGH_CORRELATION"]}
+        },
+        "p_value": {"type": "number", "minimum": 0, "maximum": 1},
+        "q_value": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

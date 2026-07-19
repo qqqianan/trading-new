@@ -81,6 +81,9 @@ src/ashare_lab/
 - 开发读取器固定排除 `2025-01-01` 起的数据；final holdout 只通过冻结协议和追加式访问账本打开。
 - 预处理 artifact 必须绑定 DatasetSpec、fold、训练日期范围、训练输入 SHA-256 与有序特征；
   transform 接口没有拟合能力，不允许缓存全样本统计量。
+- 因子诊断只能通过 `AuditedFactorResearchService`：该服务必须先验证完整 append-only trial batch，
+  再计算指标、BH-FDR 和去冗余；生产代码直接导入内部诊断/FDR/选择函数会被架构测试拒绝。
+- trial batch 和 factor report 都使用内容寻址 JSON，读取时验证固定目录、Pydantic schema 和 SHA-256。
 - 多次模型选择必须记录试验次数并使用多重检验控制。
 - 演示或合成数据训练的模型不得晋级为投资决策模型。
 

@@ -145,3 +145,31 @@ def test_runtime_code_has_no_boolean_final_holdout_bypass() -> None:
 
     # Then: final access can only use the frozen protocol and append-only ledger.
     assert violations == []
+
+
+def test_factor_diagnostics_have_one_registered_service_entrypoint() -> None:
+    # Given: internal diagnostic, FDR, and selection capabilities.
+    allowed = SOURCE_ROOT / "research" / "factors" / "service.py"
+    protected = {
+        ("ashare_lab.research.factors.diagnostics", "diagnose_factor"),
+        ("ashare_lab.research.factors.multiple_testing", "benjamini_hochberg"),
+        ("ashare_lab.research.factors.selection", "select_factor_candidates"),
+    }
+    violations: list[str] = []
+
+    # When: production imports of those capabilities are inspected.
+    for path in SOURCE_ROOT.rglob("*.py"):
+        if path == allowed:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.module is None:
+                continue
+            violations.extend(
+                f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}"
+                for alias in node.names
+                if (node.module, alias.name) in protected
+            )
+
+    # Then: generated production code cannot calculate before ledger verification.
+    assert violations == []

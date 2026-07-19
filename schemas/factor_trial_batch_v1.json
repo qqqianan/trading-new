@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Factor Trial Batch v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "batch_id",
+    "dataset_snapshot_id",
+    "rulebook_version",
+    "code_commit",
+    "registered_at",
+    "registered_by",
+    "trials"
+  ],
+  "properties": {
+    "batch_id": {"type": "string", "pattern": "^trial_batch_[0-9a-f]{64}$"},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "rulebook_version": {"type": "string", "minLength": 1},
+    "code_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "registered_at": {"type": "string", "format": "date-time"},
+    "registered_by": {"type": "string", "minLength": 1},
+    "trials": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/FactorTrial"}
+    }
+  },
+  "$defs": {
+    "FactorTrial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trial_id",
+        "dataset_snapshot_id",
+        "feature_name",
+        "feature_version",
+        "feature_artifact_id",
+        "family",
+        "expected_direction",
+        "simplicity_rank",
+        "diagnostic_version"
+      ],
+      "properties": {
+        "trial_id": {"type": "string", "pattern": "^factor_trial_[0-9a-f]{64}$"},
+        "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+        "feature_name": {"type": "string", "minLength": 1},
+        "feature_version": {"const": "1.0.0"},
+        "feature_artifact_id": {"type": "string", "pattern": "^feature_artifact_[0-9a-f]{64}$"},
+        "family": {"enum": ["momentum", "reversal", "risk", "liquidity", "size", "value", "quality", "growth"]},
+        "expected_direction": {"enum": ["higher_is_better", "lower_is_better"]},
+        "simplicity_rank": {"type": "integer", "minimum": 0},
+        "diagnostic_version": {"const": "1.0.0"}
+      }
+    }
+  }
+}

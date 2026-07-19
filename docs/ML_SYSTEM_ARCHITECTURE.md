@@ -157,6 +157,41 @@ embargo 5。开发日期不得晚于 `2024-12-31`；`2025-01-01` 起是物理隔
 
 每个复杂模型都必须在相同数据快照、相同 split、相同组合规则和相同成本假设下战胜简单基线。
 
+## 6.1 因子研究门禁
+
+因子研究位于模型训练之前，唯一编排入口为 `AuditedFactorResearchService`：
+
+```text
+factor hypotheses + DatasetSpec/artifacts
+             |
+             v
+append-only TrialBatch (先登记，无结果字段)
+             |
+             v
+development-only diagnostics
+             |
+             v
+BH-FDR q<=0.10 -> direction/coverage gates -> same-family redundancy
+             |
+             v
+complete FactorResearchReport (CANDIDATE + REJECTED)
+```
+
+`TrialBatch` 固定全部尝试的 feature artifact、方向、family、`simplicity_rank`、规则版本和 Git commit，
+store 在写入和读取时重算 trial/batch ID。服务只有在 diagnostic input 与 ledger trial ID 顺序完全一致时
+才开始计算；架构测试禁止其他生产模块直接导入 `diagnose_factor`、`benjamini_hochberg` 或
+`select_factor_candidates`。
+
+每个决策日先做横截面 Spearman Rank IC，再按开发期日序列计算均值、ICIR、方向一致率和均值 IC 的
+双侧正态近似 p 值。五分组使用预登记方向后的横截面排序；净 Top-Bottom 收益扣除固定 round-trip
+成本与实际 Top 组换手。报告同时保留 coverage、缺失 feature/label、因子自相关、规模暴露、年度、
+市场状态和 PIT 行业可得时的行业 IC。行业不可得时保持空分段，不从当前行业快照回填。
+
+同一 batch 的全部 p 值统一执行 BH-FDR；增加噪声 trial 会改变 q 值。通过 FDR、coverage 和方向门禁
+的因子才进入同 family 相关性去冗余，按更低 `simplicity_rank` 和稳定 feature name 顺序保留。
+Top-Bottom 收益只用于诊断和成本感知，不是单一晋级规则。最终报告必须按原 ledger 顺序同时保留
+`CANDIDATE` 和 `REJECTED`，并为拒绝提供稳定原因代码。
+
 ## 7. 组合与风控边界
 
 模型输出包括 `symbol`、`decision_time`、`model_id`、分数和排名。组合构建器输出目标权重，随后由风控检查：

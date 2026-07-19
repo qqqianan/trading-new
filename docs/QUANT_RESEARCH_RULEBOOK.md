@@ -137,6 +137,19 @@
 
 只报告最优参数或最好区间是 **FORBIDDEN**。
 
+### 4.4 因子诊断与试验披露
+
+- 每个因子尝试必须在读取标签和计算结果前登记到 immutable trial batch；登记固定 DatasetSpec、
+  feature artifact、经济方向、family、简洁度优先级、规则版本和 Git commit。
+- 第一批 21 个因子必须全部进入同一个试验账本和最终报告，失败、缺失、不显著或被去冗余者不得删除。
+- 每个因子至少报告 coverage、Rank IC/ICIR、方向一致率、五分组单调性、Top-Bottom 毛/净收益、
+  换手、自相关、规模暴露，以及年份、市场状态和可得行业分段。
+- 报告必须显式列出缺失 feature/label 样本、最差年份和 PIT 行业可得时的最差行业。
+- 经济方向在试验登记时冻结；反转、低波、低 Amihud 等 lower-is-better 因子只按预登记方向翻转。
+- 同一研究批次统一执行 Benjamini-Hochberg FDR，候选阈值固定 `q<=0.10`；新增任何试验都必须重算全批次 q 值。
+- 相关性去冗余只在预定义同 family 内执行，优先保留更低 `simplicity_rank`，并为被拒因子记录稳定原因。
+- Top-Bottom 收益、最好年份或最好市场状态不得单独决定 `CANDIDATE`。
+
 ## 5. 样本划分与模型训练红线
 
 ### 5.1 允许的流程
@@ -169,6 +182,8 @@
 - **FORBIDDEN**：演示/合成行情训练可用于投资决策的模型。
 - **FORBIDDEN**：通过 `allow_final_test`、直接读取路径或删除访问账本重复打开 final holdout。
 - **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
+- **FORBIDDEN**：计算结果后补登记 trial、隐藏失败试验，或把额外噪声试验排除在 FDR 分母之外。
+- **FORBIDDEN**：看过标签后修改因子方向、family 或简洁度优先级并沿用原 trial ID。
 
 ## 6. 风控引擎
 

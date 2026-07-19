@@ -381,3 +381,24 @@ purge=20、embargo=5。每个训练折产生独立 `FoldPreprocessingArtifact`�
 `industry_neutralization_status=UNAVAILABLE`；不得以当前行业快照补历史，也不得据此把研究状态晋级为
 完整 `VALIDATED`。真实折预处理 artifact 将在后续研究运行时按内容生成，不在 Git 中提交市场数据
 派生产物。
+
+## 12. 因子 trial 与诊断报告血缘
+
+因子试验账本 schema 为 `schemas/factor_trial_batch_v1.json`。每个 `FactorTrial` 绑定
+`dataset_snapshot_id -> feature_artifact_id -> feature/version -> family/direction/simplicity_rank ->
+diagnostic_version`，trial ID 由上述字段内容寻址。`TrialBatch` 再绑定规则版本、真实 Git commit、
+登记人/时间和全部有序 trial ID；store 在任何指标计算前原子发布并在每次读取时重算身份。
+
+诊断输入只允许来自 `2024-12-31` 及以前的 development partition，并以
+`(decision_time, symbol)` 连接训练折预处理后的 feature、独立 label、PIT `log_total_mv`、可得行业和
+预先定义的市场状态。诊断不得读取 final holdout，也不得把 label 写回 feature/preprocessor artifact。
+
+完整报告 schema 为 `schemas/factor_research_report_v1.json`。每个 trial 的报告保留总样本、有效 pair、
+feature/label 缺失计数、coverage、原始/方向化 Rank IC、ICIR、方向一致率、p/q 值、五分组、毛/净
+Top-Bottom、换手、自相关、规模暴露、全部年度/状态/行业分段和最差年度/行业。batch report 中
+diagnostics 与 decisions 必须和 ledger trial ID 完全同序，失败因子只能标记 `REJECTED`，不能缺行。
+
+BH-FDR 版本为 `1.0.0`，阈值 `q<=0.10`；相关性证据只比较同一预定义 family 的开发期逐日秩相关，
+绝对相关达到 `0.80` 时按预登记简洁度去冗余。trial ledger 与 factor report 分别写入
+`trial_ledger/<trial_batch_id>/manifest.json` 和 `factor_report/<factor_report_id>/report.json`，均只追加、
+内容寻址并验证 SHA-256。

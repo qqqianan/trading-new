@@ -16,6 +16,8 @@
 - `research_universe_row_v1.json`：双时钟股票池准入与持续盯市状态。
 - `research_dataset_row_v1.json`：特征、标签和股票池产物的装配引用。
 - `fold_preprocessor_artifact_v1.json`：训练折拟合范围、输入哈希、去极值、缺失兜底和规模中性化参数。
+- `factor_trial_batch_v1.json`：计算前登记的完整因子假设、方向、family、artifact、规则与代码身份。
+- `factor_research_report_v1.json`：全 trial 诊断、分段、缺失样本、BH-FDR 和候选/拒绝决定。
 
 每份契约固定列顺序、Polars 物理类型、空值语义、单位、时间角色和允许用途。研究产物写入
 前必须匹配对应文件的内容哈希 `schema_manifest_id`；不允许调用方临时声明列结构。
