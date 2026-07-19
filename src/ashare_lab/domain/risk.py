@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum, unique
 
+from ashare_lab.domain.market import Symbol
+
 
 @unique
 class RiskRule(StrEnum):
@@ -16,6 +18,13 @@ class RiskRule(StrEnum):
     MAX_DAILY_LOSS = "max_daily_loss"
     MAX_POSITION_LOSS = "max_position_loss"
     EXIT_BLOCKED = "exit_blocked"
+    MAX_HOLDINGS = "max_holdings"
+    MAX_TURNOVER = "max_turnover"
+    MAX_INDUSTRY_WEIGHT = "max_industry_weight"
+    CONCENTRATION = "concentration"
+    BOARD_LOT = "board_lot"
+    NEW_RISK_INELIGIBLE = "new_risk_ineligible"
+    INDUSTRY_EXPOSURE_UNAVAILABLE = "industry_exposure_unavailable"
 
 
 @unique
@@ -26,6 +35,7 @@ class RiskAction(StrEnum):
     REJECT = "reject"
     HALT_AND_LIQUIDATE = "halt_and_liquidate"
     RETRY_EXIT = "retry_exit"
+    BLOCK_VALIDATION = "block_validation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +60,7 @@ class RiskEvent:
     observed: float
     limit: float
     message: str
+    symbol: Symbol | None = None
 
 
 @dataclass(frozen=True, slots=True)

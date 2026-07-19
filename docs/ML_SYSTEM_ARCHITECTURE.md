@@ -204,6 +204,16 @@ Top-Bottom 收益只用于诊断和成本感知，不是单一晋级规则。最
 
 只有通过风控后的差异订单才能进入成交模拟。
 
+第一版组合协议固定为：对已准入候选因子的训练折标准化值做等权平均，按复合分数降序、
+`symbol` 升序稳定排序，选 Top 30 并分配 95% 股票仓位。组合构建器只输出
+`PortfolioTarget`，不能导入 `domain.trading` 或 `backtest`，该边界由架构测试强制。
+
+`PortfolioRiskEngine` 是组合缩量和拒绝的唯一所有者，顺序固定为持仓数、单票、是否允许新增风险、
+成交量与一手容量、PIT 行业、现金与 HHI 集中度、换手率。对当前持仓的目标零权重会继续保留，表达
+明确退出意图；`eligible_for_new_risk=false` 只禁止增仓，不自动制造卖出。历史 PIT 行业未知时保留
+研究目标，生成 `INDUSTRY_EXPOSURE_UNAVAILABLE/BLOCK_VALIDATION`，状态保持 `DRAFT`。
+机器契约见 `schemas/portfolio_risk_decision_v1.json`。
+
 ## 8. 实施顺序
 
 1. 真实数据适配器与不可变 Raw 层。

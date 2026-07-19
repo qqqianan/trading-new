@@ -213,7 +213,7 @@
   去冗余。固定合成 QA 覆盖全部 21 个决定，反转方向由 -1 翻为 +1，额外噪声改变 FDR，且报告包含
   缺失样本、最差年份/行业；不声称真实投资有效性。全仓 382 测试通过，覆盖率 90.11%。
 
-- [ ] 10. 实现周频 Top 30 组合构建器与组合级事前风控
+- [x] 10. 实现周频 Top 30 组合构建器与组合级事前风控
   What to do: 简单基线先按已准入候选因子的等权 z-score 合成分数，按 symbol 稳定打破并列，选择 Top 30，目标总仓位 95%。组合构建器只产生目标权重；组合 RiskEngine 检查单票 5%、持仓 30、现金 5%、调仓换手 25%、成交量参与率 5%、集中度和容量，并输出 resize/reject 事件；行业 PIT 已知时另强制单行业 20%，未知时记录 `INDUSTRY_EXPOSURE_UNAVAILABLE` 并阻止研究晋级为 `VALIDATED`。无法新买不等于强制卖出，退出意图持续保留。
   Must NOT do: 不在策略、API 或模型中复制风险规则，不让 target weight 直接成为成交。
   Parallelization: Can parallel N | Wave 4 | Blocks 11
@@ -221,6 +221,11 @@
   Acceptance criteria: 权重和现金严格为 1；极端同业集中、低流动性、超换手和不足一手均被缩量/拒绝并记录规则；模型分数对象没有订单创建能力。
   QA scenarios: `uv run pytest tests/test_portfolio_builder.py tests/test_portfolio_risk.py tests/test_architecture.py -q`; Evidence `.omo/evidence/task-10-risk-decisions.json`
   Commit: Y | `feat(portfolio): construct risk-governed weekly targets` | `portfolio`, domain risk, tests
+  Completed: 已实现候选因子等权标准化分数、稳定并列排序、Top 30 与 95% 股票目标；组合层只产生
+  `PortfolioTarget`。唯一组合风险引擎覆盖持仓数、单票、现金、换手、成交量参与率、一手容量、HHI
+  集中度和 PIT 行业，并保留退出意图；未知行业产生 `BLOCK_VALIDATION` 且状态保持 `DRAFT`。架构测试
+  禁止 portfolio 导入交易或回测能力，机器契约为 `portfolio_risk_decision_v1.json`，固定合成 QA 见
+  `.omo/evidence/task-10-risk-decisions.json`。全仓 399 测试通过，覆盖率 90.26%，final holdout 未打开。
 
 - [ ] 11. 将单标的引擎升级为多标的 A 股组合回测
   What to do: 保留现有单标的 API 兼容层，新增组合账户、每票 lot/成本/T+1 状态、挂单和逐日盯市。事件顺序固定为：读取可得信息 -> 目标 -> 事前风控 -> 下一开盘成交 -> 费用 -> 收盘盯市/熔断。涨停买单、跌停卖单、停牌与成交量不足订单保持 pending 并逐日审计；组合熔断停止新增风险并尝试退出。报告绝对/基准/超额收益、波动、回撤、Sharpe、换手、费用、容量、风险事件与分段结果。

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PortfolioRiskDecision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_date",
+    "signal_source_id",
+    "positions",
+    "cash_weight",
+    "turnover",
+    "concentration",
+    "research_status",
+    "risk_events"
+  ],
+  "properties": {
+    "decision_date": {"type": "string", "format": "date"},
+    "signal_source_id": {"type": "string", "minLength": 1},
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["symbol", "target_weight", "score"],
+        "properties": {
+          "symbol": {"type": "string", "pattern": "^[0-9]{6}\\.(SZ|SH|BJ)$"},
+          "target_weight": {"type": "number", "minimum": 0, "maximum": 1},
+          "score": {"type": "number"}
+        }
+      }
+    },
+    "cash_weight": {"type": "number", "minimum": 0.05, "maximum": 1},
+    "turnover": {"type": "number", "minimum": 0, "maximum": 0.25},
+    "concentration": {"type": "number", "minimum": 0, "maximum": 0.05},
+    "research_status": {"enum": ["DRAFT", "VALIDATION_ELIGIBLE"]},
+    "risk_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "action", "observed", "limit", "message"],
+        "properties": {
+          "symbol": {"type": ["string", "null"]},
+          "rule": {"type": "string", "minLength": 1},
+          "action": {"enum": ["resize", "reject", "block_validation"]},
+          "observed": {"type": "number"},
+          "limit": {"type": "number"},
+          "message": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

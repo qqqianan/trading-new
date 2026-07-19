@@ -173,3 +173,27 @@ def test_factor_diagnostics_have_one_registered_service_entrypoint() -> None:
 
     # Then: generated production code cannot calculate before ledger verification.
     assert violations == []
+
+
+def test_portfolio_layer_cannot_import_execution_capabilities() -> None:
+    # Given: portfolio construction modules and execution-owning boundaries.
+    forbidden_modules = {
+        "ashare_lab.backtest",
+        "ashare_lab.domain.trading",
+    }
+    violations: list[str] = []
+
+    # When: every portfolio import is inspected for order or trade capabilities.
+    for path in (SOURCE_ROOT / "portfolio").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.module is None:
+                continue
+            if any(
+                node.module == module or node.module.startswith(f"{module}.")
+                for module in forbidden_modules
+            ):
+                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}")
+
+    # Then: portfolio code remains target-only and cannot create execution objects.
+    assert violations == []
