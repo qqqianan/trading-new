@@ -159,3 +159,32 @@ def test_dataset_assembly_rejects_missing_feature_artifacts() -> None:
                 date(2025, 12, 31),
             ),
         )
+
+
+def test_dataset_assembly_rejects_shared_feature_and_label_lineage() -> None:
+    # Given: a label artifact falsely reuses one feature transformation edge.
+    report, inputs = _qualified()
+    feature = FeatureArtifactEvidence(
+        FeatureRef(name="momentum_20d", version="v1"),
+        "feature_snapshot_a1",
+        ("lineage_shared",),
+    )
+    label = LabelArtifactEvidence(
+        LabelRef(name="excess_open_to_open_20d", version="v1"),
+        "label_snapshot_a1",
+        ("lineage_shared",),
+    )
+
+    # When / Then: physical artifacts cannot compensate for crossed lineage branches.
+    with pytest.raises(DatasetAssemblyError, match="lineage branches overlap"):
+        assemble_dataset_spec(
+            report,
+            inputs,
+            (feature,),
+            label,
+            DatasetAssemblyRequest(
+                "ashare-pit-v1",
+                date(2020, 1, 2),
+                date(2025, 12, 31),
+            ),
+        )

@@ -1,15 +1,27 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "artifact_kind": "label",
   "fields": [
     {"name":"symbol","data_type":"string","nullable":false,"unit":"tushare_ts_code","null_semantics":"never null","time_role":"entity_key","allowed_use":"label_key"},
     {"name":"decision_time","data_type":"datetime_asia_shanghai","nullable":false,"unit":"Asia/Shanghai","null_semantics":"never null","time_role":"decision_time","allowed_use":"label_key"},
-    {"name":"entry_time","data_type":"datetime_asia_shanghai","nullable":true,"unit":"Asia/Shanghai","null_semantics":"null when no next executable trading session exists","time_role":"future_label_window","allowed_use":"label_audit_only"},
-    {"name":"exit_time","data_type":"datetime_asia_shanghai","nullable":true,"unit":"Asia/Shanghai","null_semantics":"null when the twentieth holding-day exit session is unavailable","time_role":"future_label_window","allowed_use":"label_audit_only"},
+    {"name":"entry_time","data_type":"datetime_asia_shanghai","nullable":true,"unit":"Asia/Shanghai","null_semantics":"null when no next governed trading session exists","time_role":"future_label_window","allowed_use":"label_audit_only"},
+    {"name":"exit_time","data_type":"datetime_asia_shanghai","nullable":true,"unit":"Asia/Shanghai","null_semantics":"null when the fixed t+21 exit session is unavailable","time_role":"future_label_window","allowed_use":"label_audit_only"},
     {"name":"label_id","data_type":"string","nullable":false,"unit":"registered_label_id","null_semantics":"never null","time_role":"none","allowed_use":"label_definition"},
     {"name":"label_version","data_type":"string","nullable":false,"unit":"semver","null_semantics":"never null","time_role":"none","allowed_use":"label_definition"},
-    {"name":"value","data_type":"float64","nullable":true,"unit":"simple_relative_return","null_semantics":"null when entry, exit, or benchmark evidence is incomplete; null_reason is required","time_role":"future_label_window","allowed_use":"training_target_only"},
+    {"name":"value","data_type":"float64","nullable":true,"unit":"simple_relative_return","null_semantics":"null when fixed entry, exit, constraint, or benchmark evidence is incomplete","time_role":"future_label_window","allowed_use":"training_target_only"},
     {"name":"available_at","data_type":"datetime_asia_shanghai","nullable":true,"unit":"Asia/Shanghai","null_semantics":"null until the complete label window is observable","time_role":"available_at","allowed_use":"label_guard"},
-    {"name":"null_reason","data_type":"string","nullable":true,"unit":"stable_reason_code","null_semantics":"null only when value is present","time_role":"none","allowed_use":"quality_audit"}
+    {"name":"null_reason","data_type":"string","nullable":true,"unit":"stable_reason_code","null_semantics":"null only when value is present","time_role":"none","allowed_use":"quality_audit"},
+    {"name":"entry_price_source_snapshot_id","data_type":"string","nullable":true,"unit":"content_id","null_semantics":"null when the fixed entry price row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"entry_price_source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null when the fixed entry price row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"entry_constraint_source_snapshot_id","data_type":"string","nullable":true,"unit":"content_id","null_semantics":"null when entry limit or suspension evidence is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"entry_constraint_source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null when entry limit or suspension evidence is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"exit_price_source_snapshot_id","data_type":"string","nullable":true,"unit":"content_id","null_semantics":"null when the fixed exit price row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"exit_price_source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null when the fixed exit price row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"exit_constraint_source_snapshot_id","data_type":"string","nullable":true,"unit":"content_id","null_semantics":"null when exit limit or suspension evidence is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"exit_constraint_source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null when exit limit or suspension evidence is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"benchmark_entry_source_snapshot_id","data_type":"string","nullable":true,"unit":"content_id","null_semantics":"null when the benchmark entry row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"benchmark_entry_source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null when the benchmark entry row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"benchmark_exit_source_snapshot_id","data_type":"string","nullable":true,"unit":"content_id","null_semantics":"null when the benchmark exit row is absent","time_role":"lineage","allowed_use":"label_audit_only"},
+    {"name":"benchmark_exit_source_row_sha256","data_type":"string","nullable":true,"unit":"sha256","null_semantics":"null when the benchmark exit row is absent","time_role":"lineage","allowed_use":"label_audit_only"}
   ]
 }

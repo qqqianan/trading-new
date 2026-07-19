@@ -89,6 +89,9 @@ def assemble_dataset_spec(
         raise DatasetAssemblyError(detail)
     feature_lineage = tuple(sorted({edge for item in features for edge in item.lineage_edge_ids}))
     label_lineage = tuple(sorted(set(label.lineage_edge_ids)))
+    if set(feature_lineage) & set(label_lineage):
+        detail = "feature and label lineage branches overlap"
+        raise DatasetAssemblyError(detail)
     all_lineage = tuple(sorted({*inputs.lineage_edge_ids, *feature_lineage, *label_lineage}))
     lineage_digest = hashlib.sha256("|".join(all_lineage).encode()).hexdigest()
     return DatasetSpec(
