@@ -94,8 +94,13 @@ universe 和 dataset 各有独立机器 schema；读取时必须同时验证固�
 canonical。每个决策点先限制 `available_at <= decision_time`，再选择最新报告期及其当时可见版本；
 旧版本保持不可变，修订只影响发布后的决策。输出必须保留 event ID、报告期、公告时钟、update flag、
 Raw snapshot 和 Raw row hash。无可见公告或源字段为空时仍保留全部六个因子键并写稳定 null 原因，
-不得在因子层填充或删样本。当前 15 个行情因子和 6 个财务因子均已形成独立内容寻址产物；标签和
-`DatasetSpec` 尚未完成，因此训练入口仍必须关闭。
+不得在因子层填充或删样本。当前 15 个行情因子和 6 个财务因子均已形成独立内容寻址产物。
+
+标签通过独立服务读取未来 Raw 开盘价与执行约束，固定为交易日 `t+1` 进入、`t+21` 退出并减去
+`000905.SH` 同期简单收益。停牌、涨停不可买、跌停不可卖或价格缺失只产生稳定 null 原因，不顺延
+窗口，也不删除宇宙键。标签行保留四个价格点以及入场/退出约束的 Raw snapshot/row 身份；feature
+与 label lineage 有任何交集时 DatasetSpec 装配直接拒绝。首个 21 因子逻辑数据集已经生成，但最终
+测试封存、purged walk-forward 和训练折预处理尚未完成，因此训练入口仍必须关闭。
 
 ### ExperimentManifest
 

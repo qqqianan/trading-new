@@ -254,7 +254,7 @@ industry schema `1.0.1` 当前 manifest 为
 历史回填完成状态必须由 accepted Raw、当前 schema lineage 与通过的 canonical 质量报告联合
 证明，不使用独立游标冒充数据事实。
 
-18 个 P0 接口已具有字段清单，但观察日前历史行业可得性和标签物化 lineage 尚未完成。
+18 个 P0 接口已具有字段清单；观察日前历史行业可得性仍未完成。
 当前输入覆盖报告
 `coverage_b25d100af1004281b57e8b38abc6198e491b0fb02b955328727456af9923c273`
 已对 `2020-01-02` 至 `2026-07-16` 的日频 bundle、PIT 股票池、财务指标 PIT 和中证 500 日线
@@ -262,9 +262,9 @@ industry schema `1.0.1` 当前 manifest 为
 `inputs_6749e8d049d37b0051bb6988101edd034cfebb70d5f485fb33fee89575646371`，固定
 13,829 个 Raw 快照和 285,828 条输入 lineage。身份集合使用最多 1,000 个 ID 的内容寻址块保存，
 主文档同时固定完整集合的数量与 SHA-256；重复资格审查不会追加重复证据。行业组件最早可得日为
-`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。全部 21 个基础特征
-已经物化，但标签尚未物化，因此仍没有生成 `DatasetSpec`，正式训练门禁保持关闭，
-不得把当前 Raw、canonical 或孤立 feature artifact 直接作为训练数据集。
+`2026-07-17`，要求其覆盖历史区间时报告为 `BLOCKED` 且不生成 input manifest。全部 21 个基础特征、
+独立标签和逻辑 `DatasetSpec` 已经物化。训练仍不得直接读取 Raw、canonical 或孤立 artifact；下一阶段
+还必须完成最终测试封存、purged walk-forward 与训练折内预处理，正式模型训练门禁保持关闭。
 
 周频 PIT 股票池已物化为
 `universe_artifact_a5e618d3b4273bc97b8720bc8a31808fed91d00446cfb5e60a6f9cac6040de1b`，
@@ -336,3 +336,29 @@ SHA-256。每个因子独立保存 1,712,992 行：
 `33.0389` 和原 event ID；`2024-04-19` 决策才读取修订值 `33.0093` 及新 event ID。随后
 `2024-04-25` 发布 2024 一季报后，选择器才切换到较新报告期。该序列证明修订不会回写旧决策，
 且较新报告期优先于旧报告的后续版本。
+
+独立标签 `relative_open_return_20d_csi500` 使用代码提交
+`043c36071e57df8a6fff028510c4974632cb35df` 物化为
+`label_artifact_783a1f0794afc9533e855757fa638dd9eaec570d7563ba3ca3ff3399c46f474f`，
+其 lineage edge 为
+`lineage_fdb33ef11b401ab412986cfb9a78232d735a3806ba253c2315c5731372605854`。
+label row schema `1.1.0` 的 manifest 为
+`schema_3b53abe6babc6fe4efc9320a897922fe2aea9a2342fc02b653e0eeda467c3d2f`，
+21 个字段分别记录键、固定未来窗口、标签值/空值原因，以及个股入场/退出价格、交易约束和中证 500
+入场/退出价格的 Raw snapshot 与 Raw row SHA-256。
+
+标签覆盖全部 1,712,992 个宇宙键和 334 个决策周，重复键、股票池缺键/多键、定义漂移、值/空值语义、
+未来可得时钟和完整值来源缺失均为 0。1,598,017 行具有有效相对收益；其余行不删除，按固定窗口记录：
+`ENTRY_LIMIT_UP` 6,947、`ENTRY_SUSPENDED` 4,193、`EXIT_LIMIT_DOWN` 3,238、
+`EXIT_SUSPENDED` 3,087、`MISSING_ENTRY_BAR` 70,371、`MISSING_ENTRY_LIMIT` 3,214、
+`MISSING_EXIT_BAR` 483、`NO_EXIT_SESSION` 23,442。停牌或涨跌停不会把 t+1/t+21 顺延。
+330 组具有完整未来窗口的交易日偏移审计全部满足 entry-decision=1、exit-decision=21；1,449 个实际
+引用的标签 Raw snapshot 全部属于 qualified input manifest。`000001.SZ` 在 `2020-01-03` 决策的
+四个 Raw 开盘价独立重算与保存值完全一致，绝对误差为 0。
+
+首个完整逻辑数据集已发布为 `ds_862d155145b89879b679`，固定 13,829 个 Raw snapshot、4 个输入
+schema、21 个 feature artifact/lineage、上述独立 label artifact/lineage、宇宙 artifact、覆盖报告和
+input manifest。合成 lineage manifest 为
+`lineage_e331b1619c729de4b721e3a0e10dc2fd6ca647b8053caa7ffbaa8ba5c8f1127c`，feature 与 label
+lineage 交集为 0。DatasetSpec 区间为 `2020-01-03` 至 `2026-07-10`；逻辑清单不复制特征或标签列，
+同一输入重复发布得到同一 `ds_*`，已有清单字节变化时 fail closed。

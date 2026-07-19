@@ -169,7 +169,7 @@
   服务与全量物化提交为 `734d49c`；artifact IDs 和缺失分布记录在
   `docs/DATA_CONTRACT_AND_LINEAGE.md`。
 
-- [ ] 7. 物化隔离标签并装配 DatasetSpec
+- [x] 7. 物化隔离标签并装配 DatasetSpec
   What to do: 单独 label service 计算 `t+1 open -> t+21 open` 个股与 `000905.SH` 同期简单收益差；使用交易日索引而非自然日偏移，无法进入/退出或基准缺失时保留 null 原因。特征服务不得导入 label 包，标签服务不得向 feature artifact 写列。完成 feature、label、universe artifact 后调用 `assemble_dataset_spec()`，固定全部 snapshot/schema/lineage/artifact ID。
   Must NOT do: 不用决策日收盘成交，不用复权价格模拟进入/退出，不允许没有未来 21 日的样本伪造标签。
   Parallelization: Can parallel N | Wave 3 | Blocks 8,11
@@ -177,6 +177,11 @@
   Acceptance criteria: 周末、节假日、停牌、涨跌停不改变标签的交易日索引定义；label lineage 与 feature lineage 无交叉边；任一缺失 evidence 阻止 DatasetSpec；相同输入生成相同 `ds_*`。
   QA scenarios: `uv run pytest tests/test_label_materialization.py tests/test_dataset_end_to_end.py tests/test_architecture.py -q`; Evidence `.omo/evidence/task-7-dataset-manifest.json`
   Commit: Y | `feat(dataset): materialize isolated medium-horizon labels` | `research/labels`, `research/datasets`, services, tests
+  Completed: 标签 artifact 保留全部 1,712,992 个宇宙键，其中 1,598,017 行具有完整相对收益；
+  重复键、股票池键差异、未来时钟、值语义和完整来源违规均为 0。330 组完整窗口的 t+1/t+21
+  交易日偏移全部正确，1,449 个实际来源 snapshot 均属于 qualified closure，Raw 开盘价手算误差为
+  0。`ds_862d155145b89879b679` 固定 21 个 feature artifact 与独立 label lineage，二者交集为 0。
+  代码提交为 `043c360`，完整身份和分布记录在 `docs/DATA_CONTRACT_AND_LINEAGE.md`。
 
 - [ ] 8. 建立最终测试封存、purged walk-forward 与训练折预处理
   What to do: 将最终测试日期单独建 `FinalHoldoutSpec` 和 append-only access ledger；开发代码默认只能读取 `2024-12-31` 及以前。扩展 split 合约，明确开发 fold 与 final holdout 不重叠，标签窗口 purge 20、embargo 5。实现 sklearn/Polars 的 typed fold preprocessor，所有拟合统计与中性化系数只来自当前训练 fold，并作为 artifact 保存。
