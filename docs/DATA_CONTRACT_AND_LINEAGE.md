@@ -402,3 +402,11 @@ BH-FDR 版本为 `1.0.0`，阈值 `q<=0.10`；相关性证据只比较同一预�
 绝对相关达到 `0.80` 时按预登记简洁度去冗余。trial ledger 与 factor report 分别写入
 `trial_ledger/<trial_batch_id>/manifest.json` 和 `factor_report/<factor_report_id>/report.json`，均只追加、
 内容寻址并验证 SHA-256。
+
+首个真实 DatasetSpec 的 21 个 feature artifact 已在代码提交
+`46bf4fd749c80d695d715925a9bd265db2620a3e` 后预登记为
+`trial_batch_898124e44b83fa1cc67fc01ec1fb7405dd43670518eae9237160f5fbb5802e6c`，manifest
+SHA-256 为 `4b5b7eef217fdbdadf40229ac78c6a5d7b0e580fa574cd3ff551c7f3c62dba57`。
+该账本只有假设和可复现身份，没有诊断结果，也没有读取 label 或 final holdout。固定合成小数据的软件
+QA 报告 ID 为 `factor_report_d65b1509e2b5ac832edaa0c07100173bba9e9eb2903741e8905b176bdbaa122a`，
+仅证明报告、方向、FDR 和去冗余代码行为，禁止据此声称真实因子有效。

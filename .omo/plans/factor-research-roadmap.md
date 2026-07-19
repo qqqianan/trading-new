@@ -198,7 +198,7 @@
   与有序特征并内容寻址保存。历史行业 PIT 不足明确记录 `UNAVAILABLE`。全仓 358 测试通过，覆盖率
   90.20%，审计见 `.omo/evidence/task-8-leakage-audit.json`。
 
-- [ ] 9. 建立因子诊断、试验账本和多重检验门禁
+- [x] 9. 建立因子诊断、试验账本和多重检验门禁
   What to do: 对开发 folds 计算 coverage、Rank IC/ICIR/方向一致率、五分组单调性、Top-Bottom 净收益、换手、自相关、行业/规模暴露、年度和市场状态分段。所有尝试先登记 immutable trial，再计算结果；按同一研究批次执行 BH-FDR `q<=0.10`。输出 `CANDIDATE/REJECTED` 及稳定原因代码，相关性去冗余按预定义 family/lineage 简洁度优先级执行。
   Must NOT do: 不隐藏失败因子或失败年份，不读取 final holdout，不用回测总收益作为唯一晋级标准。
   Parallelization: Can parallel N | Wave 4 | Blocks 10,11,12
@@ -206,6 +206,12 @@
   Acceptance criteria: 21 个因子均出现在 trial ledger；人为添加额外噪声试验会改变 FDR 结果；反转因子方向翻转被正确记录；报告包含最差年份、最差行业和缺失样本，不只含赢家。
   QA scenarios: `uv run pytest tests/test_factor_diagnostics.py tests/test_multiple_testing.py tests/test_trial_ledger.py -q`; 在固定小数据集生成 `.omo/evidence/task-9-factor-report.json`
   Commit: Y | `feat(research): add audited factor diagnostics` | `research/factors`, `research/experiments`, reports, tests
+  Completed: 21 个真实 feature artifact 已在 `46bf4fd` 后完整登记为
+  `trial_batch_898124e44b83fa1cc67fc01ec1fb7405dd43670518eae9237160f5fbb5802e6c`；唯一
+  `AuditedFactorResearchService` 先验证 ledger 再计算 Rank IC/ICIR、方向、五分组、成本后
+  Top-Bottom、换手、自相关、规模及年份/状态/可得行业分段，并统一执行 BH-FDR `q<=0.10` 与同 family
+  去冗余。固定合成 QA 覆盖全部 21 个决定，反转方向由 -1 翻为 +1，额外噪声改变 FDR，且报告包含
+  缺失样本、最差年份/行业；不声称真实投资有效性。全仓 382 测试通过，覆盖率 90.11%。
 
 - [ ] 10. 实现周频 Top 30 组合构建器与组合级事前风控
   What to do: 简单基线先按已准入候选因子的等权 z-score 合成分数，按 symbol 稳定打破并列，选择 Top 30，目标总仓位 95%。组合构建器只产生目标权重；组合 RiskEngine 检查单票 5%、持仓 30、现金 5%、调仓换手 25%、成交量参与率 5%、集中度和容量，并输出 resize/reject 事件；行业 PIT 已知时另强制单行业 20%，未知时记录 `INDUSTRY_EXPOSURE_UNAVAILABLE` 并阻止研究晋级为 `VALIDATED`。无法新买不等于强制卖出，退出意图持续保留。
