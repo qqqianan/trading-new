@@ -194,6 +194,27 @@ def test_model_diagnostic_rejects_model_without_factor_lineage() -> None:
         diagnose_ridge_model(replace(request, model=legacy))
 
 
+def test_model_diagnostic_treats_consistently_zero_coefficient_as_stable() -> None:
+    # Given: one missingness feature whose coefficient is exactly zero in every fold.
+    request = _input()
+    folds_with_zero = tuple(
+        item.model_copy(update={"coefficients": (*item.coefficients, 0.0)})
+        for item in request.model.fold_results
+    )
+    model = request.model.model_copy(
+        update={
+            "fold_results": folds_with_zero,
+            "model_feature_names": (*request.model.model_feature_names, "always_present_missing"),
+        }
+    )
+
+    # When: coefficient stability is summarized across folds.
+    report = diagnose_ridge_model(replace(request, model=model))
+
+    # Then: a stable zero state is not mislabeled as sign instability.
+    assert report.coefficient_stability[-1].sign_consistency == 1.0
+
+
 def test_model_diagnostic_rejects_noncomparable_target_dates() -> None:
     # Given: model targets silently omit one baseline decision date.
     request = _input()

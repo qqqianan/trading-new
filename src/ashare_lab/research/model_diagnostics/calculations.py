@@ -202,7 +202,12 @@ def _coefficient_stability(
             mean=float(np.mean(values)),
             standard_deviation=float(np.std(values, ddof=0)),
             sign_consistency=float(
-                max(np.count_nonzero(values > 0), np.count_nonzero(values < 0)) / len(values)
+                max(
+                    np.count_nonzero(values > 0),
+                    np.count_nonzero(values < 0),
+                    np.count_nonzero(values == 0),
+                )
+                / len(values)
             ),
         )
         for name, values in zip(model.model_feature_names, matrix.T, strict=True)
