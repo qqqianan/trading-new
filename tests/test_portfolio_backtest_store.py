@@ -23,7 +23,7 @@ from .portfolio_backtest_support import bar, market, target, trading_date
 ROOT = Path(__file__).parents[1]
 
 
-def _report() -> PortfolioBacktestReport:
+def portfolio_report_fixture() -> PortfolioBacktestReport:
     symbol = "000001.SZ"
     sessions = (
         PortfolioSession(trading_date(0), (bar(symbol, 0, 10.0),)),
@@ -63,7 +63,7 @@ def _report() -> PortfolioBacktestReport:
 
 def test_portfolio_backtest_report_is_content_addressed(tmp_path: Path) -> None:
     # Given: one complete real-engine report with frozen provenance.
-    report = _report()
+    report = portfolio_report_fixture()
     store = PortfolioBacktestReportStore(tmp_path)
 
     # When: identical bytes are published twice.
@@ -90,7 +90,7 @@ def test_portfolio_backtest_schema_documents_provenance_and_holdout_seal() -> No
 def test_portfolio_backtest_store_rejects_cross_boundary_descriptor(tmp_path: Path) -> None:
     # Given: a valid report identity relabeled to an arbitrary path.
     store = PortfolioBacktestReportStore(tmp_path)
-    descriptor = store.write(_report())
+    descriptor = store.write(portfolio_report_fixture())
     crossed = descriptor.model_copy(update={"report_path": tmp_path / "other.json"})
 
     # When / Then: report bytes cannot be read outside their fixed directory.
@@ -101,7 +101,7 @@ def test_portfolio_backtest_store_rejects_cross_boundary_descriptor(tmp_path: Pa
 def test_portfolio_backtest_store_rejects_invalid_bytes(tmp_path: Path) -> None:
     # Given: a persisted report replaced with malformed bytes.
     store = PortfolioBacktestReportStore(tmp_path)
-    descriptor = store.write(_report())
+    descriptor = store.write(portfolio_report_fixture())
     descriptor.report_path.write_text("{}\n", encoding="utf-8")
 
     # When / Then: malformed bytes fail before they can retain report identity.
@@ -112,7 +112,7 @@ def test_portfolio_backtest_store_rejects_invalid_bytes(tmp_path: Path) -> None:
 def test_portfolio_backtest_store_rejects_mismatched_digest(tmp_path: Path) -> None:
     # Given: a valid report descriptor relabeled with a false digest.
     store = PortfolioBacktestReportStore(tmp_path)
-    descriptor = store.write(_report())
+    descriptor = store.write(portfolio_report_fixture())
     mismatched = PortfolioBacktestReportDescriptor(
         report_id=descriptor.report_id,
         report_path=descriptor.report_path,

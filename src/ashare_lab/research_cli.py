@@ -21,6 +21,10 @@ from ashare_lab.services.factor_diagnostic_runtime import (
     FactorDiagnosticRuntimeError,
     run_default_factor_diagnostics,
 )
+from ashare_lab.services.model_diagnostic_runtime import (
+    ModelDiagnosticRuntimeError,
+    run_default_model_diagnostics,
+)
 from ashare_lab.services.model_portfolio_runtime import (
     ModelPortfolioRuntimeError,
     run_default_model_portfolio,
@@ -197,6 +201,40 @@ def model_portfolio(
         raise typer.Exit(code=2) from error
     _CONSOLE.print(f"model portfolio targets: {descriptor.artifact_id}")
     _CONSOLE.print("risk execution: REQUIRED_IN_BACKTEST")
+    _CONSOLE.print("final holdout: SEALED")
+
+
+@app.command("model-diagnose")
+def model_diagnose(
+    model_id: Annotated[
+        str,
+        typer.Option(help="Exact governed ridge_model content identity."),
+    ],
+    portfolio_backtest_id: Annotated[
+        str,
+        typer.Option(help="Exact risk-governed model portfolio backtest identity."),
+    ],
+    project_root: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, resolve_path=True),
+    ] = Path(),
+) -> None:
+    """Publish post-hoc development diagnostics without authorizing tuning."""
+    try:
+        run_research_preflight(
+            PreflightRequest(project_root, "ashare_quant", require_clean_worktree=True)
+        )
+        descriptor = run_default_model_diagnostics(
+            project_root,
+            model_id,
+            portfolio_backtest_id,
+        )
+    except (ResearchPreflightError, ModelDiagnosticRuntimeError) as error:
+        _CONSOLE.print(f"BLOCKED: {error}")
+        raise typer.Exit(code=2) from error
+    _CONSOLE.print(f"model diagnostic: {descriptor.report_id}")
+    _CONSOLE.print("scope: POST_HOC_DEVELOPMENT_ONLY")
+    _CONSOLE.print("tuning: FORBIDDEN")
     _CONSOLE.print("final holdout: SEALED")
 
 

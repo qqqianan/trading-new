@@ -135,6 +135,8 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - 使用今天的指数成分、ST 状态或退市结局重建历史股票池。
 - 测试集参与超参数、阈值、特征或早停选择。
 - 看过最终测试结果后修改模型并继续称其为样本外。
+- 根据 post-hoc 模型诊断结果修改当前实验的特征、标签、超参数、阈值或组合规则，并继续把同一
+  internal-test 区间称为未见数据；任何此类修改必须登记为新实验和新 trial，不得覆盖原报告。
 - 删除亏损、退市、停牌或数据表现不好的样本。
 - 从大量试验挑选最高收益结果而不记录试验次数和多重检验控制。
 - 使用不可复现的数据快照、代码、特征或环境训练可晋级模型。
@@ -154,6 +156,8 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - 任何物质变化必须产生新版本或新快照 ID。
 - 每次训练保存 `ExperimentManifest`：数据集 ID、规则版本、Git commit、模型族、特征、标签、split、随机种子和最终测试次数。
 - 每个模型通过 `ModelRecord` 关联数据集与训练运行。
+- 模型诊断只能读取已持久化的 keyed development predictions、逐 fold 模型证据及完整风控回测；
+  禁止在诊断代码中重新拟合模型、访问 final holdout 或产生训练审批。
 - 模型预测进入组合层前必须持久化并逐批验证精确的 `(decision_time, symbol)` 有序键；仅保存键哈希的
   旧预测只允许审计，禁止从其他 artifact 或当前数据顺序猜测、回填或重建预测键。
 - 组合层只能接收 `decision_time`、`symbol` 和模型分数，不得携带 label；重复键、跨 fold 重叠键或

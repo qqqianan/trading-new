@@ -28,6 +28,10 @@ def test_ridge_saves_equal_weight_baseline_and_all_alpha_candidates(tmp_path: Pa
     # Then: baseline, every candidate, selected alpha, and prediction lineage are saved.
     assert {item.alpha for item in artifact.candidate_results} == {0.1, 1.0, 10.0, 100.0}
     assert len(artifact.fold_results) == 2
+    assert all(
+        len(item.coefficients) == len(artifact.model_feature_names) and item.intercept is not None
+        for item in artifact.fold_results
+    )
     assert artifact.baseline_mean_validation_mse >= 0
     assert artifact.selected_alpha in {0.1, 1.0, 10.0, 100.0}
     assert artifact.prediction_lineage_id.startswith("prediction_lineage_")

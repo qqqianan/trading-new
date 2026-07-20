@@ -28,6 +28,8 @@ class RidgeFoldResult(FrozenRidgeModel):
     selected_validation_mse: float = Field(ge=0, allow_inf_nan=False)
     internal_test_mse: float = Field(ge=0, allow_inf_nan=False)
     internal_test_rows: int = Field(gt=0)
+    coefficients: tuple[float, ...] = ()
+    intercept: float | None = Field(default=None, allow_inf_nan=False)
 
 
 class FoldPredictionBatch(FrozenRidgeModel):

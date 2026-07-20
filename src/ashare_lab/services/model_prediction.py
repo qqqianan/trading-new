@@ -25,6 +25,17 @@ class RidgePredictionFrameError(Exception):
 
 def build_ridge_prediction_score_frame(predictions: RidgePredictionArtifact) -> pl.DataFrame:
     """Verify every keyed batch and expose scores without labels."""
+    return build_ridge_prediction_evaluation_frame(predictions).select(
+        "decision_time",
+        "symbol",
+        "model_score",
+    )
+
+
+def build_ridge_prediction_evaluation_frame(
+    predictions: RidgePredictionArtifact,
+) -> pl.DataFrame:
+    """Verify keyed batches while retaining labels only for development diagnostics."""
     frames: list[pl.DataFrame] = []
     for batch in predictions.batches:
         if not batch.decision_times or not batch.symbols:
@@ -38,7 +49,9 @@ def build_ridge_prediction_score_frame(predictions: RidgePredictionArtifact) -> 
                     dtype=pl.Datetime("us", "Asia/Shanghai"),
                 ),
                 "symbol": batch.symbols,
+                "fold_index": [batch.fold_index] * len(batch.predictions),
                 "model_score": batch.predictions,
+                "label_value": batch.labels,
             }
         )
         if training_frame_sha256(frame.select(*_KEYS)) != batch.observation_keys_sha256:

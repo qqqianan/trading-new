@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Model Diagnostic Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "model_id",
+    "dataset_snapshot_id",
+    "prediction_artifact_sha256",
+    "factor_report_id",
+    "selected_alpha",
+    "prediction_rows",
+    "overall_rank_ic",
+    "fold_segments",
+    "yearly_segments",
+    "coefficient_stability",
+    "portfolio",
+    "industry_neutralization",
+    "diagnostic_scope",
+    "tuning_permitted",
+    "model_status",
+    "final_test_runs"
+  ],
+  "properties": {
+    "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "prediction_artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "factor_report_id": {"type": "string", "pattern": "^factor_report_[0-9a-f]{64}$"},
+    "selected_alpha": {"type": "number", "exclusiveMinimum": 0},
+    "prediction_rows": {"type": "integer", "minimum": 1},
+    "overall_rank_ic": {"$ref": "#/$defs/RankIcSegment"},
+    "fold_segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/RankIcSegment"}
+    },
+    "yearly_segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/RankIcSegment"}
+    },
+    "coefficient_stability": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/CoefficientStability"}
+    },
+    "portfolio": {"$ref": "#/$defs/BacktestComparison"},
+    "industry_neutralization": {"const": "UNAVAILABLE"},
+    "diagnostic_scope": {"const": "POST_HOC_DEVELOPMENT_ONLY"},
+    "tuning_permitted": {"const": false},
+    "model_status": {"const": "DRAFT"},
+    "final_test_runs": {"const": 0}
+  },
+  "$defs": {
+    "RankIcSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["segment", "decision_dates", "observations", "mean_rank_ic", "icir", "direction_consistency"],
+      "properties": {
+        "segment": {"type": "string", "minLength": 1},
+        "decision_dates": {"type": "integer", "minimum": 1},
+        "observations": {"type": "integer", "minimum": 1},
+        "mean_rank_ic": {"type": "number"},
+        "icir": {"type": "number"},
+        "direction_consistency": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "CoefficientStability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_name", "mean", "standard_deviation", "sign_consistency"],
+      "properties": {
+        "feature_name": {"type": "string", "minLength": 1},
+        "mean": {"type": "number"},
+        "standard_deviation": {"type": "number", "minimum": 0},
+        "sign_consistency": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "BacktestComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_backtest_id",
+        "model_backtest_id",
+        "baseline_total_return",
+        "model_total_return",
+        "baseline_annualized_return",
+        "model_annualized_return",
+        "baseline_sharpe",
+        "model_sharpe",
+        "baseline_max_drawdown",
+        "model_max_drawdown",
+        "baseline_turnover",
+        "model_turnover",
+        "baseline_fees",
+        "model_fees",
+        "baseline_pending_orders",
+        "model_pending_orders",
+        "baseline_trades",
+        "model_trades",
+        "mean_top30_overlap",
+        "minimum_top30_overlap",
+        "risk_halt_date",
+        "risk_halt_rule"
+      ],
+      "properties": {
+        "baseline_backtest_id": {"type": "string", "pattern": "^portfolio_backtest_[0-9a-f]{64}$"},
+        "model_backtest_id": {"type": "string", "pattern": "^portfolio_backtest_[0-9a-f]{64}$"},
+        "baseline_total_return": {"type": "number"},
+        "model_total_return": {"type": "number"},
+        "baseline_annualized_return": {"type": "number"},
+        "model_annualized_return": {"type": "number"},
+        "baseline_sharpe": {"type": "number"},
+        "model_sharpe": {"type": "number"},
+        "baseline_max_drawdown": {"type": "number", "minimum": -1, "maximum": 0},
+        "model_max_drawdown": {"type": "number", "minimum": -1, "maximum": 0},
+        "baseline_turnover": {"type": "number", "minimum": 0},
+        "model_turnover": {"type": "number", "minimum": 0},
+        "baseline_fees": {"type": "number", "minimum": 0},
+        "model_fees": {"type": "number", "minimum": 0},
+        "baseline_pending_orders": {"type": "integer", "minimum": 0},
+        "model_pending_orders": {"type": "integer", "minimum": 0},
+        "baseline_trades": {"type": "integer", "minimum": 0},
+        "model_trades": {"type": "integer", "minimum": 0},
+        "mean_top30_overlap": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_top30_overlap": {"type": "number", "minimum": 0, "maximum": 1},
+        "risk_halt_date": {"oneOf": [{"type": "string", "format": "date"}, {"type": "null"}]},
+        "risk_halt_rule": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]}
+      }
+    }
+  }
+}

@@ -178,6 +178,8 @@ def _evaluate_selected(
                 selected_validation_mse=_mse(fold.validation_y, validation_prediction),
                 internal_test_mse=_mse(fold.test_y, test_prediction),
                 internal_test_rows=len(fold.test_y),
+                coefficients=tuple(float(value) for value in model.coef_),
+                intercept=_intercept(model.intercept_),
             )
         )
         predictions.append(

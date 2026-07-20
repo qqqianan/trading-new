@@ -492,6 +492,16 @@ DatasetSpec、schema/lineage、ExperimentManifest SHA-256、全部 alpha validat
 SHA-256；预测批次同时保存精确的 `(decision_time, symbol)` 有序键及其哈希。组合发布必须验证模型与
 预测的 DatasetSpec、研究身份和来源基线回测一致，并保持 `DRAFT`、`final_test_runs=0`。
 
+每个 `RidgeFoldResult` 还必须保存与 `model_feature_names` 顺序完全一致的系数和截距。逐 fold 系数只能
+在 `TrainingService -> ModelTrainingGuard -> RidgeTrainer` 已授权的拟合调用中记录；诊断阶段禁止为了
+补证据重新拟合。缺少逐 fold 系数的旧模型仍可审计和读取，但不能生成系数稳定性报告。
+
+`model_diagnostic_report_v1` 固定
+`ridge_model -> keyed predictions/labels -> fold coefficients -> baseline targets/backtest -> model targets/backtest
+-> Rank IC/coefficient stability/Top30 overlap/risk halt`。两个目标的决策日集合必须完全相同，禁止 inner
+intersection 后静默丢期；两套回测必须固定相同 DatasetSpec、factor report、成本和风险版本。报告是
+post-hoc development evidence，只能解释既有结果，不能授权调参、模型晋级或 final holdout 访问。
+
 固定合成 QA 的实验 manifest 见 `.omo/evidence/task-12-experiment-manifest.json`。它的
 `data_classification=SYNTHETIC_SOFTWARE_QA_ONLY`、`final_test_runs=0`、`model_status=DRAFT`，仅证明
 validation-only alpha 选择、等权基线保存、哈希验证和门禁调用顺序；不构成真实模型、因子、回测或

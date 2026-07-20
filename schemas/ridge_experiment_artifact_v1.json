@@ -127,14 +127,22 @@
         "baseline_validation_mse",
         "selected_validation_mse",
         "internal_test_mse",
-        "internal_test_rows"
+        "internal_test_rows",
+        "coefficients",
+        "intercept"
       ],
       "properties": {
         "fold_index": {"type": "integer", "minimum": 0},
         "baseline_validation_mse": {"type": "number", "minimum": 0},
         "selected_validation_mse": {"type": "number", "minimum": 0},
         "internal_test_mse": {"type": "number", "minimum": 0},
-        "internal_test_rows": {"type": "integer", "minimum": 1}
+        "internal_test_rows": {"type": "integer", "minimum": 1},
+        "coefficients": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "number"}
+        },
+        "intercept": {"type": "number"}
       }
     }
   }

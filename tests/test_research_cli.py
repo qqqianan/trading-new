@@ -7,6 +7,7 @@ from ashare_lab import research_cli
 from ashare_lab.backtest.report_store import PortfolioBacktestReportDescriptor
 from ashare_lab.portfolio.research_store import PortfolioTargetDescriptor
 from ashare_lab.research.factors.report_store import FactorReportDescriptor
+from ashare_lab.research.model_diagnostics.store import ModelDiagnosticDescriptor
 from ashare_lab.research.preflight import (
     PreflightRequest,
     PreflightRule,
@@ -243,4 +244,47 @@ def test_research_cli_publishes_model_portfolio_without_opening_holdout(
     # Then: the exact target identity is shown and final holdout stays sealed.
     assert result.exit_code == 0
     assert target_id in result.stdout.replace("\n", "")
+    assert "final holdout: SEALED" in result.stdout
+
+
+def test_research_cli_publishes_post_hoc_model_diagnostic_without_tuning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: clean preflight and one immutable diagnostic descriptor.
+    report_id = "model_diagnostic_" + "b" * 64
+
+    def approve(_request: PreflightRequest) -> ResearchIdentity:
+        return ResearchIdentity("a" * 40, "c" * 64, "1.1.0", "ashare_quant")
+
+    def diagnostic_runtime(
+        _root: Path, _model_id: str, _backtest_id: str
+    ) -> ModelDiagnosticDescriptor:
+        return ModelDiagnosticDescriptor(
+            report_id=report_id,
+            report_path=tmp_path / "report.json",
+            data_sha256="b" * 64,
+        )
+
+    monkeypatch.setattr(research_cli, "run_research_preflight", approve)
+    monkeypatch.setattr(research_cli, "run_default_model_diagnostics", diagnostic_runtime)
+
+    # When: the operator runs the formal post-hoc diagnostic command.
+    result = RUNNER.invoke(
+        app,
+        [
+            "model-diagnose",
+            "--model-id",
+            "ridge_model_" + "a" * 64,
+            "--portfolio-backtest-id",
+            "portfolio_backtest_" + "c" * 64,
+            "--project-root",
+            str(tmp_path),
+        ],
+    )
+
+    # Then: the report is disclosed without authorizing tuning or holdout access.
+    assert result.exit_code == 0
+    assert report_id in result.stdout.replace("\n", "")
+    assert "tuning: FORBIDDEN" in result.stdout
     assert "final holdout: SEALED" in result.stdout

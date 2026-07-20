@@ -252,6 +252,18 @@ Ridge 开发期组合入口为
 不含 label；随后使用相同 Top 30、95% 股票仓位规则生成带 `model_id` 的目标。该步骤不创建订单，目标
 仍必须通过正式 `backtest` 入口和唯一 `PortfolioRiskEngine`，final holdout 保持封存。
 
+Ridge 事后诊断入口为
+`ashare-research model-diagnose --model-id <ridge_model_id> --portfolio-backtest-id <model_backtest_id>`。
+它只读取已持久化的 keyed internal-test prediction、训练时保存的逐 fold 系数、精确等权基线目标/回测
+和模型目标/回测，生成内容寻址的 `model_diagnostic_*`。报告披露整体、逐 fold、逐年 Rank IC，系数
+均值/标准差/符号一致率，逐期 Top30 重合率，两套成本后回测指标及熔断事件。机器契约为
+`schemas/model_diagnostic_report_v1.json`。
+
+该报告固定 `diagnostic_scope=POST_HOC_DEVELOPMENT_ONLY`、`tuning_permitted=false`、`model_status=DRAFT`
+和 `final_test_runs=0`。诊断代码禁止重新拟合；任何基于报告的特征、alpha、标签或组合修改都必须成为
+新实验，原 internal-test 区间不能再次声称为未见数据。行业 PIT 不可用时仍固定为 `UNAVAILABLE`，
+不能用当前行业快照补齐。
+
 真实回测入口为
 `ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一
 DatasetSpec，股票五链和中证 500 基准查询都受 DatasetSpec schema 与 Raw snapshot 白名单约束；目标
