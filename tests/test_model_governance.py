@@ -1,6 +1,6 @@
 import hashlib
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -150,3 +150,23 @@ def test_development_training_rejects_lineage_outside_dataset_snapshots(tmp_path
     # When / Then: the guard rejects field-level evidence outside DatasetSpec.
     with pytest.raises(ModelGovernanceError, match="Raw snapshots outside DatasetSpec"):
         ModelTrainingGuard().approve_development(evidence, experiment, folds(), frame)
+
+
+def test_development_training_accepts_sparse_decisions_inside_daily_folds(tmp_path: Path) -> None:
+    # Given: fold calendars begin before the first weekly decision row in each train partition.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    sparse_folds = tuple(
+        replace(fold, train=(fold.train[0] - timedelta(days=1), *fold.train)) for fold in folds()
+    )
+
+    # When: preprocessing evidence is verified against actual keyed training rows.
+    decision = ModelTrainingGuard().approve_development(
+        evidence,
+        experiment,
+        sparse_folds,
+        frame,
+    )
+
+    # Then: daily calendar gaps do not invalidate byte-identical fold-local fitting.
+    assert decision.approval.approved is True

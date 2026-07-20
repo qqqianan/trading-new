@@ -107,7 +107,7 @@ def verify_development_evidence(
             rule = "development_data"
             detail = "frame has no valid decision date"
             raise TrainingEvidenceError(rule, detail)
-    preprocessors = _read_preprocessors(evidence, experiment, folds)
+    preprocessors = _read_preprocessors(evidence, experiment, folds, frame)
     return VerifiedDevelopmentInputs(spec, preprocessors)
 
 
@@ -146,6 +146,7 @@ def _read_preprocessors(
     evidence: DevelopmentTrainingEvidence,
     experiment: ExperimentManifest,
     folds: tuple[WalkForwardFold, ...],
+    frame: pl.DataFrame,
 ) -> tuple[FoldPreprocessingArtifact, ...]:
     if (
         len(evidence.preprocessor_descriptors) != len(folds)
@@ -160,13 +161,18 @@ def _read_preprocessors(
     try:
         for fold, descriptor in zip(folds, evidence.preprocessor_descriptors, strict=True):
             artifact = store.read(descriptor)
+            training = frame.filter(pl.col("decision_time").dt.date().is_in(fold.train))
+            start = training["decision_time"].min()
+            end = training["decision_time"].max()
             if (
                 artifact.fold_id != f"fold_{fold.fold_index:03d}"
                 or artifact.dataset_snapshot_id != experiment.dataset_snapshot_id
                 or artifact.feature_names != experiment.feature_names
                 or artifact.size_feature_name != experiment.size_feature_name
-                or artifact.training_start.date() != fold.train[0]
-                or artifact.training_end.date() != fold.train[-1]
+                or artifact.training_start != start
+                or artifact.training_end != end
+                or artifact.training_row_count != training.height
+                or artifact.training_data_sha256 != training_frame_sha256(training)
             ):
                 rule = "fold_preprocessors"
                 detail = "preprocessor scope differs from fold"
