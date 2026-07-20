@@ -28,9 +28,10 @@ flowchart LR
     LINEAGE --> DATASET
 
     DATASET --> SPLITS["Purged Walk-Forward"]
-    SPLITS --> TRAIN["Trainer"]
-    TRAIN --> APPROVAL["ModelTrainingGuard"]
-    APPROVAL --> REGISTRY["Model Registry"]
+    SPLITS --> SERVICE["TrainingService"]
+    SERVICE --> APPROVAL["ModelTrainingGuard"]
+    APPROVAL --> TRAIN["Trainer"]
+    TRAIN --> REGISTRY["DRAFT Model Registry"]
 
     REGISTRY --> PREDICT["截面预测"]
     PREDICT --> PORTFOLIO["组合构建"]
@@ -99,9 +100,10 @@ Raw snapshot 和 Raw row hash。无可见公告或源字段为空时仍保留全
 标签通过独立服务读取未来 Raw 开盘价与执行约束，固定为交易日 `t+1` 进入、`t+21` 退出并减去
 `000905.SH` 同期简单收益。停牌、涨停不可买、跌停不可卖或价格缺失只产生稳定 null 原因，不顺延
 窗口，也不删除宇宙键。标签行保留四个价格点以及入场/退出约束的 Raw snapshot/row 身份；feature
-与 label lineage 有任何交集时 DatasetSpec 装配直接拒绝。首个 21 因子逻辑数据集已经生成；最终
-测试封存、purged walk-forward 和训练折预处理代码已具备，但尚未训练任何模型，也未打开真实 final
-holdout。模型训练仍须等待后续受治理训练服务读取真实 artifact 证据，不能由布尔声明提前开启。
+与 label lineage 有任何交集时 DatasetSpec 装配直接拒绝。首个 21 因子逻辑数据集已经生成；最终测试
+封存、purged walk-forward、训练折预处理和受治理 Ridge 训练代码已具备。当前仅用固定合成小数据完成
+软件 QA，没有训练真实投资决策模型，也未打开真实 final holdout。真实训练必须由 `TrainingService`
+读取实际 artifact 证据，不能由布尔声明提前开启。
 
 ### ExperimentManifest
 
@@ -148,6 +150,17 @@ embargo 5。开发日期不得晚于 `2024-12-31`；`2025-01-01` 起是物理隔
 `preprocessor/preprocessor_artifact_<sha256>/manifest.json`。schema 位于
 `schemas/fold_preprocessor_artifact_v1.json`；manifest 被修改或跨目录重标记时读取失败。
 
+### 5.3 训练门禁调用链
+
+`TrainingService` 是唯一允许导入 `Trainer` 并创建 `TrainerJob` 的生产入口。调用顺序固定为：先校验
+实验声明的 `ModelFamily` 与 trainer 一致，再由 `ModelTrainingGuard` 逐字节验证 DatasetSpec、完整字段
+schema、字段级 lineage、每 fold 预处理 manifest、开发帧 SHA-256 和 final holdout 零访问账本，最后才
+调用 trainer。任一 descriptor、文件字节、字段顺序、Raw snapshot 血缘或日期边界不一致都 fail closed。
+
+开发审批 scope 固定为 `DEVELOPMENT_TRAINING`，只能产生 `DRAFT` `ModelRecord`，不能复用为
+`VALIDATION_PROMOTION`。合成 QA 数据即使证据完整，也不能训练 `INVESTMENT_DECISION` 模型。机器输入
+契约见 `schemas/model_training_input_v1.json`。
+
 ## 6. 推荐模型演进
 
 1. 等权和线性因子基线。
@@ -157,7 +170,18 @@ embargo 5。开发日期不得晚于 `2024-12-31`；`2025-01-01` 起是物理隔
 
 每个复杂模型都必须在相同数据快照、相同 split、相同组合规则和相同成本假设下战胜简单基线。
 
-## 6.1 因子研究门禁
+### 6.1 Ridge 开发基线
+
+第一阶段 trainer 使用 scikit-learn Ridge，候选 alpha 冻结为 `(0.1, 1, 10, 100)`。每个候选只在全部
+开发 validation folds 上计算 MSE，并按 `mean_validation_mse, alpha` 稳定选择；内部 development test
+只在 alpha 选择完成后评估，final holdout 始终不进入选择、拟合或预测。
+
+同一 fold 同时保存等权因子 validation 基线、选中 Ridge validation/internal-test 指标和内部 test 预测。
+产物保存全部候选、系数、截距、预处理 ID、实验哈希、预测哈希和预测 lineage，使用内容寻址 JSON，
+禁止 pickle。结构见 `schemas/ridge_experiment_artifact_v1.json`。当前合成结果只证明软件行为，不证明
+Ridge、因子或策略具有投资有效性。
+
+## 6.2 因子研究门禁
 
 因子研究位于模型训练之前，唯一编排入口为 `AuditedFactorResearchService`：
 
@@ -182,6 +206,30 @@ store 在写入和读取时重算 trial/batch ID。服务只有在 diagnostic in
 才开始计算；架构测试禁止其他生产模块直接导入 `diagnose_factor`、`benjamini_hochberg` 或
 `select_factor_candidates`。
 
+## 7. 一键研究编排与报告
+
+`ResearchWorkflowService` 只负责编排，不复制任何数据、因子、组合、风控、成交或训练规则。阶段闭集和
+顺序固定为 `qualify -> materialize -> diagnose -> portfolio -> backtest -> train`；每个真实适配器返回
+不可变 `StageRecord`，首个 `BLOCKED` 后服务停止调用后续阶段。适配器若返回错误 stage identity，整个
+运行失败，CLI 没有跳过阶段或允许 final holdout 的参数。
+
+`ashare-research dry-run` 读取真实 Git/uv lock、唯一 DatasetSpec 和完整 trial batch，生成六个
+`PLANNED` 阶段的开发期报告。它不连接 Mongo、不读取 Parquet payload、不回测、不训练，模型状态固定
+为 `NOT_TRAINED`，因此只证明运行计划和报告完整性。机器契约为
+`schemas/research_audit_report_v1.json`。
+
+`ashare-research diagnose` 是真实开发期诊断 composition root。可复现性 preflight 必须先确认工作树
+干净，随后只接受 artifact root 中唯一的 DatasetSpec 和 trial batch。`VerifiedArtifactFrameReader`
+验证固定物理目录、manifest、SHA-256 与精确行 schema；`ArtifactFactorFrameSource` 共享 universe、label
+和规模输入，但按 family 流式逐因子加载，避免把全部因子常驻内存。每个 fold 的预处理只在 train
+分区拟合，诊断只拼接互不重叠的 internal-test 行，且硬排除 final holdout。缺少 `log_total_mv`、开发
+日历不足、trial 与 DatasetSpec artifact identity 不一致或输入列不完整时均 fail closed。
+
+每份报告披露数据截止、snapshot/schema/lineage、代码和规则身份、股票池规则、21 个因子来源公式、
+全部 trial ID、成本/风险版本、最差区间、全部失败、模型状态和 final test 次数。JSON 和中文 Markdown
+位于同一内容寻址目录，读取时重新生成 Markdown 比对。nightly 模块通过测试禁止导入研究和训练入口，
+每日增量只更新数据。
+
 每个决策日先做横截面 Spearman Rank IC，再按开发期日序列计算均值、ICIR、方向一致率和均值 IC 的
 双侧正态近似 p 值。五分组使用预登记方向后的横截面排序；净 Top-Bottom 收益扣除固定 round-trip
 成本与实际 Top 组换手。报告同时保留 coverage、缺失 feature/label、因子自相关、规模暴露、年度、
@@ -192,7 +240,7 @@ store 在写入和读取时重算 trial/batch ID。服务只有在 diagnostic in
 Top-Bottom 收益只用于诊断和成本感知，不是单一晋级规则。最终报告必须按原 ledger 顺序同时保留
 `CANDIDATE` 和 `REJECTED`，并为拒绝提供稳定原因代码。
 
-## 7. 组合与风控边界
+## 8. 组合与风控边界
 
 模型输出包括 `symbol`、`decision_time`、`model_id`、分数和排名。组合构建器输出目标权重，随后由风控检查：
 
@@ -227,7 +275,7 @@ Top-Bottom 收益只用于诊断和成本感知，不是单一晋级规则。最
 组合报告披露绝对、基准和超额收益、波动率、Sharpe、最大回撤、换手、费用、最大成交量参与率、
 pending 订单、风险事件及年度分段；结构见 `schemas/portfolio_backtest_report_v1.json`。
 
-## 8. 实施顺序
+## 9. 实施顺序
 
 1. 真实数据适配器与不可变 Raw 层。
 2. Point-in-Time 仓库和历史股票池。
@@ -236,7 +284,7 @@ pending 订单、风险事件及年度分段；结构见 `schemas/portfolio_back
 5. Ridge 基线训练器。
 6. LightGBM Ranker、实验比较和模型注册 UI。
 
-## 9. 模型工程目录与扩展边界
+## 10. 模型工程目录与扩展边界
 
 模型算法是可替换适配器，不拥有数据治理、预处理、组合、风控或成交规则。目录固定为：
 

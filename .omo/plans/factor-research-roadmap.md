@@ -242,7 +242,7 @@
   `portfolio_backtest_report_v1.json`，五票合成 QA 见 `.omo/evidence/task-11-trade-ledger.csv`；不声称
   投资有效。全仓 412 测试通过，覆盖率 90.35%，final holdout 未打开。
 
-- [ ] 12. 建立等权/线性基线与受治理 Ridge 训练
+- [x] 12. 建立等权/线性基线与受治理 Ridge 训练
   What to do: 先保存等权因子组合的开发 fold 结果，再增加 scikit-learn Ridge 的 typed trainer；只通过 `TrainingService` 调用。每 fold 单独预处理、拟合与预测，超参数候选固定为 `alpha=(0.1,1,10,100)`，只由开发验证 folds 选择；保存全部候选结果、随机种子、DatasetSpec、ExperimentManifest、模型哈希和预测 lineage。`ModelTrainingGuard` 从实际 artifacts 验证证据，不能由调用者布尔声明。只有 Ridge 在相同快照/组合/成本下稳定优于简单基线且 final test 单次运行后，才可申请 `VALIDATED`。
   Must NOT do: 不在本任务加入 LightGBM，不把最终测试用于 alpha、特征或阈值选择，不让 trainer 绕过 service。
   Parallelization: Can parallel N | Wave 5 | Blocks 13
@@ -250,6 +250,11 @@
   Acceptance criteria: 架构测试证明只有 TrainingService 可导入 Trainer；篡改 dataset/model artifact 哈希或缺 schema/lineage 时训练前拒绝；alpha 选择不访问 final holdout；重复 final test 拒绝；模型默认 `DRAFT`。
   QA scenarios: `uv run pytest tests/test_ridge_trainer.py tests/test_training_service.py tests/test_model_governance.py tests/test_architecture.py -q`; Evidence `.omo/evidence/task-12-experiment-manifest.json`
   Commit: Y | `feat(ml): add governed ridge baseline` | `ml`, services, governance, pyproject/lock, tests
+  Completed: `TrainingService` 先校验模型族并调用 artifact-backed `ModelTrainingGuard`，只有审批后才创建
+  `TrainerJob`；DatasetSpec、字段 schema/lineage、fold preprocessor、development frame 和 final holdout
+  零访问账本均逐字节验证。Ridge 固定四个 alpha，只按 validation mean MSE 选择，随后才查看内部 test；
+  保存等权基线、全部候选、fold 指标、系数、预测 SHA/lineage 和内容寻址 JSON，默认注册为 `DRAFT`。
+  合成 QA 明确不可用于投资判断，final holdout 未打开。全仓 425 测试通过，覆盖率 90.20%。
 
 - [ ] 13. 提供一键研究命令、审计报告与运行手册
   What to do: 增加 `ashare-research` CLI，按 qualify -> materialize -> diagnose -> portfolio -> backtest -> train 的顺序编排，默认停在 final holdout 之前。生成机器 JSON 和中文 Markdown 报告，明确数据截止、snapshot/schema/lineage、股票池规则、因子公式、全部试验、成本/风险参数、最差区间、失败和 DRAFT/VALIDATED 状态。更新架构、数据字典、lineage、工程规范和 README；每日调度只更新数据，不自动重训或打开最终测试。
@@ -259,6 +264,13 @@
   Acceptance criteria: 从固定快照重复运行得到相同 artifact IDs 和指标；被阻断阶段返回非零退出码和稳定原因；报告包含全部宪法要求且不含秘密；nightly maintenance 不触发训练。
   QA scenarios: `uv run pytest tests/test_research_cli.py tests/test_research_report.py tests/test_nightly.py -q`; 执行 dry-run 并保存 `.omo/evidence/task-13-cli.txt` 与 `.omo/evidence/task-13-report.md`
   Commit: Y | `feat(research): orchestrate auditable medium-horizon workflow` | CLI, reports, docs, tests
+  Progress: 已落地固定六阶段编排协议、首错即停、确定性双语报告 store、报告机器 schema、nightly 导入
+  隔离和 `ashare-research dry-run`。真实仓库 dry-run 披露唯一 DatasetSpec、21 个 trial、成本/风控规则，
+  模型状态为 `NOT_TRAINED` 且 final holdout 为 0。开发区间基础 coverage 已 `QUALIFIED`；要求历史行业
+  PIT 时按预期 `BLOCKED`，因此只允许继续 DRAFT 研究。真实 `diagnose` composition root 已接入唯一
+  DatasetSpec/trial batch、逐 artifact 哈希/schema 校验、按 family 流式诊断和折内 OOS frame；工作树
+  不干净时在读取 Parquet 前稳定阻断。下一步需在干净代码身份下生成真实诊断产物，再接入 portfolio、
+  backtest 与 train 的真实阶段适配器后才可勾选。
 
 ## Final verification wave (after ALL todos)
 > 以下检查可并行，但必须全部 APPROVE；在用户明确确认前不得宣称研究系统或模型已验证。

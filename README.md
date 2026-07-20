@@ -54,6 +54,36 @@ macOS 本机已通过 `com.ashare-lab.daily-data` LaunchAgent 在每天 `18:30` 
 canonical、PIT、质量和 lineage 链路。正式模型训练仍保持关闭。
 `21:30` 轮次用于补拉晚发布数据；已具备完整范围证据的财务证券会直接跳过。
 
+## 研究工作流
+
+先检查固定 DatasetSpec、试验账本和完整报告披露结构，不读取 Mongo、不运行回测或训练：
+
+```bash
+uv run ashare-research dry-run \
+  --project-root . \
+  --output-dir data/research_reports
+```
+
+dry-run 按 `qualify -> materialize -> diagnose -> portfolio -> backtest -> train` 固定顺序生成
+`report.json` 和 `report.zh-CN.md`，状态均为 `PLANNED`，模型为 `NOT_TRAINED`，final holdout 运行次数
+固定为 0。它用于审计运行身份和计划，不能被称为模型训练或回测结果。
+
+在干净且可复现的 Git 工作树上，可从已冻结 artifact 运行真实开发期因子诊断：
+
+```bash
+uv run ashare-research diagnose --project-root .
+```
+
+该命令要求 artifact root 中恰好存在一个 DatasetSpec 和一个完整 trial batch，逐个读取并校验
+universe、label、`log_total_mv` 与 21 个 feature artifact，只输出折内预处理后的 internal-test 指标。
+它固定排除 `2025-01-01` 起的 final holdout；历史行业 PIT 不完整时行业分段记为 `UNAVAILABLE`，产物
+只能用于 `DRAFT` 研究。工作树有未提交改动时命令在读取 Parquet 前返回非零状态，避免代码身份与指标
+不一致。
+
+正式工作流沿用同一个 `ResearchWorkflowService`：首个 `BLOCKED` 阶段立即停止，后续阶段不会执行；
+只有全部真实阶段产物通过各自门禁时才会形成 `COMPLETED` 报告。每日数据维护与该入口物理分离，
+不会自动研究、回测、训练或打开 final holdout。
+
 ## 质量检查
 
 ```bash

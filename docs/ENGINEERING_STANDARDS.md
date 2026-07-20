@@ -84,6 +84,10 @@ src/ashare_lab/
 - 因子诊断只能通过 `AuditedFactorResearchService`：该服务必须先验证完整 append-only trial batch，
   再计算指标、BH-FDR 和去冗余；生产代码直接导入内部诊断/FDR/选择函数会被架构测试拒绝。
 - trial batch 和 factor report 都使用内容寻址 JSON，读取时验证固定目录、Pydantic schema 和 SHA-256。
+- 一键研究只能通过 `ResearchWorkflowService` 按 qualify、materialize、diagnose、portfolio、backtest、
+  train 顺序编排；首个阻断后不得继续，CLI 不得提供跳步或 final-holdout 开关。
+- 研究审计报告同时生成内容寻址 JSON 和中文 Markdown；两者读取时必须重新生成比对，禁止人工改写
+  其中一份。dry-run 的所有阶段只能是 `PLANNED`，模型必须为 `NOT_TRAINED`。
 - 多次模型选择必须记录试验次数并使用多重检验控制。
 - 演示或合成数据训练的模型不得晋级为投资决策模型。
 
@@ -93,6 +97,7 @@ src/ashare_lab/
 - 原始供应商响应只追加，不原地修改。
 - 日志不得包含 Token、交易密码或完整账户信息。
 - 模型文件、市场数据和研究产物默认不提交 Git。
+- nightly 只允许导入数据维护模块；架构测试禁止其导入研究编排或训练入口。
 - 未来实盘功能必须与研究环境隔离，并增加人工审批与紧急停止机制。
 
 ## 9. 质量门禁

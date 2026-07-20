@@ -440,3 +440,36 @@ QA 报告 ID 为 `factor_report_d65b1509e2b5ac832edaa0c07100173bba9e9eb2903741e8
 `schemas/portfolio_backtest_report_v1.json`。五票固定合成账本见
 `.omo/evidence/task-11-trade-ledger.csv`，只证明软件记账和现金守恒，不证明真实策略有效；final holdout
 未打开。
+
+## 15. 受治理训练与 Ridge 产物血缘
+
+训练输入的机器契约为 `schemas/model_training_input_v1.json`。`DevelopmentTrainingEvidence` 不接受
+`complete_schema_documentation` 或 `complete_data_lineage` 等调用方布尔声明，而是持有 DatasetSpec、
+训练字段 schema、字段级 lineage、每 fold 预处理 manifest 的路径和 SHA-256，以及完整 development
+frame SHA-256。`ModelTrainingGuard` 在拟合前重新读取文件并校验内容哈希。
+
+字段 schema 的 feature 顺序、规模字段和 label 必须与 `ExperimentManifest` 完全一致。lineage 字段顺序
+固定为 `features -> size_feature -> label`，每个字段必须至少关联一个 source artifact 和 Raw snapshot。
+DatasetSpec snapshot/lineage、实验 schema/lineage、preprocessor fold/日期/feature order 任一不一致都停止
+训练。development frame 最大决策日不得晚于 `2024-12-31`，final holdout ledger 计数必须为 0。
+
+Ridge 模型 manifest 的机器契约为 `schemas/ridge_experiment_artifact_v1.json`。模型 identity 由训练运行、
+DatasetSpec、schema/lineage、ExperimentManifest SHA-256、全部 alpha validation 结果、fold 结果、系数、
+预处理 ID、预测 SHA-256、组合/成本规则和随机种子共同内容寻址。预测 lineage 绑定 DatasetSpec、全部
+preprocessor artifact 和内部 test prediction SHA-256；预测批次另存 `(decision_time, symbol)` 有序键哈希。
+
+固定合成 QA 的实验 manifest 见 `.omo/evidence/task-12-experiment-manifest.json`。它的
+`data_classification=SYNTHETIC_SOFTWARE_QA_ONLY`、`final_test_runs=0`、`model_status=DRAFT`，仅证明
+validation-only alpha 选择、等权基线保存、哈希验证和门禁调用顺序；不构成真实模型、因子、回测或
+投资有效性证据。
+
+## 16. 一键研究审计报告
+
+工作流报告 schema 为 `schemas/research_audit_report_v1.json`。report ID 对除自身 ID 外的完整规范 JSON
+计算 SHA-256，输入包括 Git commit、uv lock SHA-256、DatasetSpec/schema/lineage、数据库、股票池规则、
+因子公式、全部 trial ID、成本/风控版本、最差区间、失败、模型状态、final test 次数和有序阶段记录。
+
+阶段顺序只能是 qualify、materialize、diagnose、portfolio、backtest、train。完成运行可包含前缀，
+但首个 `BLOCKED` 后不得出现后续阶段。dry-run 必须包含全部六阶段且均为 `PLANNED`，只读取 manifest
+身份，不读取市场 payload 或 label，不产生训练产物。JSON 与 `report.zh-CN.md` 同目录原子发布，读取时
+必须由机器报告重新渲染并逐字比对。
