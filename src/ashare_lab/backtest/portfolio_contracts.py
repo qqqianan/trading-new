@@ -57,6 +57,7 @@ class PortfolioSession:
 
     trading_date: date
     bars: tuple[MarketBar, ...]
+    suspended_symbols: tuple[Symbol, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

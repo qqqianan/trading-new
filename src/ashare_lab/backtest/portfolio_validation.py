@@ -36,6 +36,9 @@ def validate_portfolio_inputs(
         if not symbols or len(symbols) != len(set(symbols)):
             detail = "every session requires unique bars"
             raise PortfolioBacktestInputError(detail)
+        if len(session.suspended_symbols) != len(set(session.suspended_symbols)):
+            detail = "suspended symbols must be unique within a session"
+            raise PortfolioBacktestInputError(detail)
         if any(bar.trading_date != session.trading_date for bar in session.bars):
             detail = "bar dates must match their portfolio session"
             raise PortfolioBacktestInputError(detail)

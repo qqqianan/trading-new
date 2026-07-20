@@ -55,6 +55,12 @@ def test_market_bundle_reader_joins_five_governed_chains_and_converts_units() ->
     assert row.total_mv_ten_thousand_cny == 1_000_000.0
     assert row.bar.available_at.hour == 16
     assert len(row.source_artifact_ids) == 4
+    assert row.source_snapshot_ids == (
+        "snapshot_adj_factor",
+        "snapshot_daily",
+        "snapshot_daily_basic",
+        "snapshot_stk_limit",
+    )
     daily_projection = database["canonical_daily_bar"].projections[0]
     assert set(daily_projection) == {
         "_id",
@@ -105,6 +111,37 @@ def test_market_bundle_reader_rejects_conflicting_daily_replays() -> None:
             date(2026, 7, 16),
             "schema_market",
         )
+
+
+def test_market_bundle_reader_pushes_dataset_snapshot_and_symbol_boundaries() -> None:
+    # Given: a governed snapshot allowlist and the exact portfolio symbol set.
+    database = _database()
+    allowed = tuple(
+        f"snapshot_{endpoint}"
+        for endpoint in (
+            "daily",
+            "adj_factor",
+            "daily_basic",
+            "stk_limit",
+            "suspend_d",
+        )
+    )
+
+    # When: a DatasetSpec-bound portfolio slice is read.
+    MongoMarketBundleReader(database).read(
+        date(2026, 7, 16),
+        date(2026, 7, 16),
+        "schema_market",
+        allowed_snapshot_ids=allowed,
+        symbols=("000001.SZ",),
+    )
+
+    # Then: both Raw snapshot and canonical payload queries are physically bounded.
+    snapshot_query = database["meta_source_snapshots"].queries[0]
+    daily_query = database["canonical_daily_bar"].queries[0]
+    assert snapshot_query["snapshot_id"] == {"$in": list(allowed)}
+    assert daily_query["source_snapshot_id"] == {"$in": ["snapshot_daily"]}
+    assert daily_query["ts_code"] == {"$in": ["000001.SZ"]}
 
 
 def _database(

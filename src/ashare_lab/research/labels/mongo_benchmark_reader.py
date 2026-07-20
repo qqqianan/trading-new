@@ -1,5 +1,6 @@
 """Exact-schema benchmark raw-open evidence reader."""
 
+from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -14,6 +15,14 @@ if TYPE_CHECKING:
     from ashare_lab.data.bson_types import BsonDocument
 
 
+@dataclass(frozen=True, slots=True)
+class BenchmarkSnapshotBoundary:
+    """Exact benchmark schema and optional DatasetSpec Raw snapshot allowlist."""
+
+    schema_manifest_id: str
+    allowed_snapshot_ids: tuple[str, ...] | None
+
+
 def read_benchmark_observations(
     database: MarketDatabase,
     start_date: date,
@@ -22,19 +31,36 @@ def read_benchmark_observations(
     schema_manifest_id: str,
 ) -> tuple[BenchmarkOpenObservation, ...]:
     """Load one exact benchmark's accepted raw opens and provenance."""
+    return read_dataset_benchmark_observations(
+        database,
+        start_date,
+        end_date,
+        symbol,
+        BenchmarkSnapshotBoundary(schema_manifest_id, None),
+    )
+
+
+def read_dataset_benchmark_observations(
+    database: MarketDatabase,
+    start_date: date,
+    end_date: date,
+    symbol: str,
+    boundary: BenchmarkSnapshotBoundary,
+) -> tuple[BenchmarkOpenObservation, ...]:
+    """Load benchmark opens through an exact DatasetSpec snapshot boundary."""
     snapshots = _benchmark_snapshots(
         database,
         start_date,
         end_date,
         symbol,
-        schema_manifest_id,
+        boundary,
     )
     documents = load_documents(
         database,
         "canonical_index_daily_bar",
         DailyDocument,
         snapshots,
-        schema_manifest_id,
+        boundary.schema_manifest_id,
     )
     folded = fold_canonical(
         "canonical_index_daily_bar",
@@ -60,13 +86,15 @@ def _benchmark_snapshots(
     start_date: date,
     end_date: date,
     symbol: str,
-    schema_manifest_id: str,
+    boundary: BenchmarkSnapshotBoundary,
 ) -> tuple[str, ...]:
     query: BsonDocument = {
-        "schema_manifest_id": schema_manifest_id,
+        "schema_manifest_id": boundary.schema_manifest_id,
         "status": "ACCEPTED",
         "endpoint": "index_daily",
     }
+    if boundary.allowed_snapshot_ids is not None:
+        query["snapshot_id"] = {"$in": list(boundary.allowed_snapshot_ids)}
     parsed = tuple(
         SnapshotDocument.model_validate(document)
         for document in database["meta_source_snapshots"].find(query, snapshot_projection())
@@ -76,6 +104,10 @@ def _benchmark_snapshots(
             snapshot.snapshot_id
             for snapshot in parsed
             if _overlaps(snapshot, symbol, start_date, end_date)
+            and (
+                boundary.allowed_snapshot_ids is None
+                or snapshot.snapshot_id in boundary.allowed_snapshot_ids
+            )
         )
     )
 

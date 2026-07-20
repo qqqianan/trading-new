@@ -51,7 +51,7 @@ class NullArtifactReader:
         raise AssertionError(message)
 
 
-def _spec() -> DatasetSpec:
+def portfolio_spec() -> DatasetSpec:
     return DatasetSpec(
         rulebook_version="1.1.0",
         coverage_report_id="coverage_abc123",
@@ -110,7 +110,7 @@ def test_portfolio_runtime_publishes_from_real_identity_stores(
 ) -> None:
     # Given: real DatasetSpec, trial, report, and one label-free candidate score frame.
     artifact_root = tmp_path / "data" / "artifacts"
-    spec = _spec()
+    spec = portfolio_spec()
     DatasetSpecStore(artifact_root).write(spec)
     context = TrialRegistrationContext(
         dataset_snapshot_id=spec.snapshot_id,

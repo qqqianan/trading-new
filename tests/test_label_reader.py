@@ -1,7 +1,16 @@
 from datetime import UTC, date, datetime
 
+from pydantic import TypeAdapter
+
 from ashare_lab.data.bson_types import BsonDocument
+from ashare_lab.research.labels.mongo_benchmark_reader import (
+    BenchmarkSnapshotBoundary,
+    read_dataset_benchmark_observations,
+)
 from ashare_lab.research.labels.mongo_reader import MongoLabelEvidenceReader
+
+_SNAPSHOT_IDS = TypeAdapter(tuple[str, ...])
+_SNAPSHOT_ID = TypeAdapter(str)
 
 
 class Collection:
@@ -73,11 +82,61 @@ def test_label_reader_joins_exact_schema_price_constraint_and_benchmark() -> Non
     assert benchmark[0].source_snapshot_id == "snap_benchmark"
 
 
+def test_benchmark_reader_restricts_raw_snapshots_to_dataset_allowlist() -> None:
+    # Given: two accepted benchmark snapshots but only one belongs to DatasetSpec.
+    allowed = _daily("000905.SH", "snap_allowed", "schema_benchmark")
+    excluded = dict(_daily("000905.SH", "snap_excluded", "schema_benchmark"))
+    excluded["record_id"] = "record_excluded"
+    database = Database(
+        {
+            "meta_source_snapshots": (
+                _snapshot(
+                    "snap_allowed",
+                    "index_daily",
+                    '{"end_date":"20250131","start_date":"20250101","ts_code":"000905.SH"}',
+                    "schema_benchmark",
+                ),
+                _snapshot(
+                    "snap_excluded",
+                    "index_daily",
+                    '{"end_date":"20250131","start_date":"20250101","ts_code":"000905.SH"}',
+                    "schema_benchmark",
+                ),
+            ),
+            "canonical_index_daily_bar": (allowed, excluded),
+        }
+    )
+
+    # When: the benchmark is read through the frozen source snapshot boundary.
+    result = read_dataset_benchmark_observations(
+        database,
+        date(2025, 1, 6),
+        date(2025, 1, 6),
+        "000905.SH",
+        BenchmarkSnapshotBoundary("schema_benchmark", ("snap_allowed",)),
+    )
+
+    # Then: the later accepted snapshot cannot replace frozen benchmark evidence.
+    assert tuple(item.source_snapshot_id for item in result) == ("snap_allowed",)
+
+
 def _matches(document: BsonDocument, query: BsonDocument) -> bool:
     expected_schema = query.get("schema_manifest_id")
     expected_quality = query.get("quality_status")
-    return document.get("schema_manifest_id") == expected_schema and (
-        expected_quality is None or document.get("quality_status") == expected_quality
+    snapshot_query = query.get("source_snapshot_id", query.get("snapshot_id"))
+    match snapshot_query:
+        case {"$in": values}:
+            allowed = _SNAPSHOT_IDS.validate_python(values)
+            document_id = _SNAPSHOT_ID.validate_python(
+                document.get("source_snapshot_id", document.get("snapshot_id"))
+            )
+            snapshot_matches = document_id in allowed
+        case _:
+            snapshot_matches = True
+    return (
+        snapshot_matches
+        and document.get("schema_manifest_id") == expected_schema
+        and (expected_quality is None or document.get("quality_status") == expected_quality)
     )
 
 

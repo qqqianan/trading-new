@@ -457,6 +457,15 @@ join 后静默删除缺因子证券。目标 artifact 只保存 decision date、
 `.omo/evidence/task-11-trade-ledger.csv`，只证明软件记账和现金守恒，不证明真实策略有效；final holdout
 未打开。
 
+真实 `portfolio_backtest_report_v1` 额外固定
+`portfolio_targets_* -> factor_report -> DatasetSpec -> exact market/benchmark schema -> exact used Raw snapshots
+-> raw sessions/risk snapshots -> PortfolioRiskEngine -> orders/trades/equity -> metrics` 血缘。Mongo 查询同时
+下推 DatasetSpec 的 `source_snapshot_ids` 和目标股票并集，accepted 但不在白名单中的同日重跑不能替换
+冻结证据。股票执行 bar 明确为 `PriceBasis.RAW`；Tushare `daily.vol` 从手乘 100 转换为股后才进入容量
+风控和成交账本。没有日线的停牌日保留独立 `suspended_symbols` 证据，不伪造价格。中证 500 比较基准
+口径显式记录为 `raw_open`，必须与每日净值日期逐日完全对齐。当前行业字段为 `null`，因此报告状态
+稳定为 `DRAFT`，`final_test_runs=0`。
+
 ## 15. 受治理训练与 Ridge 产物血缘
 
 训练输入的机器契约为 `schemas/model_training_input_v1.json`。`DevelopmentTrainingEvidence` 不接受

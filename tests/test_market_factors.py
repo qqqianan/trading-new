@@ -121,6 +121,7 @@ def market_observations(
                 ps_ttm=ps_ttm,
                 dv_ttm_percent=3.0,
                 source_artifact_ids=(f"daily_{day:%Y%m%d}",),
+                source_snapshot_ids=(f"snapshot_{day:%Y%m%d}",),
             )
         )
     return tuple(rows)

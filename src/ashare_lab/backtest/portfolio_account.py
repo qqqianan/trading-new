@@ -121,8 +121,12 @@ class PortfolioAccount:
                     equity * request.policy.minimum_cash_weight,
                     request.policy,
                     request.risk_exit,
+                    symbol in request.session.suspended_symbols,
                 )
-                return blocked_outcome(order, OrderBlockReason.MISSING_BAR)
+                reason = order.block_reason()
+                if reason is None:
+                    reason = OrderBlockReason.MISSING_BAR
+                return blocked_outcome(order, reason)
             return None
         desired = (
             floor(request.weights.get(symbol, 0.0) * equity / bar.open / BOARD_LOT) * BOARD_LOT
@@ -141,6 +145,7 @@ class PortfolioAccount:
             equity * request.policy.minimum_cash_weight,
             request.policy,
             request.risk_exit,
+            symbol in request.session.suspended_symbols,
         )
         return self._execute_order(order)
 

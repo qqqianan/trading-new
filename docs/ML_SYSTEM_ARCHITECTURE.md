@@ -239,6 +239,14 @@ candidate feature，没有 label 读取能力；每个候选按预登记方向�
 和 5% 现金的 `portfolio_targets_*`。该 artifact 是风控前意图，不包含订单、成交或假定当前持仓；真实
 回测必须按账户实际成交状态重新调用唯一 `PortfolioRiskEngine`。
 
+真实回测入口为
+`ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一
+DatasetSpec，股票五链和中证 500 基准查询都受 DatasetSpec schema 与 Raw snapshot 白名单约束；目标
+股票并集作为 Mongo symbol filter。`build_portfolio_backtest_inputs` 是无 I/O 的装配边界，只产生原始
+session、决策日风险快照和逐日对齐基准。`PortfolioBacktestEngine` 内部仍是唯一
+`PortfolioRiskEngine` 调用者，使用实际 tax-lot 持仓计算换手；稀疏停牌事件作为 session 证据进入执行，
+不得合成 OHLC。内容寻址报告同时固定实际使用快照、成本/风控版本和 `final_test_runs=0`。
+
 每个决策日先做横截面 Spearman Rank IC，再按开发期日序列计算均值、ICIR、方向一致率和均值 IC 的
 双侧正态近似 p 值。五分组使用预登记方向后的横截面排序；净 Top-Bottom 收益扣除固定 round-trip
 成本与实际 Top 组换手。报告同时保留 coverage、缺失 feature/label、因子自相关、规模暴露、年度、

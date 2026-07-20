@@ -17,7 +17,6 @@ from ashare_lab.research.features.market.mongo_contracts import (
 )
 from ashare_lab.research.features.market.mongo_documents import (
     AdjustmentDocument,
-    CanonicalDocument,
     DailyDocument,
     LimitDocument,
     SuspensionDocument,
@@ -25,6 +24,10 @@ from ashare_lab.research.features.market.mongo_documents import (
     snapshot_date,
 )
 from ashare_lab.research.features.market.mongo_folding import fold_canonical
+from ashare_lab.research.features.market.mongo_loading import (
+    MarketLoadBoundary,
+    load_market_documents,
+)
 
 if TYPE_CHECKING:
     from datetime import date
@@ -49,14 +52,22 @@ class MongoMarketBundleReader:
         start_date: date,
         end_date: date,
         schema_manifest_id: str,
+        *,
+        allowed_snapshot_ids: tuple[str, ...] | None = None,
+        symbols: tuple[str, ...] | None = None,
     ) -> MarketBundleReadResult:
         """Read, fold, join, and classify one closed date interval."""
-        snapshots = self._snapshots(start_date, end_date, schema_manifest_id)
-        daily = self._daily(snapshots, schema_manifest_id)
-        adjustments = self._adjustments(snapshots, schema_manifest_id)
-        valuations = self._valuations(snapshots, schema_manifest_id)
-        limits = self._limits(snapshots, schema_manifest_id)
-        suspended = self._suspensions(snapshots, schema_manifest_id)
+        snapshots = self._snapshots(
+            start_date,
+            end_date,
+            schema_manifest_id,
+            allowed_snapshot_ids,
+        )
+        daily = self._daily(snapshots, schema_manifest_id, symbols)
+        adjustments = self._adjustments(snapshots, schema_manifest_id, symbols)
+        valuations = self._valuations(snapshots, schema_manifest_id, symbols)
+        limits = self._limits(snapshots, schema_manifest_id, symbols)
+        suspended = self._suspensions(snapshots, schema_manifest_id, symbols)
         observations: list[MarketFactorObservation] = []
         rejections: list[MarketBundleRejection] = []
         for key, bar in sorted(daily.items()):
@@ -90,12 +101,15 @@ class MongoMarketBundleReader:
         start_date: date,
         end_date: date,
         schema_manifest_id: str,
+        allowed_snapshot_ids: tuple[str, ...] | None,
     ) -> dict[str, tuple[str, ...]]:
         query: BsonDocument = {
             "schema_manifest_id": schema_manifest_id,
             "status": "ACCEPTED",
             "endpoint": {"$in": list(_ENDPOINTS)},
         }
+        if allowed_snapshot_ids is not None:
+            query["snapshot_id"] = {"$in": list(allowed_snapshot_ids)}
         projection: BsonDocument = {
             "snapshot_id": 1,
             "endpoint": 1,
@@ -121,32 +135,17 @@ class MongoMarketBundleReader:
             for endpoint in _ENDPOINTS
         }
 
-    def _documents[T: CanonicalDocument](
-        self,
-        collection: str,
-        model: type[T],
-        snapshot_ids: tuple[str, ...],
-        schema_manifest_id: str,
-    ) -> tuple[T, ...]:
-        if not snapshot_ids:
-            return ()
-        query: BsonDocument = {
-            "schema_manifest_id": schema_manifest_id,
-            "quality_status": "ACCEPTED",
-            "source_snapshot_id": {"$in": list(snapshot_ids)},
-        }
-        projection: BsonDocument = {"_id": 0}
-        projection.update(dict.fromkeys(model.model_fields, 1))
-        return tuple(
-            model.model_validate(document)
-            for document in self._database[collection].find(query, projection)
-        )
-
     def _daily(
-        self, snapshots: dict[str, tuple[str, ...]], schema: str
+        self,
+        snapshots: dict[str, tuple[str, ...]],
+        schema: str,
+        symbols: tuple[str, ...] | None,
     ) -> dict[MarketKey, DailyDocument]:
-        documents = self._documents(
-            "canonical_daily_bar", DailyDocument, snapshots["daily"], schema
+        documents = load_market_documents(
+            self._database,
+            "canonical_daily_bar",
+            DailyDocument,
+            MarketLoadBoundary(snapshots["daily"], schema, symbols),
         )
         return fold_canonical(
             "canonical_daily_bar",
@@ -164,10 +163,16 @@ class MongoMarketBundleReader:
         )
 
     def _adjustments(
-        self, snapshots: dict[str, tuple[str, ...]], schema: str
+        self,
+        snapshots: dict[str, tuple[str, ...]],
+        schema: str,
+        symbols: tuple[str, ...] | None,
     ) -> dict[MarketKey, AdjustmentDocument]:
-        documents = self._documents(
-            "canonical_adjustment_factor", AdjustmentDocument, snapshots["adj_factor"], schema
+        documents = load_market_documents(
+            self._database,
+            "canonical_adjustment_factor",
+            AdjustmentDocument,
+            MarketLoadBoundary(snapshots["adj_factor"], schema, symbols),
         )
         return fold_canonical(
             "canonical_adjustment_factor",
@@ -176,10 +181,16 @@ class MongoMarketBundleReader:
         )
 
     def _valuations(
-        self, snapshots: dict[str, tuple[str, ...]], schema: str
+        self,
+        snapshots: dict[str, tuple[str, ...]],
+        schema: str,
+        symbols: tuple[str, ...] | None,
     ) -> dict[MarketKey, ValuationDocument]:
-        documents = self._documents(
-            "canonical_daily_valuation", ValuationDocument, snapshots["daily_basic"], schema
+        documents = load_market_documents(
+            self._database,
+            "canonical_daily_valuation",
+            ValuationDocument,
+            MarketLoadBoundary(snapshots["daily_basic"], schema, symbols),
         )
         return fold_canonical(
             "canonical_daily_valuation",
@@ -196,10 +207,16 @@ class MongoMarketBundleReader:
         )
 
     def _limits(
-        self, snapshots: dict[str, tuple[str, ...]], schema: str
+        self,
+        snapshots: dict[str, tuple[str, ...]],
+        schema: str,
+        symbols: tuple[str, ...] | None,
     ) -> dict[MarketKey, LimitDocument]:
-        documents = self._documents(
-            "canonical_daily_price_limit", LimitDocument, snapshots["stk_limit"], schema
+        documents = load_market_documents(
+            self._database,
+            "canonical_daily_price_limit",
+            LimitDocument,
+            MarketLoadBoundary(snapshots["stk_limit"], schema, symbols),
         )
         return fold_canonical(
             "canonical_daily_price_limit",
@@ -208,8 +225,14 @@ class MongoMarketBundleReader:
         )
 
     def _suspensions(
-        self, snapshots: dict[str, tuple[str, ...]], schema: str
+        self,
+        snapshots: dict[str, tuple[str, ...]],
+        schema: str,
+        symbols: tuple[str, ...] | None,
     ) -> tuple[SuspensionDocument, ...]:
-        return self._documents(
-            "canonical_suspension_event", SuspensionDocument, snapshots["suspend_d"], schema
+        return load_market_documents(
+            self._database,
+            "canonical_suspension_event",
+            SuspensionDocument,
+            MarketLoadBoundary(snapshots["suspend_d"], schema, symbols),
         )

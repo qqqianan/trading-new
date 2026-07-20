@@ -51,13 +51,14 @@ class OrderRequest:
     cash_reserve: float
     policy: ExecutionPolicy
     risk_exit: bool
+    suspended: bool = False
 
     def block_reason(self) -> OrderBlockReason | None:
         """Return the market-state blocker before sizing capacity."""
+        if self.suspended or (self.bar is not None and self.bar.is_suspended):
+            return OrderBlockReason.SUSPENDED
         if self.bar is None:
             return OrderBlockReason.MISSING_BAR
-        if self.bar.is_suspended:
-            return OrderBlockReason.SUSPENDED
         if self.side is TradeSide.BUY and self.bar.open >= self.bar.limit_up - 1e-8:
             return OrderBlockReason.LIMIT_UP
         if self.side is TradeSide.SELL and self.bar.open <= self.bar.limit_down + 1e-8:

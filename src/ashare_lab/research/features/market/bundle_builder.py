@@ -37,8 +37,14 @@ def build_observation(
         valuation.available_shanghai if valuation is not None else daily.available_shanghai,
     )
     artifacts = [daily.record_id, adjustment.record_id, limit.record_id]
+    snapshots = [
+        daily.source_snapshot_id,
+        adjustment.source_snapshot_id,
+        limit.source_snapshot_id,
+    ]
     if valuation is not None:
         artifacts.append(valuation.record_id)
+        snapshots.append(valuation.source_snapshot_id)
     return MarketFactorObservation(
         bar=MarketBar(
             symbol=Symbol(daily.ts_code),
@@ -64,6 +70,7 @@ def build_observation(
         ps_ttm=valuation.ps_ttm if valuation is not None else None,
         dv_ttm_percent=valuation.dv_ttm if valuation is not None else None,
         source_artifact_ids=tuple(sorted(artifacts)),
+        source_snapshot_ids=tuple(sorted(set(snapshots))),
     )
 
 

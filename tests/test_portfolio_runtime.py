@@ -132,7 +132,7 @@ def test_real_portfolio_targets_orient_candidates_and_keep_top_30() -> None:
     assert not hasattr(result.records[0], "orders")
 
 
-def _single_factor_batch() -> PortfolioTargetBatch:
+def single_factor_batch() -> PortfolioTargetBatch:
     dates = folds()[0].test[:1]
     frame = pl.DataFrame(
         tuple((day, f"{index:06d}.SZ", float(index)) for day in dates for index in range(40)),

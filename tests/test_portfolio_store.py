@@ -13,14 +13,14 @@ from ashare_lab.portfolio.research_store import (
     PortfolioTargetStore,
     PortfolioTargetStoreError,
 )
-from tests.test_portfolio_runtime import _single_factor_batch
+from tests.test_portfolio_runtime import single_factor_batch
 
 ROOT = Path(__file__).parents[1]
 
 
 def test_portfolio_target_batch_is_content_addressed(tmp_path: Path) -> None:
     # Given: the same immutable target batch used for two publications.
-    batch = _single_factor_batch()
+    batch = single_factor_batch()
     store = PortfolioTargetStore(tmp_path)
 
     # When: identical governed targets are written twice.
@@ -55,7 +55,7 @@ def test_portfolio_target_schema_documents_all_fields() -> None:
 def test_portfolio_target_store_rejects_cross_boundary_descriptor(tmp_path: Path) -> None:
     # Given: a valid descriptor relabeled to an arbitrary path.
     store = PortfolioTargetStore(tmp_path)
-    descriptor = store.write(_single_factor_batch())
+    descriptor = store.write(single_factor_batch())
     crossed = PortfolioTargetDescriptor(
         artifact_id=descriptor.artifact_id,
         artifact_path=tmp_path / "other.json",
@@ -70,7 +70,7 @@ def test_portfolio_target_store_rejects_cross_boundary_descriptor(tmp_path: Path
 def test_portfolio_target_store_rejects_tampered_bytes(tmp_path: Path) -> None:
     # Given: a persisted target batch altered after publication.
     store = PortfolioTargetStore(tmp_path)
-    descriptor = store.write(_single_factor_batch())
+    descriptor = store.write(single_factor_batch())
     descriptor.artifact_path.write_text("{}\n", encoding="utf-8")
 
     # When / Then: invalid content cannot retain the original identity.

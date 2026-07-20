@@ -92,6 +92,19 @@ uv run ashare-research portfolio \
 输出是内容寻址的 `portfolio_targets_*`，没有订单或成交能力。组合风控不会把这里的目标当作已成交
 持仓；下一阶段回测会基于账户实际持仓和 PIT 市场证据重新调用唯一 `PortfolioRiskEngine`。
 
+从一个明确的组合目标运行真实开发期多标的回测：
+
+```bash
+uv run ashare-research backtest \
+  --project-root . \
+  --portfolio-target-id portfolio_targets_<sha256>
+```
+
+该命令把股票行情和中证 500 原始开盘基准同时限制在 DatasetSpec 的 Raw 快照白名单内，股票成交只用
+未复权价格，并将 Tushare `daily.vol` 从手转换为股。引擎内部强制执行唯一 `PortfolioRiskEngine`、
+T+1、涨跌停、停牌、手数、容量、费用和受阻退出；由于当前没有可信历史 PIT 行业证据，真实报告只能
+保持 `DRAFT`，且 final holdout 继续封存。
+
 正式工作流沿用同一个 `ResearchWorkflowService`：首个 `BLOCKED` 阶段立即停止，后续阶段不会执行；
 只有全部真实阶段产物通过各自门禁时才会形成 `COMPLETED` 报告。每日数据维护与该入口物理分离，
 不会自动研究、回测、训练或打开 final holdout。

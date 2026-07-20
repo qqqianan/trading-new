@@ -21,6 +21,10 @@ from ashare_lab.services.factor_diagnostic_runtime import (
     FactorDiagnosticRuntimeError,
     run_default_factor_diagnostics,
 )
+from ashare_lab.services.portfolio_backtest_runtime import (
+    PortfolioBacktestRuntimeError,
+    run_default_portfolio_backtest,
+)
 from ashare_lab.services.portfolio_runtime import (
     PortfolioRuntimeError,
     run_default_portfolio_targets,
@@ -105,6 +109,31 @@ def portfolio(
         raise typer.Exit(code=2) from error
     _CONSOLE.print(f"portfolio targets: {descriptor.artifact_id}")
     _CONSOLE.print("risk execution: REQUIRED_IN_BACKTEST")
+    _CONSOLE.print("final holdout: SEALED")
+
+
+@app.command("backtest")
+def backtest(
+    portfolio_target_id: Annotated[
+        str,
+        typer.Option(help="Exact portfolio_targets content identity."),
+    ],
+    project_root: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, resolve_path=True),
+    ] = Path(),
+) -> None:
+    """Publish one risk-governed real development portfolio backtest."""
+    try:
+        run_research_preflight(
+            PreflightRequest(project_root, "ashare_quant", require_clean_worktree=True)
+        )
+        descriptor = run_default_portfolio_backtest(project_root, portfolio_target_id)
+    except (ResearchPreflightError, PortfolioBacktestRuntimeError) as error:
+        _CONSOLE.print(f"BLOCKED: {error}")
+        raise typer.Exit(code=2) from error
+    _CONSOLE.print(f"portfolio backtest: {descriptor.report_id}")
+    _CONSOLE.print("portfolio risk engine: ENFORCED")
     _CONSOLE.print("final holdout: SEALED")
 
 

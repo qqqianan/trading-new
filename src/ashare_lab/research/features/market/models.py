@@ -20,6 +20,7 @@ class MarketFactorObservation:
     ps_ttm: float | None
     dv_ttm_percent: float | None
     source_artifact_ids: tuple[str, ...]
+    source_snapshot_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
