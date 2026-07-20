@@ -139,9 +139,15 @@ class MemoryArtifactReader:
         return self.frames[(kind, artifact_id)]
 
 
-def _runtime_fixture() -> tuple[DatasetSpec, FactorTrial, MemoryArtifactReader]:
+def _runtime_fixture() -> tuple[
+    DatasetSpec,
+    FactorTrial,
+    MemoryArtifactReader,
+    tuple[date, ...],
+]:
     timezone = ZoneInfo("Asia/Shanghai")
     dates = tuple(date(2020, 1, 1) + timedelta(days=index) for index in range(720))
+    decisions = dates[::5]
     rows: list[dict[str, str | float | bool | datetime]] = [
         {
             "decision_time": datetime(
@@ -157,7 +163,7 @@ def _runtime_fixture() -> tuple[DatasetSpec, FactorTrial, MemoryArtifactReader]:
             "size": float(10 + symbol_index),
             "label": float(symbol_index) / 100,
         }
-        for date_index, trading_date in enumerate(dates)
+        for date_index, trading_date in enumerate(decisions)
         for symbol_index in range(6)
     ]
     frame = pl.DataFrame(rows)
@@ -213,27 +219,27 @@ def _runtime_fixture() -> tuple[DatasetSpec, FactorTrial, MemoryArtifactReader]:
             ),
         }
     )
-    return spec, trial, reader
+    return spec, trial, reader, dates
 
 
 def test_artifact_factor_source_builds_verified_development_oos_frame() -> None:
     # Given: small governed artifacts spanning one complete frozen walk-forward fold.
-    spec, trial, reader = _runtime_fixture()
-    source = ArtifactFactorFrameSource(reader, spec)
+    spec, trial, reader, calendar = _runtime_fixture()
+    source = ArtifactFactorFrameSource(reader, spec, calendar)
 
     # When: the registered trial requests its frame.
     result = source.load(trial)
 
     # Then: shared artifacts load once and only the trial feature is loaded afterward.
-    assert result.height == 378
-    assert result["decision_time"].dt.date().max() <= date(2024, 12, 31)
+    assert result.height == 78
+    assert result.filter(pl.col("decision_time").dt.date() > date(2024, 12, 31)).is_empty()
     assert reader.calls[-1] == (ArtifactKind.FEATURE, trial.feature_artifact_id)
 
 
 def test_artifact_factor_source_rejects_trial_artifact_substitution() -> None:
     # Given: a source bound to DatasetSpec and a trial relabeled to another artifact.
-    spec, trial, reader = _runtime_fixture()
-    source = ArtifactFactorFrameSource(reader, spec)
+    spec, trial, reader, calendar = _runtime_fixture()
+    source = ArtifactFactorFrameSource(reader, spec, calendar)
     altered = trial.model_copy(update={"feature_artifact_id": "feature_artifact_" + "9" * 64})
 
     # When / Then: no substituted feature bytes are read.
@@ -243,7 +249,7 @@ def test_artifact_factor_source_rejects_trial_artifact_substitution() -> None:
 
 def test_artifact_factor_source_requires_registered_size_feature() -> None:
     # Given: a DatasetSpec whose feature registry omits the neutralization size input.
-    spec, _trial, reader = _runtime_fixture()
+    spec, _trial, reader, calendar = _runtime_fixture()
     incomplete = spec.model_copy(
         update={
             "features": spec.features[:1],
@@ -254,12 +260,12 @@ def test_artifact_factor_source_requires_registered_size_feature() -> None:
 
     # When / Then: source construction fails before loading any substitute size data.
     with pytest.raises(FactorRuntimeSourceError, match="required log_total_mv"):
-        ArtifactFactorFrameSource(reader, incomplete)
+        ArtifactFactorFrameSource(reader, incomplete, calendar)
 
 
 def test_artifact_factor_source_rejects_short_development_calendar() -> None:
     # Given: governed identities whose universe contains too little history for one fold.
-    spec, _trial, reader = _runtime_fixture()
+    spec, _trial, reader, calendar = _runtime_fixture()
     universe_key = (ArtifactKind.UNIVERSE, spec.universe_version)
     short_reader = MemoryArtifactReader(
         {
@@ -270,7 +276,7 @@ def test_artifact_factor_source_rejects_short_development_calendar() -> None:
 
     # When / Then: the frozen walk-forward protocol cannot silently change shape.
     with pytest.raises(FactorRuntimeSourceError, match="cannot form"):
-        ArtifactFactorFrameSource(short_reader, spec)
+        ArtifactFactorFrameSource(short_reader, spec, calendar[:60])
 
 
 def test_factor_diagnostic_runtime_requires_one_dataset_spec(tmp_path: Path) -> None:

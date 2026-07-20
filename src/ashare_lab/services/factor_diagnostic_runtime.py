@@ -27,6 +27,10 @@ from ashare_lab.research.factors.selection import FactorSelectionError
 from ashare_lab.research.factors.service import AuditedFactorResearchService
 from ashare_lab.research.preprocessing.fold import FoldPreprocessingError
 from ashare_lab.research.splits.walk_forward import SplitIntegrityError
+from ashare_lab.services.factor_calendar_runtime import (
+    FactorCalendarRuntimeError,
+    load_dataset_development_calendar,
+)
 
 
 class FactorDiagnosticRuntimeError(Exception):
@@ -70,9 +74,14 @@ def run_default_factor_diagnostics(project_root: Path) -> FactorReportDescriptor
             data_sha256=_sha256(trial_path),
         )
         ledger = TrialLedgerStore(artifact_root)
+        calendar = load_dataset_development_calendar(project_root, spec)
         report = AuditedFactorResearchService(ledger).run_streaming(
             trial_descriptor,
-            ArtifactFactorFrameSource(VerifiedArtifactFrameReader(project_root), spec),
+            ArtifactFactorFrameSource(
+                VerifiedArtifactFrameReader(project_root),
+                spec,
+                calendar,
+            ),
         )
         return FactorReportStore(artifact_root).write(report)
     except (
@@ -86,6 +95,7 @@ def run_default_factor_diagnostics(project_root: Path) -> FactorReportDescriptor
         FactorDiagnosticError,
         FactorSelectionError,
         FactorReportStoreError,
+        FactorCalendarRuntimeError,
     ) as error:
         raise FactorDiagnosticRuntimeError(str(error)) from error
 

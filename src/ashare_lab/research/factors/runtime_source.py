@@ -67,7 +67,12 @@ class VerifiedArtifactFrameReader:
 class ArtifactFactorFrameSource:
     """Load one verified factor at a time while sharing label, size, and universe rows."""
 
-    def __init__(self, reader: ArtifactFrameReader, spec: DatasetSpec) -> None:
+    def __init__(
+        self,
+        reader: ArtifactFrameReader,
+        spec: DatasetSpec,
+        development_calendar: tuple[date, ...],
+    ) -> None:
         """Verify shared immutable artifacts and freeze development folds."""
         self._reader = reader
         self._spec = spec
@@ -83,14 +88,18 @@ class ArtifactFactorFrameSource:
             raise FactorRuntimeSourceError(detail)
         size = self._development(reader.read(ArtifactKind.FEATURE, size_id))
         dates = tuple(
-            universe.filter(pl.col("eligible_for_new_risk"))["decision_time"]
-            .dt.date()
-            .unique()
-            .sort()
+            day
+            for day in development_calendar
+            if spec.start_date <= day <= min(spec.end_date, _DEVELOPMENT_END)
         )
         self._folds = build_development_folds(dates)
         if not self._folds:
             detail = "development artifact calendar cannot form the frozen walk-forward protocol"
+            raise FactorRuntimeSourceError(detail)
+        decisions = set(universe["decision_time"].dt.date().unique())
+        missing_decisions = decisions.difference(dates)
+        if missing_decisions:
+            detail = "weekly artifact decision dates are absent from the governed calendar"
             raise FactorRuntimeSourceError(detail)
         self._universe = universe
         self._label = label

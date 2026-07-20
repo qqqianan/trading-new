@@ -193,7 +193,8 @@
   Commit: Y | `feat(research): enforce sealed holdout and fold preprocessing` | `research/splits`, `research/preprocessing`, governance, tests
   Completed: 开发截止固定为 `2024-12-31`，final holdout 从 `2025-01-01` 起由 DatasetSpec-bound
   `FinalHoldoutSpec`、冻结协议授权和原子 append-only ledger 隔离；真实 holdout 未打开。开发切分固定
-  504/126/63/63、purge 20、embargo 5。预处理 `1.0.0` 仅从训练折拟合 winsor/fallback 和规模系数，
+  504/126/63/63、purge 20、embargo 5；周频样本必须先由 DatasetSpec-bound 日交易日历生成 fold
+  边界，禁止把周频观测数误当交易日数。预处理 `1.0.0` 仅从训练折拟合 winsor/fallback 和规模系数，
   同日横截面填充保留 missing indicator，不删除样本；artifact 固定 DatasetSpec、训练日期、输入 SHA-256
   与有序特征并内容寻址保存。历史行业 PIT 不足明确记录 `UNAVAILABLE`。全仓 358 测试通过，覆盖率
   90.20%，审计见 `.omo/evidence/task-8-leakage-audit.json`。

@@ -377,6 +377,12 @@ purge=20、embargo=5。每个训练折产生独立 `FoldPreprocessingArtifact`�
 决策日做同日横截面填充和 z-score，不进入拟合参数或训练输入哈希。机器结构文档为
 `schemas/fold_preprocessor_artifact_v1.json`，transform version 为 `1.0.0`。
 
+研究样本是周频，但 split 的计数单位仍是日交易 session。真实运行必须从 DatasetSpec 的
+`input_schema_manifest_ids` 和 `source_snapshot_ids` 读取绑定的 accepted SSE 日交易日历，先在日历上
+生成 504/126/63、purge 20、embargo 5 的边界，再把周频 `decision_time` 映射进 fold。禁止直接把
+周频 artifact 的 300 余个决策日当成日交易日计数，也禁止读取未被 DatasetSpec 固定的最新日历补足。
+每个周频决策日必须存在于绑定日历，否则诊断和训练 fail closed。
+
 历史行业 PIT 证据未覆盖 2020-2025，因此每个预处理 artifact 必须记录
 `industry_neutralization_status=UNAVAILABLE`；不得以当前行业快照补历史，也不得据此把研究状态晋级为
 完整 `VALIDATED`。真实折预处理 artifact 将在后续研究运行时按内容生成，不在 Git 中提交市场数据

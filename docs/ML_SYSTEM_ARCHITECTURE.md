@@ -222,8 +222,11 @@ store 在写入和读取时重算 trial/batch ID。服务只有在 diagnostic in
 干净，随后只接受 artifact root 中唯一的 DatasetSpec 和 trial batch。`VerifiedArtifactFrameReader`
 验证固定物理目录、manifest、SHA-256 与精确行 schema；`ArtifactFactorFrameSource` 共享 universe、label
 和规模输入，但按 family 流式逐因子加载，避免把全部因子常驻内存。每个 fold 的预处理只在 train
-分区拟合，诊断只拼接互不重叠的 internal-test 行，且硬排除 final holdout。缺少 `log_total_mv`、开发
-日历不足、trial 与 DatasetSpec artifact identity 不一致或输入列不完整时均 fail closed。
+分区拟合，诊断只拼接互不重叠的 internal-test 行，且硬排除 final holdout。周频 artifact 日期不得
+直接解释 504/126/63 等交易日计数；`factor_calendar_runtime` 只读取 DatasetSpec 已固定 schema 和 Raw
+snapshot 对应的 accepted SSE 日交易日历，由日历生成 fold 后再映射周频决策行。日历 snapshot 越界、
+周频决策日不在日历、缺少 `log_total_mv`、日历不足、trial 与 DatasetSpec artifact identity 不一致或
+输入列不完整时均 fail closed。
 
 每份报告披露数据截止、snapshot/schema/lineage、代码和规则身份、股票池规则、21 个因子来源公式、
 全部 trial ID、成本/风险版本、最差区间、全部失败、模型状态和 final test 次数。JSON 和中文 Markdown
