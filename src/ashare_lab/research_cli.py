@@ -21,6 +21,10 @@ from ashare_lab.services.factor_diagnostic_runtime import (
     FactorDiagnosticRuntimeError,
     run_default_factor_diagnostics,
 )
+from ashare_lab.services.portfolio_runtime import (
+    PortfolioRuntimeError,
+    run_default_portfolio_targets,
+)
 from ashare_lab.services.research_workflow import ResearchWorkflowService
 
 app = typer.Typer(no_args_is_help=True, help="Auditable medium-horizon A-share research.")
@@ -76,6 +80,31 @@ def diagnose(
         _CONSOLE.print(f"BLOCKED: {error}")
         raise typer.Exit(code=2) from error
     _CONSOLE.print(f"factor report: {descriptor.report_id}")
+    _CONSOLE.print("final holdout: SEALED")
+
+
+@app.command("portfolio")
+def portfolio(
+    factor_report_id: Annotated[
+        str,
+        typer.Option(help="Exact accepted factor_report content identity."),
+    ],
+    project_root: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, resolve_path=True),
+    ] = Path(),
+) -> None:
+    """Publish label-free development Top 30 targets from one exact factor report."""
+    try:
+        run_research_preflight(
+            PreflightRequest(project_root, "ashare_quant", require_clean_worktree=True)
+        )
+        descriptor = run_default_portfolio_targets(project_root, factor_report_id)
+    except (ResearchPreflightError, PortfolioRuntimeError) as error:
+        _CONSOLE.print(f"BLOCKED: {error}")
+        raise typer.Exit(code=2) from error
+    _CONSOLE.print(f"portfolio targets: {descriptor.artifact_id}")
+    _CONSOLE.print("risk execution: REQUIRED_IN_BACKTEST")
     _CONSOLE.print("final holdout: SEALED")
 
 

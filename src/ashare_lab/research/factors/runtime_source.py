@@ -14,7 +14,9 @@ from ashare_lab.research.datasets.spec import DatasetSpec
 from ashare_lab.research.experiments.trial_ledger import FactorTrial
 from ashare_lab.research.factors.runtime_frames import (
     DiagnosticFrameInputs,
+    ScoreFrameInputs,
     build_oos_diagnostic_frame,
+    build_oos_score_frame,
 )
 from ashare_lab.research.splits.walk_forward import build_development_folds
 
@@ -118,6 +120,67 @@ class ArtifactFactorFrameSource:
                 feature=feature,
                 size=self._size,
                 label=self._label,
+            ),
+            self._folds,
+            feature_name=trial.feature_name,
+            dataset_snapshot_id=self._spec.snapshot_id,
+        )
+
+    @staticmethod
+    def _development(frame: pl.DataFrame) -> pl.DataFrame:
+        return frame.filter(pl.col("decision_time").dt.date() <= _DEVELOPMENT_END)
+
+
+class ArtifactFactorScoreSource:
+    """Load verified candidate scores without reading the physical label artifact."""
+
+    def __init__(
+        self,
+        reader: ArtifactFrameReader,
+        spec: DatasetSpec,
+        development_calendar: tuple[date, ...],
+    ) -> None:
+        """Verify label-free shared artifacts and freeze daily-session folds."""
+        self._reader = reader
+        self._spec = spec
+        self._feature_ids = {
+            item.name: artifact_id
+            for item, artifact_id in zip(spec.features, spec.feature_artifact_ids, strict=True)
+        }
+        self._universe = self._development(
+            reader.read(ArtifactKind.UNIVERSE, spec.universe_version)
+        )
+        size_id = self._feature_ids.get(_SIZE_FEATURE)
+        if size_id is None:
+            detail = "DatasetSpec does not contain the required log_total_mv feature"
+            raise FactorRuntimeSourceError(detail)
+        self._size = self._development(reader.read(ArtifactKind.FEATURE, size_id))
+        dates = tuple(
+            day
+            for day in development_calendar
+            if spec.start_date <= day <= min(spec.end_date, _DEVELOPMENT_END)
+        )
+        self._folds = build_development_folds(dates)
+        if not self._folds:
+            detail = "development artifact calendar cannot form the frozen walk-forward protocol"
+            raise FactorRuntimeSourceError(detail)
+        decisions = set(self._universe["decision_time"].dt.date().unique())
+        if decisions.difference(dates):
+            detail = "weekly artifact decision dates are absent from the governed calendar"
+            raise FactorRuntimeSourceError(detail)
+
+    def load(self, trial: FactorTrial) -> pl.DataFrame:
+        """Return one registered factor's label-free internal-test scores."""
+        expected_id = self._feature_ids.get(trial.feature_name)
+        if expected_id is None or expected_id != trial.feature_artifact_id:
+            detail = f"trial feature artifact differs from DatasetSpec: {trial.feature_name}"
+            raise FactorRuntimeSourceError(detail)
+        feature = self._development(self._reader.read(ArtifactKind.FEATURE, expected_id))
+        return build_oos_score_frame(
+            ScoreFrameInputs(
+                universe=self._universe,
+                feature=feature,
+                size=self._size,
             ),
             self._folds,
             feature_name=trial.feature_name,

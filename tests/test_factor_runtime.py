@@ -139,7 +139,7 @@ class MemoryArtifactReader:
         return self.frames[(kind, artifact_id)]
 
 
-def _runtime_fixture() -> tuple[
+def factor_runtime_fixture() -> tuple[
     DatasetSpec,
     FactorTrial,
     MemoryArtifactReader,
@@ -224,7 +224,7 @@ def _runtime_fixture() -> tuple[
 
 def test_artifact_factor_source_builds_verified_development_oos_frame() -> None:
     # Given: small governed artifacts spanning one complete frozen walk-forward fold.
-    spec, trial, reader, calendar = _runtime_fixture()
+    spec, trial, reader, calendar = factor_runtime_fixture()
     source = ArtifactFactorFrameSource(reader, spec, calendar)
 
     # When: the registered trial requests its frame.
@@ -238,7 +238,7 @@ def test_artifact_factor_source_builds_verified_development_oos_frame() -> None:
 
 def test_artifact_factor_source_rejects_trial_artifact_substitution() -> None:
     # Given: a source bound to DatasetSpec and a trial relabeled to another artifact.
-    spec, trial, reader, calendar = _runtime_fixture()
+    spec, trial, reader, calendar = factor_runtime_fixture()
     source = ArtifactFactorFrameSource(reader, spec, calendar)
     altered = trial.model_copy(update={"feature_artifact_id": "feature_artifact_" + "9" * 64})
 
@@ -249,7 +249,7 @@ def test_artifact_factor_source_rejects_trial_artifact_substitution() -> None:
 
 def test_artifact_factor_source_requires_registered_size_feature() -> None:
     # Given: a DatasetSpec whose feature registry omits the neutralization size input.
-    spec, _trial, reader, calendar = _runtime_fixture()
+    spec, _trial, reader, calendar = factor_runtime_fixture()
     incomplete = spec.model_copy(
         update={
             "features": spec.features[:1],
@@ -265,7 +265,7 @@ def test_artifact_factor_source_requires_registered_size_feature() -> None:
 
 def test_artifact_factor_source_rejects_short_development_calendar() -> None:
     # Given: governed identities whose universe contains too little history for one fold.
-    spec, _trial, reader, calendar = _runtime_fixture()
+    spec, _trial, reader, calendar = factor_runtime_fixture()
     universe_key = (ArtifactKind.UNIVERSE, spec.universe_version)
     short_reader = MemoryArtifactReader(
         {

@@ -426,6 +426,12 @@ QA 报告 ID 为 `factor_report_d65b1509e2b5ac832edaa0c07100173bba9e9eb2903741e8
 周频组合输入只能是训练折预处理后的候选因子标准化值；组合构建不读取标签、最终测试区或成交对象。
 复合分数为候选因子等权平均，按分数降序和 `symbol` 升序稳定选择 Top 30，初始股票总权重 95%。
 
+`portfolio_target_batch_v1` 固定 `factor_report_id -> candidate trial -> feature artifact -> fold-local
+score -> oriented equal-factor composite -> Top 30 target` 血缘。候选 key 集合必须逐字一致，禁止 inner
+join 后静默删除缺因子证券。目标 artifact 只保存 decision date、symbol、score、target weight 和 cash；
+不保存 label、订单、成交或臆造的当前持仓。市场容量、行业、换手和现金风控在回测读取实际账户状态后
+重新执行。
+
 `PortfolioRiskDecision` 固定目标日期、信号来源、标的目标权重、现金权重、换手率、HHI 集中度、
 研究状态和全部 `RiskEvent`，机器结构见 `schemas/portfolio_risk_decision_v1.json`。风险事件记录规则、
 动作、观测、限制、说明及可选标的；目标中保留当前持仓的零权重行以表达退出意图，因此它不是订单或

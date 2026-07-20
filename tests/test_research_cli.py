@@ -4,6 +4,7 @@ import pytest
 from typer.testing import CliRunner
 
 from ashare_lab import research_cli
+from ashare_lab.portfolio.research_store import PortfolioTargetDescriptor
 from ashare_lab.research.factors.report_store import FactorReportDescriptor
 from ashare_lab.research.preflight import (
     PreflightRequest,
@@ -74,6 +75,36 @@ def test_research_cli_blocks_real_diagnostics_before_runtime_when_worktree_is_di
     result = RUNNER.invoke(app, ["diagnose", "--project-root", str(tmp_path)])
 
     # Then: it returns a stable blocker before reading feature or label artifacts.
+    assert result.exit_code == 2
+    assert "dirty_worktree" in result.stdout
+    assert calls == 0
+
+
+def test_research_cli_blocks_portfolio_before_runtime_when_worktree_is_dirty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: reproducibility preflight rejects uncommitted portfolio code.
+    calls = 0
+
+    def reject(_request: PreflightRequest) -> ResearchIdentity:
+        raise ResearchPreflightError(PreflightRule.DIRTY_WORKTREE, "uncommitted changes")
+
+    def portfolio_runtime(_root: Path, _report_id: str) -> PortfolioTargetDescriptor:
+        nonlocal calls
+        calls += 1
+        message = "portfolio runtime must not execute"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(research_cli, "run_research_preflight", reject)
+    monkeypatch.setattr(research_cli, "run_default_portfolio_targets", portfolio_runtime)
+
+    # When: real portfolio publication is requested.
+    result = RUNNER.invoke(
+        app,
+        ["portfolio", "--factor-report-id", "factor_report_" + "a" * 64],
+    )
+
+    # Then: no score or target artifact is read before the clean-worktree gate.
     assert result.exit_code == 2
     assert "dirty_worktree" in result.stdout
     assert calls == 0

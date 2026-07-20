@@ -270,8 +270,9 @@
   模型状态为 `NOT_TRAINED` 且 final holdout 为 0。开发区间基础 coverage 已 `QUALIFIED`；要求历史行业
   PIT 时按预期 `BLOCKED`，因此只允许继续 DRAFT 研究。真实 `diagnose` composition root 已接入唯一
   DatasetSpec/trial batch、逐 artifact 哈希/schema 校验、按 family 流式诊断和折内 OOS frame；工作树
-  不干净时在读取 Parquet 前稳定阻断。下一步需在干净代码身份下生成真实诊断产物，再接入 portfolio、
-  backtest 与 train 的真实阶段适配器后才可勾选。
+  不干净时在读取 Parquet 前稳定阻断。真实 `portfolio` composition root 已显式绑定稳定 factor report，
+  通过无 label 能力的 score source 生成内容寻址 Top 30 风控前目标；下一步仍需接入实际账户状态下的
+  backtest 与 train 真实阶段适配器后才可勾选。
 
 ## Final verification wave (after ALL todos)
 > 以下检查可并行，但必须全部 APPROVE；在用户明确确认前不得宣称研究系统或模型已验证。

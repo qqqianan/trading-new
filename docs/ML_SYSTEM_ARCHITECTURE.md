@@ -233,6 +233,12 @@ snapshot 对应的 accepted SSE 日交易日历，由日历生成 fold 后再映
 位于同一内容寻址目录，读取时重新生成 Markdown 比对。nightly 模块通过测试禁止导入研究和训练入口，
 每日增量只更新数据。
 
+真实组合目标通过 `ashare-research portfolio --factor-report-id <id>` 显式选择已验证报告，不从多个历史
+报告中猜测“最新”。`ArtifactFactorScoreSource` 与诊断数据源物理分离，其输入只有 universe、size 和
+candidate feature，没有 label 读取能力；每个候选按预登记方向定向后等权合成，稳定生成逐周 Top 30
+和 5% 现金的 `portfolio_targets_*`。该 artifact 是风控前意图，不包含订单、成交或假定当前持仓；真实
+回测必须按账户实际成交状态重新调用唯一 `PortfolioRiskEngine`。
+
 每个决策日先做横截面 Spearman Rank IC，再按开发期日序列计算均值、ICIR、方向一致率和均值 IC 的
 双侧正态近似 p 值。五分组使用预登记方向后的横截面排序；净 Top-Bottom 收益扣除固定 round-trip
 成本与实际 Top 组换手。报告同时保留 coverage、缺失 feature/label、因子自相关、规模暴露、年度、

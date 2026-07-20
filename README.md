@@ -80,6 +80,18 @@ universe、label、`log_total_mv` 与 21 个 feature artifact，只输出折内�
 只能用于 `DRAFT` 研究。工作树有未提交改动时命令在读取 Parquet 前返回非零状态，避免代码身份与指标
 不一致。
 
+从一个明确的稳定因子报告生成真实开发期周频 Top 30 风控前目标：
+
+```bash
+uv run ashare-research portfolio \
+  --project-root . \
+  --factor-report-id factor_report_<sha256>
+```
+
+该命令只读取报告中 `CANDIDATE` 对应的 universe、size 和 feature artifact，不读取 label artifact。
+输出是内容寻址的 `portfolio_targets_*`，没有订单或成交能力。组合风控不会把这里的目标当作已成交
+持仓；下一阶段回测会基于账户实际持仓和 PIT 市场证据重新调用唯一 `PortfolioRiskEngine`。
+
 正式工作流沿用同一个 `ResearchWorkflowService`：首个 `BLOCKED` 阶段立即停止，后续阶段不会执行；
 只有全部真实阶段产物通过各自门禁时才会形成 `COMPLETED` 报告。每日数据维护与该入口物理分离，
 不会自动研究、回测、训练或打开 final holdout。
