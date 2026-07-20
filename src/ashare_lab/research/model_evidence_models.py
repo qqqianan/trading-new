@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ashare_lab.research.datasets.spec import DatasetSpec
 from ashare_lab.research.datasets.spec_store import DatasetSpecDescriptor
@@ -27,6 +27,19 @@ class ContentDocumentDescriptor(FrozenEvidenceModel):
     data_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class TrainingFieldSchema(FrozenEvidenceModel):
+    """Physical and semantic contract for one column in the exact training frame."""
+
+    field_name: str = Field(min_length=1)
+    data_type: str = Field(min_length=1)
+    nullable: bool
+    unit: str = Field(min_length=1)
+    null_semantics: str = Field(min_length=1)
+    time_role: str = Field(min_length=1)
+    allowed_use: str = Field(min_length=1)
+    source_schema_manifest_id: str = Field(pattern=r"^schema_[0-9a-f]+$")
+
+
 class TrainingSchemaDocument(FrozenEvidenceModel):
     """Complete ordered model input and target structure."""
 
@@ -34,6 +47,16 @@ class TrainingSchemaDocument(FrozenEvidenceModel):
     feature_names: tuple[str, ...] = Field(min_length=1)
     size_feature_name: str = Field(min_length=1)
     label_name: str = Field(min_length=1)
+    fields: tuple[TrainingFieldSchema, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def fields_are_unique(self) -> "TrainingSchemaDocument":
+        """Reject duplicate physical columns in the frozen training schema."""
+        names = tuple(item.field_name for item in self.fields)
+        if len(names) != len(set(names)):
+            detail = "training schema fields must be unique"
+            raise ValueError(detail)
+        return self
 
 
 class TrainingFieldLineage(FrozenEvidenceModel):

@@ -1,6 +1,7 @@
 import hashlib
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import polars as pl
@@ -13,6 +14,7 @@ from ashare_lab.research.model_evidence import (
     DevelopmentTrainingEvidence,
     TrainingDataKind,
     TrainingFieldLineage,
+    TrainingFieldSchema,
     TrainingLineageDocument,
     TrainingSchemaDocument,
 )
@@ -21,6 +23,9 @@ from ashare_lab.research.preprocessing import FoldPreprocessor
 from ashare_lab.research.preprocessing.store import FoldPreprocessorStore
 from ashare_lab.research.preprocessing.training_identity import training_frame_sha256
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
+
+if TYPE_CHECKING:
+    from ashare_lab.research.preprocessing.models import FoldPreprocessorDescriptor
 
 FEATURES = ("factor_a", "factor_b")
 LABEL = "relative_return_20d"
@@ -82,14 +87,15 @@ def build_training_evidence(
         schema_manifest_id=input_schema_id,
         input_schema_manifest_ids=(input_schema_id,),
         lineage_manifest_id=lineage_id,
-        feature_artifact_ids=("feature_a", "feature_b"),
-        feature_lineage_edge_ids=("edge_a", "edge_b"),
+        feature_artifact_ids=("feature_a", "feature_b", "feature_size"),
+        feature_lineage_edge_ids=("edge_a", "edge_b", "edge_size"),
         label_artifact_id="label_a",
         label_lineage_edge_ids=("edge_label",),
         universe_version="universe_v1",
         features=(
             FeatureRef(name="factor_a", version="1.0.0"),
             FeatureRef(name="factor_b", version="1.0.0"),
+            FeatureRef(name="log_total_mv", version="1.0.0"),
         ),
         label=LabelRef(name=LABEL, version="1.0.0"),
         start_date=date(2023, 1, 2),
@@ -101,6 +107,21 @@ def build_training_evidence(
         feature_names=FEATURES,
         size_feature_name="log_total_mv",
         label_name=LABEL,
+        fields=tuple(
+            TrainingFieldSchema(
+                field_name=name,
+                data_type=("datetime_asia_shanghai" if name == "decision_time" else "string")
+                if name in {"decision_time", "symbol"}
+                else "float64",
+                nullable=name not in {"decision_time", "symbol"},
+                unit="test_unit",
+                null_semantics="test semantics",
+                time_role="test_role",
+                allowed_use="test_use",
+                source_schema_manifest_id=input_schema_id,
+            )
+            for name in frame.columns
+        ),
     )
     lineage = TrainingLineageDocument(
         lineage_manifest_id=lineage_id,
@@ -108,17 +129,27 @@ def build_training_evidence(
         fields=tuple(
             TrainingFieldLineage(
                 field_name=name,
-                source_artifact_ids=("artifact_" + name,),
+                source_artifact_ids=(
+                    ("universe_v1",)
+                    if name in {"decision_time", "symbol"}
+                    else ("label_a",)
+                    if name == LABEL
+                    else (
+                        {"factor_a": "feature_a", "factor_b": "feature_b"}.get(
+                            name, "feature_size"
+                        ),
+                    )
+                ),
                 raw_snapshot_ids=("snapshot_abc123",),
             )
-            for name in (*FEATURES, "log_total_mv", LABEL)
+            for name in frame.columns
         ),
     )
     schema_descriptor = _write_document(root / "training_schema.json", schema.model_dump_json())
     training_schema_id = f"schema_{schema_descriptor.data_sha256}"
     lineage_descriptor = _write_document(root / "training_lineage.json", lineage.model_dump_json())
     preprocessor_store = FoldPreprocessorStore(root)
-    preprocessor_descriptors = []
+    preprocessor_descriptors: list[FoldPreprocessorDescriptor] = []
     for fold in folds():
         train = frame.filter(pl.col("decision_time").dt.date().is_in(fold.train))
         artifact = FoldPreprocessor(FEATURES, "log_total_mv").fit(

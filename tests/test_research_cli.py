@@ -14,6 +14,7 @@ from ashare_lab.research.preflight import (
     ResearchPreflightError,
 )
 from ashare_lab.research_cli import app
+from ashare_lab.services.training import GovernedTrainingResult
 
 RUNNER = CliRunner()
 ROOT = Path(__file__).parents[1]
@@ -136,6 +137,42 @@ def test_research_cli_blocks_backtest_before_runtime_when_worktree_is_dirty(
     )
 
     # Then: no Mongo market evidence is read before the clean-worktree gate.
+    assert result.exit_code == 2
+    assert "dirty_worktree" in result.stdout
+    assert calls == 0
+
+
+def test_research_cli_blocks_training_before_runtime_when_worktree_is_dirty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: reproducibility preflight rejects uncommitted training code.
+    calls = 0
+
+    def reject(_request: PreflightRequest) -> ResearchIdentity:
+        raise ResearchPreflightError(PreflightRule.DIRTY_WORKTREE, "uncommitted changes")
+
+    def training_runtime(_root: Path, _factor_id: str, _backtest_id: str) -> GovernedTrainingResult:
+        nonlocal calls
+        calls += 1
+        message = "training runtime must not execute"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(research_cli, "run_research_preflight", reject)
+    monkeypatch.setattr(research_cli, "run_default_ridge_training", training_runtime)
+
+    # When: real model fitting is requested.
+    result = RUNNER.invoke(
+        app,
+        [
+            "train",
+            "--factor-report-id",
+            "factor_report_" + "a" * 64,
+            "--portfolio-backtest-id",
+            "portfolio_backtest_" + "b" * 64,
+        ],
+    )
+
+    # Then: no Parquet or label artifact is read before the clean-worktree gate.
     assert result.exit_code == 2
     assert "dirty_worktree" in result.stdout
     assert calls == 0

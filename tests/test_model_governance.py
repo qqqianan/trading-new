@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -6,7 +7,11 @@ from zoneinfo import ZoneInfo
 import polars as pl
 import pytest
 
-from ashare_lab.research.model_evidence import TrainingDataKind
+from ashare_lab.research.model_evidence import (
+    ContentDocumentDescriptor,
+    TrainingDataKind,
+    TrainingLineageDocument,
+)
 from ashare_lab.research.model_governance import (
     ApprovalScope,
     ModelGovernanceError,
@@ -115,4 +120,33 @@ def test_development_training_rejects_preprocessor_identity_mismatch(tmp_path: P
 
     # When / Then: every fold must retain its exact verified preprocessor artifact.
     with pytest.raises(ModelGovernanceError, match="preprocessor identities differ"):
+        ModelTrainingGuard().approve_development(evidence, experiment, folds(), frame)
+
+
+def test_development_training_rejects_lineage_outside_dataset_snapshots(tmp_path: Path) -> None:
+    # Given: valid evidence whose first field claims an unrelated Raw snapshot.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    lineage = TrainingLineageDocument.model_validate_json(
+        evidence.lineage_descriptor.path.read_bytes()
+    )
+    changed = lineage.model_copy(
+        update={
+            "fields": (
+                lineage.fields[0].model_copy(update={"raw_snapshot_ids": ("snapshot_outside",)}),
+                *lineage.fields[1:],
+            )
+        }
+    )
+    evidence.lineage_descriptor.path.write_text(changed.model_dump_json() + "\n", encoding="utf-8")
+    evidence = replace(
+        evidence,
+        lineage_descriptor=ContentDocumentDescriptor(
+            path=evidence.lineage_descriptor.path,
+            data_sha256=hashlib.sha256(evidence.lineage_descriptor.path.read_bytes()).hexdigest(),
+        ),
+    )
+
+    # When / Then: the guard rejects field-level evidence outside DatasetSpec.
+    with pytest.raises(ModelGovernanceError, match="Raw snapshots outside DatasetSpec"):
         ModelTrainingGuard().approve_development(evidence, experiment, folds(), frame)

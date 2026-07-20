@@ -6,6 +6,7 @@ from datetime import date
 import polars as pl
 from pydantic import BaseModel, ValidationError
 
+from ashare_lab.research.datasets.spec import DatasetSpec
 from ashare_lab.research.datasets.spec_store import (
     DatasetSpecStore,
     DatasetSpecStoreError,
@@ -18,6 +19,7 @@ from ashare_lab.research.model_evidence_models import (
     TrainingDataKind,
     TrainingEvidenceError,
     TrainingFieldLineage,
+    TrainingFieldSchema,
     TrainingLineageDocument,
     TrainingSchemaDocument,
     VerifiedDevelopmentInputs,
@@ -38,6 +40,7 @@ __all__ = [
     "ModelPurpose",
     "TrainingDataKind",
     "TrainingFieldLineage",
+    "TrainingFieldSchema",
     "TrainingLineageDocument",
     "TrainingSchemaDocument",
 ]
@@ -78,19 +81,17 @@ def verify_development_evidence(
         rule = "training_schema"
         detail = "schema differs from experiment"
         raise TrainingEvidenceError(rule, detail)
-    expected_fields = (
-        *experiment.feature_names,
-        experiment.size_feature_name,
-        experiment.label_name,
-    )
+    expected_fields = tuple(frame.columns)
     if (
         lineage.lineage_manifest_id != experiment.lineage_manifest_id
         or lineage.dataset_snapshot_id != experiment.dataset_snapshot_id
         or tuple(item.field_name for item in lineage.fields) != expected_fields
+        or tuple(item.field_name for item in schema.fields) != expected_fields
     ):
         rule = "training_lineage"
         detail = "field lineage is incomplete or reordered"
         raise TrainingEvidenceError(rule, detail)
+    _verify_field_lineage(lineage, spec, experiment)
     if training_frame_sha256(frame) != evidence.development_data_sha256:
         rule = "development_data"
         detail = "training frame bytes differ"
@@ -108,6 +109,37 @@ def verify_development_evidence(
             raise TrainingEvidenceError(rule, detail)
     preprocessors = _read_preprocessors(evidence, experiment, folds)
     return VerifiedDevelopmentInputs(spec, preprocessors)
+
+
+def _verify_field_lineage(
+    lineage: TrainingLineageDocument,
+    spec: DatasetSpec,
+    experiment: ExperimentManifest,
+) -> None:
+    allowed_snapshots = set(spec.source_snapshot_ids)
+    feature_artifacts = {
+        feature.name: artifact_id
+        for feature, artifact_id in zip(spec.features, spec.feature_artifact_ids, strict=True)
+    }
+    expected_artifacts = {
+        "decision_time": (spec.universe_version,),
+        "symbol": (spec.universe_version,),
+        experiment.label_name: (spec.label_artifact_id,),
+        **{
+            name: (feature_artifacts[name],)
+            for name in (*experiment.feature_names, experiment.size_feature_name)
+            if name in feature_artifacts
+        },
+    }
+    for field in lineage.fields:
+        rule = "training_lineage"
+        if set(field.raw_snapshot_ids) - allowed_snapshots:
+            detail = f"Raw snapshots outside DatasetSpec: {field.field_name}"
+            raise TrainingEvidenceError(rule, detail)
+        expected = expected_artifacts.get(field.field_name)
+        if expected is None or field.source_artifact_ids != expected:
+            detail = f"source artifacts differ from DatasetSpec: {field.field_name}"
+            raise TrainingEvidenceError(rule, detail)
 
 
 def _read_preprocessors(

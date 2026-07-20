@@ -30,6 +30,7 @@ from ashare_lab.services.portfolio_runtime import (
     run_default_portfolio_targets,
 )
 from ashare_lab.services.research_workflow import ResearchWorkflowService
+from ashare_lab.services.training_runtime import TrainingRuntimeError, run_default_ridge_training
 
 app = typer.Typer(no_args_is_help=True, help="Auditable medium-horizon A-share research.")
 _CONSOLE = Console()
@@ -134,6 +135,39 @@ def backtest(
         raise typer.Exit(code=2) from error
     _CONSOLE.print(f"portfolio backtest: {descriptor.report_id}")
     _CONSOLE.print("portfolio risk engine: ENFORCED")
+    _CONSOLE.print("final holdout: SEALED")
+
+
+@app.command("train")
+def train(
+    factor_report_id: Annotated[
+        str,
+        typer.Option(help="Exact accepted factor_report content identity."),
+    ],
+    portfolio_backtest_id: Annotated[
+        str,
+        typer.Option(help="Exact risk-governed portfolio_backtest identity."),
+    ],
+    project_root: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, resolve_path=True),
+    ] = Path(),
+) -> None:
+    """Fit one governed real DRAFT Ridge model without opening final holdout."""
+    try:
+        run_research_preflight(
+            PreflightRequest(project_root, "ashare_quant", require_clean_worktree=True)
+        )
+        result = run_default_ridge_training(
+            project_root,
+            factor_report_id,
+            portfolio_backtest_id,
+        )
+    except (ResearchPreflightError, TrainingRuntimeError) as error:
+        _CONSOLE.print(f"BLOCKED: {error}")
+        raise typer.Exit(code=2) from error
+    _CONSOLE.print(f"Ridge model: {result.artifact.model_id}")
+    _CONSOLE.print("model status: DRAFT")
     _CONSOLE.print("final holdout: SEALED")
 
 

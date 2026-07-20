@@ -102,8 +102,11 @@ Raw snapshot 和 Raw row hash。无可见公告或源字段为空时仍保留全
 窗口，也不删除宇宙键。标签行保留四个价格点以及入场/退出约束的 Raw snapshot/row 身份；feature
 与 label lineage 有任何交集时 DatasetSpec 装配直接拒绝。首个 21 因子逻辑数据集已经生成；最终测试
 封存、purged walk-forward、训练折预处理和受治理 Ridge 训练代码已具备。当前仅用固定合成小数据完成
-软件 QA，没有训练真实投资决策模型，也未打开真实 final holdout。真实训练必须由 `TrainingService`
-读取实际 artifact 证据，不能由布尔声明提前开启。
+软件 QA。真实训练 composition root 已固定为 `ashare-research train --factor-report-id ...
+--portfolio-backtest-id ...`：先验证 clean worktree、精确因子报告与风险回测，再由
+`research/training/` 无损拼接 eligible development universe、候选特征和物理隔离标签，逐折生成预处理
+产物、完整训练字段 schema 和字段级 lineage，最后只能经 `TrainingService` 调用 Ridge trainer。
+该入口不提供 final holdout 开关，所有产物保持 `DRAFT`；真实 final holdout 仍未打开。
 
 ### ExperimentManifest
 
