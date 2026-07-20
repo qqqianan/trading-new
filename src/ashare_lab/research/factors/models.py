@@ -3,7 +3,14 @@
 from enum import StrEnum, unique
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+_REPORT_SIGNIFICANT_DIGITS = 14
+
+
+def stable_metric(value: float) -> float:
+    """Remove sub-machine reduction noise at the report trust boundary."""
+    return float(format(value, f".{_REPORT_SIGNIFICANT_DIGITS}g"))
 
 
 class FrozenFactorModel(BaseModel):
@@ -60,6 +67,12 @@ class SegmentMetric(FrozenFactorModel):
     observations: int = Field(ge=0)
     mean_rank_ic: float = Field(allow_inf_nan=False)
 
+    @field_validator("mean_rank_ic")
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Freeze the persisted precision of one segment metric."""
+        return stable_metric(value)
+
 
 class FactorDiagnosticReport(FrozenFactorModel):
     """Complete non-selective diagnostics for one registered factor trial."""
@@ -90,6 +103,40 @@ class FactorDiagnosticReport(FrozenFactorModel):
     industry_segments: tuple[SegmentMetric, ...]
     worst_year: SegmentMetric | None
     worst_industry: SegmentMetric | None
+
+    @field_validator(
+        "coverage",
+        "raw_mean_rank_ic",
+        "oriented_mean_rank_ic",
+        "icir",
+        "direction_consistency",
+        "p_value",
+        "quintile_monotonicity",
+        "top_bottom_gross_return",
+        "average_turnover",
+        "top_bottom_net_return",
+        "factor_autocorrelation",
+        "size_exposure",
+    )
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Freeze persisted scalar precision before selection and hashing."""
+        return stable_metric(value)
+
+    @field_validator("quintile_mean_labels")
+    @classmethod
+    def normalize_quintiles(
+        cls,
+        values: tuple[float, float, float, float, float],
+    ) -> tuple[float, float, float, float, float]:
+        """Freeze all five disclosed portfolio means to the same precision."""
+        return (
+            stable_metric(values[0]),
+            stable_metric(values[1]),
+            stable_metric(values[2]),
+            stable_metric(values[3]),
+            stable_metric(values[4]),
+        )
 
     @model_validator(mode="after")
     def disclosed_counts_are_consistent(self) -> Self:

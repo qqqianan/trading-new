@@ -395,6 +395,10 @@ purge=20、embargo=5。每个训练折产生独立 `FoldPreprocessingArtifact`�
 diagnostic_version`，trial ID 由上述字段内容寻址。`TrialBatch` 再绑定规则版本、真实 Git commit、
 登记人/时间和全部有序 trial ID；store 在任何指标计算前原子发布并在每次读取时重算身份。
 
+因子报告中的浮点诊断、分段、相关性及 p/q 值在 Pydantic 信任边界统一量化为 14 位十进制有效数字，
+再参与门禁和内容寻址。该规则用于消除 Polars 并行归约顺序造成的约 `1e-16` 非物质末位抖动；禁止只在
+哈希时忽略原始字段，也禁止用低精度掩盖接近门禁阈值的实质变化。
+
 诊断输入只允许来自 `2024-12-31` 及以前的 development partition，并以
 `(decision_time, symbol)` 连接训练折预处理后的 feature、独立 label、PIT `log_total_mv`、可得行业和
 预先定义的市场状态。诊断不得读取 final holdout，也不得把 label 写回 feature/preprocessor artifact。

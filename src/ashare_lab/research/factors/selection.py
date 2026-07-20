@@ -3,11 +3,15 @@
 from enum import StrEnum, unique
 from typing import Final, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from ashare_lab.research.experiments.trial_ledger import FactorTrial
 from ashare_lab.research.factors.correlation import FactorCorrelation
-from ashare_lab.research.factors.models import FactorDiagnosticReport, FrozenFactorModel
+from ashare_lab.research.factors.models import (
+    FactorDiagnosticReport,
+    FrozenFactorModel,
+    stable_metric,
+)
 from ashare_lab.research.factors.multiple_testing import FdrResult
 
 
@@ -40,6 +44,12 @@ class FactorDecision(FrozenFactorModel):
     p_value: float = Field(ge=0, le=1, allow_inf_nan=False)
     q_value: float = Field(ge=0, le=1, allow_inf_nan=False)
 
+    @field_validator("p_value", "q_value")
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Freeze decision evidence to the report precision contract."""
+        return stable_metric(value)
+
 
 class FactorResearchReport(FrozenFactorModel):
     """Complete batch report retaining every trial, diagnostic, and decision."""
@@ -49,6 +59,12 @@ class FactorResearchReport(FrozenFactorModel):
     maximum_q: float = Field(gt=0, le=1)
     diagnostics: tuple[FactorDiagnosticReport, ...] = Field(min_length=1)
     decisions: tuple[FactorDecision, ...] = Field(min_length=1)
+
+    @field_validator("maximum_q")
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Freeze the disclosed FDR threshold precision."""
+        return stable_metric(value)
 
     @model_validator(mode="after")
     def every_diagnostic_has_one_decision(self) -> Self:

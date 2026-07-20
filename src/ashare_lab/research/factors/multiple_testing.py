@@ -1,8 +1,8 @@
 """Benjamini-Hochberg false-discovery correction over every disclosed trial."""
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from ashare_lab.research.factors.models import FrozenFactorModel
+from ashare_lab.research.factors.models import FrozenFactorModel, stable_metric
 
 
 class PValueObservation(FrozenFactorModel):
@@ -10,6 +10,12 @@ class PValueObservation(FrozenFactorModel):
 
     trial_id: str = Field(min_length=1)
     p_value: float = Field(ge=0, le=1, allow_inf_nan=False)
+
+    @field_validator("p_value")
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Freeze p-value precision before FDR ordering."""
+        return stable_metric(value)
 
 
 class FdrResult(FrozenFactorModel):
@@ -19,6 +25,12 @@ class FdrResult(FrozenFactorModel):
     p_value: float
     q_value: float
     significant: bool
+
+    @field_validator("p_value", "q_value")
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Freeze persisted multiple-testing metrics."""
+        return stable_metric(value)
 
 
 def benjamini_hochberg(

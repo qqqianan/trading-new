@@ -1,11 +1,11 @@
 """Same-family cross-factor correlation evidence for deterministic redundancy."""
 
 import polars as pl
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from ashare_lab.research.experiments.trial_ledger import FactorTrial
 from ashare_lab.research.factors.contracts import FactorDiagnosticInput
-from ashare_lab.research.factors.models import FrozenFactorModel
+from ashare_lab.research.factors.models import FrozenFactorModel, stable_metric
 
 
 class FactorCorrelation(FrozenFactorModel):
@@ -14,6 +14,12 @@ class FactorCorrelation(FrozenFactorModel):
     left_trial_id: str = Field(min_length=1)
     right_trial_id: str = Field(min_length=1)
     correlation: float = Field(ge=-1, le=1, allow_inf_nan=False)
+
+    @field_validator("correlation")
+    @classmethod
+    def normalize_metric(cls, value: float) -> float:
+        """Stabilize redundancy decisions across parallel reductions."""
+        return stable_metric(value)
 
 
 def same_family_correlations(
