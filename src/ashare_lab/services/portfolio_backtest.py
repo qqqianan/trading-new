@@ -154,7 +154,7 @@ def _signals(
 def _target(batch: PortfolioTargetBatch, record: PortfolioTargetRecord) -> PortfolioTarget:
     return PortfolioTarget(
         record.decision_date,
-        batch.factor_report_id,
+        batch.model_id or batch.factor_report_id,
         tuple(
             TargetPosition(Symbol(item.symbol), item.target_weight, item.score)
             for item in record.positions

@@ -6,6 +6,7 @@
   "required": [
     "target_artifact_id",
     "factor_report_id",
+    "model_id",
     "dataset_snapshot_id",
     "market_schema_manifest_id",
     "benchmark_schema_manifest_id",
@@ -21,6 +22,12 @@
   "properties": {
     "target_artifact_id": {"type": "string", "pattern": "^portfolio_targets_[0-9a-f]{64}$"},
     "factor_report_id": {"type": "string", "pattern": "^factor_report_[0-9a-f]{64}$"},
+    "model_id": {
+      "oneOf": [
+        {"type": "string", "pattern": "^[a-z][a-z0-9_]*_model_[0-9a-f]{64}$"},
+        {"type": "null"}
+      ]
+    },
     "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
     "market_schema_manifest_id": {"type": "string", "pattern": "^schema_[0-9a-f]{64}$"},
     "benchmark_schema_manifest_id": {"type": "string", "pattern": "^schema_[0-9a-f]{64}$"},

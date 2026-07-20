@@ -28,9 +28,10 @@ class PortfolioTargetRecord(FrozenPortfolioModel):
 
 
 class PortfolioTargetBatch(FrozenPortfolioModel):
-    """Complete development-only equal-factor target artifact."""
+    """Complete development-only factor or model target artifact."""
 
     factor_report_id: str = Field(pattern=r"^factor_report_[0-9a-f]{64}$")
+    model_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*_model_[0-9a-f]{64}$")
     dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
     trial_batch_id: str = Field(pattern=r"^trial_batch_[0-9a-f]{64}$")
     portfolio_rule_version: str = Field(default="1.0.0", pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")

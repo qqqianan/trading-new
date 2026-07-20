@@ -176,3 +176,71 @@ def test_research_cli_blocks_training_before_runtime_when_worktree_is_dirty(
     assert result.exit_code == 2
     assert "dirty_worktree" in result.stdout
     assert calls == 0
+
+
+def test_research_cli_blocks_model_portfolio_before_runtime_when_worktree_is_dirty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: reproducibility preflight rejects uncommitted model-portfolio code.
+    calls = 0
+
+    def reject(_request: PreflightRequest) -> ResearchIdentity:
+        raise ResearchPreflightError(PreflightRule.DIRTY_WORKTREE, "uncommitted changes")
+
+    def model_runtime(_root: Path, _model_id: str) -> PortfolioTargetDescriptor:
+        nonlocal calls
+        calls += 1
+        message = "model portfolio runtime must not execute"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(research_cli, "run_research_preflight", reject)
+    monkeypatch.setattr(research_cli, "run_default_model_portfolio", model_runtime)
+
+    # When: keyed model target publication is requested.
+    result = RUNNER.invoke(
+        app,
+        ["model-portfolio", "--model-id", "ridge_model_" + "a" * 64],
+    )
+
+    # Then: model and prediction bytes are untouched before clean-worktree approval.
+    assert result.exit_code == 2
+    assert "dirty_worktree" in result.stdout
+    assert calls == 0
+
+
+def test_research_cli_publishes_model_portfolio_without_opening_holdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: clean preflight identity and one completed model-target descriptor.
+    target_id = "portfolio_targets_" + "b" * 64
+
+    def approve(_request: PreflightRequest) -> ResearchIdentity:
+        return ResearchIdentity("a" * 40, "c" * 64, "1.1.0", "ashare_quant")
+
+    def model_runtime(_root: Path, _model_id: str) -> PortfolioTargetDescriptor:
+        return PortfolioTargetDescriptor(
+            artifact_id=target_id,
+            artifact_path=tmp_path / "targets.json",
+            data_sha256="b" * 64,
+        )
+
+    monkeypatch.setattr(research_cli, "run_research_preflight", approve)
+    monkeypatch.setattr(research_cli, "run_default_model_portfolio", model_runtime)
+
+    # When: the operator publishes keyed model targets through the formal CLI.
+    result = RUNNER.invoke(
+        app,
+        [
+            "model-portfolio",
+            "--model-id",
+            "ridge_model_" + "a" * 64,
+            "--project-root",
+            str(tmp_path),
+        ],
+    )
+
+    # Then: the exact target identity is shown and final holdout stays sealed.
+    assert result.exit_code == 0
+    assert target_id in result.stdout.replace("\n", "")
+    assert "final holdout: SEALED" in result.stdout

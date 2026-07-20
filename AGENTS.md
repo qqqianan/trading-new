@@ -154,6 +154,10 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - 任何物质变化必须产生新版本或新快照 ID。
 - 每次训练保存 `ExperimentManifest`：数据集 ID、规则版本、Git commit、模型族、特征、标签、split、随机种子和最终测试次数。
 - 每个模型通过 `ModelRecord` 关联数据集与训练运行。
+- 模型预测进入组合层前必须持久化并逐批验证精确的 `(decision_time, symbol)` 有序键；仅保存键哈希的
+  旧预测只允许审计，禁止从其他 artifact 或当前数据顺序猜测、回填或重建预测键。
+- 组合层只能接收 `decision_time`、`symbol` 和模型分数，不得携带 label；重复键、跨 fold 重叠键或
+  键哈希不一致必须 fail closed。
 - 模型输出只能进入组合构建器，不能直接创建订单。
 - 没有覆盖全部训练字段的结构文档，或无法从训练列追溯到 Raw 快照时，训练必须停止。
 

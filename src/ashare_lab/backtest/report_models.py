@@ -15,6 +15,7 @@ class PortfolioBacktestReport(BaseModel):
 
     target_artifact_id: str = Field(pattern=r"^portfolio_targets_[0-9a-f]{64}$")
     factor_report_id: str = Field(pattern=r"^factor_report_[0-9a-f]{64}$")
+    model_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*_model_[0-9a-f]{64}$")
     dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
     market_schema_manifest_id: str = Field(pattern=r"^schema_[0-9a-f]{64}$")
     benchmark_schema_manifest_id: str = Field(pattern=r"^schema_[0-9a-f]{64}$")

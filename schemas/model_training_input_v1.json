@@ -87,6 +87,8 @@
         "ridge_alphas",
         "preprocessor_artifact_ids",
         "trial_batch_id",
+        "factor_report_id",
+        "portfolio_backtest_id",
         "portfolio_rule_version",
         "cost_rule_version"
       ],
@@ -126,6 +128,14 @@
           "items": {"type": "string", "pattern": "^preprocessor_artifact_[0-9a-f]{64}$"}
         },
         "trial_batch_id": {"type": "string", "minLength": 1},
+        "factor_report_id": {
+          "type": "string",
+          "pattern": "^factor_report_[0-9a-f]{64}$"
+        },
+        "portfolio_backtest_id": {
+          "type": "string",
+          "pattern": "^portfolio_backtest_[0-9a-f]{64}$"
+        },
         "portfolio_rule_version": {"type": "string", "minLength": 1},
         "cost_rule_version": {"type": "string", "minLength": 1}
       }

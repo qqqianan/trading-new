@@ -432,6 +432,13 @@ join 后静默删除缺因子证券。目标 artifact 只保存 decision date、
 不保存 label、订单、成交或臆造的当前持仓。市场容量、行业、换手和现金风控在回测读取实际账户状态后
 重新执行。
 
+模型目标额外固定
+`ridge_model -> prediction SHA-256 -> keyed internal-test batch -> factor report -> source baseline backtest
+-> DatasetSpec -> Top 30 target`。预测批次必须同时保存精确的 `(decision_time, symbol)` 有序键和键哈希；
+组合边界逐批重算哈希并拒绝缺键、错位、重复或跨 fold 重叠。仅保存键哈希的旧模型可以审计，但禁止
+从当前数据集行序或其他 artifact 推断键。组合可见 frame 只能包含键和 `model_score`，label 必须物理
+隔离。模型目标保存 `model_id`，后续仍由同一回测与风险链生成订单、成交和风险证据。
+
 `PortfolioRiskDecision` 固定目标日期、信号来源、标的目标权重、现金权重、换手率、HHI 集中度、
 研究状态和全部 `RiskEvent`，机器结构见 `schemas/portfolio_risk_decision_v1.json`。风险事件记录规则、
 动作、观测、限制、说明及可选标的；目标中保留当前持仓的零权重行以表达退出意图，因此它不是订单或
@@ -480,8 +487,10 @@ DatasetSpec snapshot/lineage、实验 schema/lineage、preprocessor fold/日期/
 
 Ridge 模型 manifest 的机器契约为 `schemas/ridge_experiment_artifact_v1.json`。模型 identity 由训练运行、
 DatasetSpec、schema/lineage、ExperimentManifest SHA-256、全部 alpha validation 结果、fold 结果、系数、
-预处理 ID、预测 SHA-256、组合/成本规则和随机种子共同内容寻址。预测 lineage 绑定 DatasetSpec、全部
-preprocessor artifact 和内部 test prediction SHA-256；预测批次另存 `(decision_time, symbol)` 有序键哈希。
+训练字段、预处理 ID、因子报告、trial batch、来源基线回测、预测 SHA-256、组合/成本规则和随机种子
+共同内容寻址。预测 lineage 绑定 DatasetSpec、全部 preprocessor artifact 和内部 test prediction
+SHA-256；预测批次同时保存精确的 `(decision_time, symbol)` 有序键及其哈希。组合发布必须验证模型与
+预测的 DatasetSpec、研究身份和来源基线回测一致，并保持 `DRAFT`、`final_test_runs=0`。
 
 固定合成 QA 的实验 manifest 见 `.omo/evidence/task-12-experiment-manifest.json`。它的
 `data_classification=SYNTHETIC_SOFTWARE_QA_ONLY`、`final_test_runs=0`、`model_status=DRAFT`，仅证明

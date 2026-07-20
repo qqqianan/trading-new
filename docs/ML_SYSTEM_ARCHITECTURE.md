@@ -180,9 +180,12 @@ schema、字段级 lineage、每 fold 预处理 manifest、开发帧 SHA-256 和
 只在 alpha 选择完成后评估，final holdout 始终不进入选择、拟合或预测。
 
 同一 fold 同时保存等权因子 validation 基线、选中 Ridge validation/internal-test 指标和内部 test 预测。
-产物保存全部候选、系数、截距、预处理 ID、实验哈希、预测哈希和预测 lineage，使用内容寻址 JSON，
-禁止 pickle。结构见 `schemas/ridge_experiment_artifact_v1.json`。当前合成结果只证明软件行为，不证明
-Ridge、因子或策略具有投资有效性。
+产物保存全部候选、训练字段、系数、截距、预处理 ID、因子报告、来源基线回测、实验哈希、预测哈希和
+预测 lineage，使用内容寻址 JSON，禁止 pickle。每个预测批次同时持久化精确的
+`(decision_time, symbol)` 有序键；组合入口必须重算键哈希，并拒绝缺键、键错位、重复键或跨 fold
+重叠。旧的仅哈希预测仍可读取用于审计，但禁止根据当前 frame 顺序猜测键后进入组合。结构见
+`schemas/ridge_experiment_artifact_v1.json`。当前合成结果只证明软件行为，不证明 Ridge、因子或策略
+具有投资有效性。
 
 ## 6.2 因子研究门禁
 
@@ -242,6 +245,13 @@ candidate feature，没有 label 读取能力；每个候选按预登记方向�
 和 5% 现金的 `portfolio_targets_*`。该 artifact 是风控前意图，不包含订单、成交或假定当前持仓；真实
 回测必须按账户实际成交状态重新调用唯一 `PortfolioRiskEngine`。
 
+Ridge 开发期组合入口为
+`ashare-research model-portfolio --model-id <ridge_model_id>`。它只接受 `DRAFT`、`final_test_runs=0`、
+研究血缘完整且带精确预测键的模型，逐项核对 DatasetSpec、因子报告、trial batch、训练字段和来源
+等权因子基线回测。进入组合构建器的 frame 物理上只能包含 `decision_time`、`symbol`、`model_score`，
+不含 label；随后使用相同 Top 30、95% 股票仓位规则生成带 `model_id` 的目标。该步骤不创建订单，目标
+仍必须通过正式 `backtest` 入口和唯一 `PortfolioRiskEngine`，final holdout 保持封存。
+
 真实回测入口为
 `ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一
 DatasetSpec，股票五链和中证 500 基准查询都受 DatasetSpec schema 与 Raw snapshot 白名单约束；目标
@@ -262,7 +272,8 @@ Top-Bottom 收益只用于诊断和成本感知，不是单一晋级规则。最
 
 ## 8. 组合与风控边界
 
-模型输出包括 `symbol`、`decision_time`、`model_id`、分数和排名。组合构建器输出目标权重，随后由风控检查：
+模型产物以 `model_id` 标识；组合边界接收 `symbol`、`decision_time` 和分数并输出带模型身份的目标权重，
+随后由风控检查：
 
 - 单票和持仓数量限制
 - 行业与风格暴露

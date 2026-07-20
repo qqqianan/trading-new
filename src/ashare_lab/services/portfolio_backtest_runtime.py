@@ -128,6 +128,7 @@ def run_default_portfolio_backtest(
         report = PortfolioBacktestReport(
             target_artifact_id=target_artifact_id,
             factor_report_id=targets.factor_report_id,
+            model_id=targets.model_id,
             dataset_snapshot_id=spec.snapshot_id,
             market_schema_manifest_id=bound.market_schema_manifest_id,
             benchmark_schema_manifest_id=bound.benchmark_schema_manifest_id,

@@ -101,3 +101,37 @@ class RidgeArtifactStore:
             detail = "Ridge artifact bytes differ from descriptor"
             raise RidgeArtifactStoreError(detail)
         return artifact
+
+    def descriptor(self, model_id: str) -> ModelArtifact:
+        """Create a verified descriptor from one fixed Ridge model directory."""
+        path = self._root / model_id / "manifest.json"
+        try:
+            content = path.read_bytes()
+            artifact = RidgeExperimentArtifact.model_validate_json(content)
+        except (OSError, ValidationError) as error:
+            detail = "Ridge model manifest is missing or invalid"
+            raise RidgeArtifactStoreError(detail) from error
+        descriptor = ModelArtifact(
+            model_id=artifact.model_id,
+            training_run_id=artifact.training_run_id,
+            dataset_snapshot_id=artifact.dataset_snapshot_id,
+            artifact_uri=str(path),
+            artifact_sha256=hashlib.sha256(content).hexdigest(),
+        )
+        self.read(descriptor)
+        return descriptor
+
+    def read_predictions(self, descriptor: ModelArtifact) -> RidgePredictionArtifact:
+        """Verify the model envelope, then return its exact internal-test predictions."""
+        artifact = self.read(descriptor)
+        path = self._root / descriptor.model_id / "predictions.json"
+        try:
+            content = path.read_bytes()
+            predictions = RidgePredictionArtifact.model_validate_json(content)
+        except (OSError, ValidationError) as error:
+            detail = "Ridge prediction artifact is missing or invalid"
+            raise RidgeArtifactStoreError(detail) from error
+        if hashlib.sha256(content).hexdigest() != artifact.prediction_artifact_sha256:
+            detail = "Ridge prediction bytes differ from model manifest"
+            raise RidgeArtifactStoreError(detail)
+        return predictions

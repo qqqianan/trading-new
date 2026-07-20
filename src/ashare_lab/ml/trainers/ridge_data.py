@@ -1,17 +1,21 @@
 """Fold-local transformation and typed matrices for Ridge training."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 import numpy as np
 import polars as pl
 from numpy.typing import NDArray
+from pydantic import TypeAdapter
 
 from ashare_lab.ml.contracts import TrainerJob
 from ashare_lab.research.preprocessing import FoldPreprocessor
 from ashare_lab.research.preprocessing.models import FoldPreprocessingArtifact
 from ashare_lab.research.preprocessing.training_identity import training_frame_sha256
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
+
+_DATETIMES = TypeAdapter(tuple[datetime, ...])
+_SYMBOLS = TypeAdapter(tuple[str, ...])
 
 
 class RidgeTrainingError(Exception):
@@ -41,6 +45,8 @@ class PreparedFold:
     test_x: NDArray[np.float64]
     test_y: NDArray[np.float64]
     test_keys_sha256: str
+    test_decision_times: tuple[datetime, ...]
+    test_symbols: tuple[str, ...]
 
 
 def model_feature_names(feature_names: tuple[str, ...]) -> tuple[str, ...]:
@@ -74,6 +80,8 @@ def prepare_fold(
         test_x=_matrix(transformed_test, columns),
         test_y=_labels(transformed_test, job.experiment.label_name),
         test_keys_sha256=training_frame_sha256(test.select("decision_time", "symbol")),
+        test_decision_times=_DATETIMES.validate_python(test["decision_time"].to_list()),
+        test_symbols=_SYMBOLS.validate_python(test["symbol"].to_list()),
     )
 
 

@@ -142,6 +142,8 @@ def build_training_package(
         ridge_alphas=(0.1, 1.0, 10.0, 100.0),
         preprocessor_artifact_ids=tuple(item.artifact_id for item in descriptors),
         trial_batch_id=request.trial_batch_id,
+        factor_report_id=request.factor_report_id,
+        portfolio_backtest_id=request.portfolio_backtest_id,
         portfolio_rule_version=request.portfolio_rule_version,
         cost_rule_version=request.cost_rule_version,
     )

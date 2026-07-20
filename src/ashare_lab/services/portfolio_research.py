@@ -44,6 +44,16 @@ class PortfolioBuildRequest:
     candidate_trials: tuple[FactorTrial, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class ModelPortfolioBuildRequest:
+    """One keyed model score stream and its complete research lineage."""
+
+    model_id: str
+    factor_report_id: str
+    dataset_snapshot_id: str
+    trial_batch_id: str
+
+
 class PortfolioResearchError(Exception):
     """Candidate score artifacts cannot form an auditable target batch."""
 
@@ -108,6 +118,34 @@ def build_portfolio_targets(
         dataset_snapshot_id=request.dataset_snapshot_id,
         trial_batch_id=request.trial_batch_id,
         candidate_factor_names=names,
+        records=records,
+    )
+
+
+def build_model_portfolio_targets(
+    request: ModelPortfolioBuildRequest,
+    scores: pl.DataFrame,
+) -> PortfolioTargetBatch:
+    """Build model-ranked Top 30 targets without reading labels or creating orders."""
+    expected_columns = [*_KEYS, "model_score"]
+    if scores.columns != expected_columns or scores.is_empty():
+        detail = "model score frame must contain only exact keys and model_score"
+        raise PortfolioResearchError(detail)
+    if scores.select(*_KEYS).is_duplicated().any():
+        detail = "model score keys are duplicated"
+        raise PortfolioResearchError(detail)
+    name = "model_prediction"
+    wide = scores.rename({"model_score": name})
+    builder = TopNPortfolioBuilder(PortfolioBuilderConfig((name,)))
+    dates = _DATES.validate_python(wide["decision_time"].dt.date().unique().sort().to_list())
+    records = tuple(_build_record(day, wide, (name,), builder, request.model_id) for day in dates)
+    return PortfolioTargetBatch(
+        factor_report_id=request.factor_report_id,
+        model_id=request.model_id,
+        dataset_snapshot_id=request.dataset_snapshot_id,
+        trial_batch_id=request.trial_batch_id,
+        portfolio_rule_version="2.0.0",
+        candidate_factor_names=(name,),
         records=records,
     )
 

@@ -21,6 +21,10 @@ from ashare_lab.services.factor_diagnostic_runtime import (
     FactorDiagnosticRuntimeError,
     run_default_factor_diagnostics,
 )
+from ashare_lab.services.model_portfolio_runtime import (
+    ModelPortfolioRuntimeError,
+    run_default_model_portfolio,
+)
 from ashare_lab.services.portfolio_backtest_runtime import (
     PortfolioBacktestRuntimeError,
     run_default_portfolio_backtest,
@@ -168,6 +172,31 @@ def train(
         raise typer.Exit(code=2) from error
     _CONSOLE.print(f"Ridge model: {result.artifact.model_id}")
     _CONSOLE.print("model status: DRAFT")
+    _CONSOLE.print("final holdout: SEALED")
+
+
+@app.command("model-portfolio")
+def model_portfolio(
+    model_id: Annotated[
+        str,
+        typer.Option(help="Exact governed ridge_model content identity."),
+    ],
+    project_root: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, resolve_path=True),
+    ] = Path(),
+) -> None:
+    """Publish label-free Top30 targets from one keyed DRAFT Ridge model."""
+    try:
+        run_research_preflight(
+            PreflightRequest(project_root, "ashare_quant", require_clean_worktree=True)
+        )
+        descriptor = run_default_model_portfolio(project_root, model_id)
+    except (ResearchPreflightError, ModelPortfolioRuntimeError) as error:
+        _CONSOLE.print(f"BLOCKED: {error}")
+        raise typer.Exit(code=2) from error
+    _CONSOLE.print(f"model portfolio targets: {descriptor.artifact_id}")
+    _CONSOLE.print("risk execution: REQUIRED_IN_BACKTEST")
     _CONSOLE.print("final holdout: SEALED")
 
 

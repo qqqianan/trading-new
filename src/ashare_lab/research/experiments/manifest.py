@@ -35,6 +35,8 @@ class ExperimentManifest(BaseModel):
     ridge_alphas: tuple[float, ...] = ()
     preprocessor_artifact_ids: tuple[str, ...] = ()
     trial_batch_id: str = Field(min_length=1)
+    factor_report_id: str = Field(pattern=r"^factor_report_[0-9a-f]{64}$")
+    portfolio_backtest_id: str = Field(pattern=r"^portfolio_backtest_[0-9a-f]{64}$")
     portfolio_rule_version: str = Field(min_length=1)
     cost_rule_version: str = Field(min_length=1)
 

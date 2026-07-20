@@ -1,10 +1,12 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from ashare_lab.ml.contracts import ModelArtifact, TrainerJob
 from ashare_lab.ml.trainers.ridge import RidgeTrainer
 from ashare_lab.ml.trainers.ridge_data import RidgeTrainingError
+from ashare_lab.ml.trainers.ridge_models import FoldPredictionBatch
 from ashare_lab.ml.trainers.ridge_store import RidgeArtifactStore, RidgeArtifactStoreError
 from ashare_lab.services.training import TrainingService
 
@@ -19,7 +21,9 @@ def test_ridge_saves_equal_weight_baseline_and_all_alpha_candidates(tmp_path: Pa
 
     # When: governed Ridge training completes.
     result = TrainingService(trainer).train(evidence, experiment, folds(), frame)
-    artifact = RidgeArtifactStore(tmp_path).read(result.artifact)
+    store = RidgeArtifactStore(tmp_path)
+    artifact = store.read(result.artifact)
+    predictions = store.read_predictions(result.artifact)
 
     # Then: baseline, every candidate, selected alpha, and prediction lineage are saved.
     assert {item.alpha for item in artifact.candidate_results} == {0.1, 1.0, 10.0, 100.0}
@@ -27,6 +31,11 @@ def test_ridge_saves_equal_weight_baseline_and_all_alpha_candidates(tmp_path: Pa
     assert artifact.baseline_mean_validation_mse >= 0
     assert artifact.selected_alpha in {0.1, 1.0, 10.0, 100.0}
     assert artifact.prediction_lineage_id.startswith("prediction_lineage_")
+    assert all(batch.decision_times and batch.symbols for batch in predictions.batches)
+    assert all(
+        len(batch.decision_times) == len(batch.symbols) == len(batch.predictions)
+        for batch in predictions.batches
+    )
     assert artifact.final_test_runs == 0
 
 
@@ -123,3 +132,15 @@ def test_ridge_requires_one_preprocessor_per_fold(tmp_path: Path) -> None:
     # When / Then: the concrete adapter cannot be called with incomplete evidence.
     with pytest.raises(RidgeTrainingError, match="one verified preprocessor"):
         RidgeTrainer(tmp_path).train(job)
+
+
+def test_ridge_prediction_batch_rejects_misaligned_value_vectors() -> None:
+    # Given: predictions and labels with different row counts.
+    # When / Then: an ambiguous evaluation artifact cannot be constructed.
+    with pytest.raises(ValidationError, match="prediction and label rows differ"):
+        FoldPredictionBatch(
+            fold_index=0,
+            observation_keys_sha256="a" * 64,
+            predictions=(0.1, 0.2),
+            labels=(0.3,),
+        )

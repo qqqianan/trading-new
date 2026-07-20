@@ -175,6 +175,8 @@ def build_training_evidence(
         ridge_alphas=(0.1, 1.0, 10.0, 100.0),
         preprocessor_artifact_ids=tuple(item.artifact_id for item in preprocessor_descriptors),
         trial_batch_id="trial_batch_" + "c" * 64,
+        factor_report_id="factor_report_" + "d" * 64,
+        portfolio_backtest_id="portfolio_backtest_" + "e" * 64,
         portfolio_rule_version="top30_risk_v1",
         cost_rule_version="china_a_cost_v1",
     )

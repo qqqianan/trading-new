@@ -117,6 +117,7 @@ class RidgeTrainer:
             internal_test_mean_mse=float(
                 np.mean([item.internal_test_mse for item in fold_results])
             ),
+            training_feature_names=job.experiment.feature_names,
             model_feature_names=model_feature_names(job.experiment.feature_names),
             coefficients=tuple(float(value) for value in latest_model.coef_),
             intercept=_intercept(latest_model.intercept_),
@@ -126,6 +127,9 @@ class RidgeTrainer:
                 f"prediction_lineage_{hashlib.sha256(lineage_payload.encode()).hexdigest()}"
             ),
             prediction_row_count=sum(item.internal_test_rows for item in fold_results),
+            factor_report_id=job.experiment.factor_report_id,
+            trial_batch_id=job.experiment.trial_batch_id,
+            source_portfolio_backtest_id=job.experiment.portfolio_backtest_id,
             random_seed=job.experiment.random_seed,
             portfolio_rule_version=job.experiment.portfolio_rule_version,
             cost_rule_version=job.experiment.cost_rule_version,
@@ -182,6 +186,8 @@ def _evaluate_selected(
                 observation_keys_sha256=fold.test_keys_sha256,
                 predictions=tuple(float(value) for value in test_prediction),
                 labels=tuple(float(value) for value in fold.test_y),
+                decision_times=fold.test_decision_times,
+                symbols=fold.test_symbols,
             )
         )
         latest_model = model
