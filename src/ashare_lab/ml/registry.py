@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum, unique
 from typing import NewType
 
-from ashare_lab.research.model_governance import TrainingApproval
+from ashare_lab.research.model_governance import ApprovalScope, TrainingApproval
 
 ModelId = NewType("ModelId", str)
 TrainingRunId = NewType("TrainingRunId", str)
@@ -51,6 +51,9 @@ def promote_model(record: ModelRecord, approval: TrainingApproval) -> ModelRecor
     """Promote a draft without mutating its original registry record."""
     if not approval.approved:
         detail = "model promotion requires an approved training protocol"
+        raise ModelPromotionError(detail)
+    if approval.scope is not ApprovalScope.VALIDATION_PROMOTION:
+        detail = "model promotion requires validation approval"
         raise ModelPromotionError(detail)
     match record.status:
         case ModelStatus.DRAFT:

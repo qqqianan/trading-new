@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchAuditReport v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_id",
+    "status",
+    "data_cutoff",
+    "dataset_snapshot_id",
+    "schema_manifest_id",
+    "lineage_manifest_id",
+    "git_commit",
+    "uv_lock_sha256",
+    "rulebook_version",
+    "database_name",
+    "universe_rule_version",
+    "factor_formulas",
+    "trial_ids",
+    "cost_rule_version",
+    "risk_rule_version",
+    "worst_period",
+    "failures",
+    "model_status",
+    "final_test_runs",
+    "stages",
+    "investment_disclaimer"
+  ],
+  "properties": {
+    "report_id": {"type": "string", "pattern": "^research_report_[0-9a-f]{64}$"},
+    "status": {"enum": ["PLANNED", "COMPLETED", "BLOCKED"]},
+    "data_cutoff": {"type": "string", "format": "date"},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "schema_manifest_id": {"type": "string", "pattern": "^schema_[0-9a-f]+$"},
+    "lineage_manifest_id": {"type": "string", "pattern": "^lineage_[0-9a-f]+$"},
+    "git_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "uv_lock_sha256": {"$ref": "#/$defs/sha256"},
+    "rulebook_version": {"type": "string", "minLength": 1},
+    "database_name": {"const": "ashare_quant"},
+    "universe_rule_version": {"type": "string", "minLength": 1},
+    "factor_formulas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "trial_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "pattern": "^factor_trial_[0-9a-f]{64}$"}
+    },
+    "cost_rule_version": {"type": "string", "minLength": 1},
+    "risk_rule_version": {"type": "string", "minLength": 1},
+    "worst_period": {"type": "string", "minLength": 1},
+    "failures": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "model_status": {"enum": ["NOT_TRAINED", "DRAFT", "VALIDATED"]},
+    "final_test_runs": {"const": 0},
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/stage"}
+    },
+    "investment_disclaimer": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "artifact_ids", "failures"],
+      "properties": {
+        "stage": {
+          "enum": ["qualify", "materialize", "diagnose", "portfolio", "backtest", "train"]
+        },
+        "status": {"enum": ["PLANNED", "COMPLETED", "BLOCKED"]},
+        "artifact_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "failures": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

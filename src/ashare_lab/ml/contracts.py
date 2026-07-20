@@ -1,9 +1,13 @@
-"""Framework-neutral contracts for future model implementations."""
+"""Framework-neutral contracts for governed model implementations."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
+import polars as pl
+
 from ashare_lab.research.experiments.manifest import ExperimentManifest, ModelFamily
+from ashare_lab.research.preprocessing.models import FoldPreprocessingArtifact
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
 
 
@@ -18,18 +22,25 @@ class ModelArtifact:
     artifact_sha256: str
 
 
+@dataclass(frozen=True, slots=True)
+class TrainerJob:
+    """Verified development inputs passed only after governance approval."""
+
+    experiment: ExperimentManifest
+    folds: tuple[WalkForwardFold, ...]
+    frame: pl.DataFrame
+    preprocessors: tuple[FoldPreprocessingArtifact, ...]
+    artifact_root: Path
+
+
 class Trainer(Protocol):
-    """Capability implemented by Ridge, LightGBM, and future trainers."""
+    """Capability implemented by Ridge and future model adapters."""
 
     @property
     def model_family(self) -> ModelFamily:
         """Return the exact experiment family this adapter implements."""
         ...
 
-    def train(
-        self,
-        manifest: ExperimentManifest,
-        folds: tuple[WalkForwardFold, ...],
-    ) -> ModelArtifact:
-        """Train only through a versioned manifest and approved time folds."""
+    def train(self, job: TrainerJob) -> ModelArtifact:
+        """Fit only from a service-created job containing verified artifacts."""
         ...

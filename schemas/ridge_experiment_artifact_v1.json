@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RidgeExperimentArtifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "training_run_id",
+    "dataset_snapshot_id",
+    "schema_manifest_id",
+    "lineage_manifest_id",
+    "experiment_manifest_sha256",
+    "selected_alpha",
+    "candidate_results",
+    "fold_results",
+    "baseline_mean_validation_mse",
+    "internal_test_mean_mse",
+    "model_feature_names",
+    "coefficients",
+    "intercept",
+    "preprocessor_artifact_ids",
+    "prediction_artifact_sha256",
+    "prediction_lineage_id",
+    "prediction_row_count",
+    "random_seed",
+    "portfolio_rule_version",
+    "cost_rule_version",
+    "final_test_runs",
+    "model_status",
+    "model_id"
+  ],
+  "properties": {
+    "training_run_id": {"type": "string", "minLength": 1},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "schema_manifest_id": {"type": "string", "pattern": "^schema_[0-9a-f]+$"},
+    "lineage_manifest_id": {"type": "string", "pattern": "^lineage_[0-9a-f]+$"},
+    "experiment_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "selected_alpha": {"enum": [0.1, 1.0, 10.0, 100.0]},
+    "candidate_results": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"$ref": "#/$defs/candidate"}
+    },
+    "fold_results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/foldResult"}
+    },
+    "baseline_mean_validation_mse": {"type": "number", "minimum": 0},
+    "internal_test_mean_mse": {"type": "number", "minimum": 0},
+    "model_feature_names": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "coefficients": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "number"}
+    },
+    "intercept": {"type": "number"},
+    "preprocessor_artifact_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "pattern": "^preprocessor_artifact_[0-9a-f]{64}$"}
+    },
+    "prediction_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "prediction_lineage_id": {
+      "type": "string",
+      "pattern": "^prediction_lineage_[0-9a-f]{64}$"
+    },
+    "prediction_row_count": {"type": "integer", "minimum": 1},
+    "random_seed": {"type": "integer"},
+    "portfolio_rule_version": {"type": "string", "minLength": 1},
+    "cost_rule_version": {"type": "string", "minLength": 1},
+    "final_test_runs": {"const": 0},
+    "model_status": {"const": "DRAFT"},
+    "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alpha", "fold_validation_mse", "mean_validation_mse"],
+      "properties": {
+        "alpha": {"enum": [0.1, 1.0, 10.0, 100.0]},
+        "fold_validation_mse": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "number", "minimum": 0}
+        },
+        "mean_validation_mse": {"type": "number", "minimum": 0}
+      }
+    },
+    "foldResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fold_index",
+        "baseline_validation_mse",
+        "selected_validation_mse",
+        "internal_test_mse",
+        "internal_test_rows"
+      ],
+      "properties": {
+        "fold_index": {"type": "integer", "minimum": 0},
+        "baseline_validation_mse": {"type": "number", "minimum": 0},
+        "selected_validation_mse": {"type": "number", "minimum": 0},
+        "internal_test_mse": {"type": "number", "minimum": 0},
+        "internal_test_rows": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

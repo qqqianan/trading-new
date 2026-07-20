@@ -1,6 +1,8 @@
 from datetime import date
+from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from ashare_lab.domain.market import Symbol
 from ashare_lab.governance import DataQualityGuard, ModelTrainingGuard
@@ -11,11 +13,14 @@ from ashare_lab.ml.registry import (
     promote_model,
 )
 from ashare_lab.portfolio import PortfolioTarget, TargetPosition
+from ashare_lab.research.experiments.manifest import ExperimentManifest, ModelFamily
 from ashare_lab.research.features import FeatureDefinition, FeatureValueType
 from ashare_lab.research.labels import LabelDefinition, LabelPrice
-from ashare_lab.research.model_governance import TrainingApproval
+from ashare_lab.research.model_governance import ApprovalScope, TrainingApproval
 from ashare_lab.research.splits import WalkForwardConfig, build_walk_forward_folds
 from ashare_lab.research.splits.walk_forward import SplitIntegrityError
+
+from .training_support import build_training_evidence, training_frame
 
 
 def test_feature_label_and_portfolio_contracts_preserve_research_boundaries() -> None:
@@ -75,6 +80,7 @@ def test_model_registry_rejects_promotion_without_approval() -> None:
     draft = ModelRecord("model_001", "ds_abc", "run_001", ModelStatus.DRAFT)
     rejection = TrainingApproval(
         approved=False,
+        scope=ApprovalScope.VALIDATION_PROMOTION,
         rulebook_version="1.1.0",
         checks=(),
     )
@@ -82,3 +88,26 @@ def test_model_registry_rejects_promotion_without_approval() -> None:
     # When / Then: registry state cannot bypass governance.
     with pytest.raises(ModelPromotionError, match="requires an approved"):
         promote_model(draft, rejection)
+
+
+@pytest.mark.parametrize(
+    ("family", "ridge_alphas", "expected"),
+    [
+        (ModelFamily.RIDGE, [0.1, 1.0], "frozen protocol"),
+        (ModelFamily.LIGHTGBM_RANKER, [0.1, 1.0, 10.0, 100.0], "cannot declare"),
+    ],
+)
+def test_experiment_manifest_rejects_model_family_protocol_mismatch(
+    tmp_path: Path,
+    family: ModelFamily,
+    ridge_alphas: list[float],
+    expected: str,
+) -> None:
+    # Given: a valid experiment payload with a model-family protocol mismatch.
+    _, experiment = build_training_evidence(tmp_path, training_frame())
+    payload = experiment.model_dump(mode="json")
+    payload.update({"model_family": family.value, "ridge_alphas": ridge_alphas})
+
+    # When / Then: the immutable experiment boundary rejects the invalid grid.
+    with pytest.raises(ValidationError, match=expected):
+        ExperimentManifest.model_validate(payload)

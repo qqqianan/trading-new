@@ -184,6 +184,36 @@ def test_audited_service_rejects_unregistered_partial_inputs(tmp_path: Path) -> 
         AuditedFactorResearchService(store).run(descriptor, partial)
 
 
+class RecordingFrameSource:
+    """Load one registered diagnostic frame at a time."""
+
+    def __init__(self, frame: pl.DataFrame) -> None:
+        self._frame = frame
+        self.calls: list[str] = []
+
+    def load(self, trial: FactorTrial) -> pl.DataFrame:
+        self.calls.append(trial.trial_id)
+        return self._frame
+
+
+def test_audited_service_streams_complete_registered_families(tmp_path: Path) -> None:
+    # Given: the complete ledger and a source that records each frame request.
+    batch = _full_batch()
+    ledger = TrialLedgerStore(tmp_path)
+    descriptor = ledger.write(batch)
+    source = RecordingFrameSource(
+        _diagnostic_frame().with_columns((-pl.col("label_value")).alias("label_value"))
+    )
+
+    # When: the audited service diagnoses through the bounded frame source.
+    report = AuditedFactorResearchService(ledger).run_streaming(descriptor, source)
+
+    # Then: every registered trial is loaded exactly once and retained in ledger order.
+    assert source.calls == [item.trial_id for item in batch.trials]
+    assert tuple(item.trial_id for item in report.diagnostics) == tuple(source.calls)
+    assert len(report.decisions) == len(batch.trials) == 21
+
+
 def test_audited_report_retains_all_twenty_one_registered_trials(tmp_path: Path) -> None:
     # Given: the complete DatasetSpec hypothesis closure is registered before calculation.
     batch = _full_batch()

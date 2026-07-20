@@ -1,119 +1,94 @@
-from datetime import date
+from pathlib import Path
 
 import pytest
 
-from ashare_lab.ml.contracts import ModelArtifact
-from ashare_lab.research.experiments.manifest import ExperimentManifest, ModelFamily
-from ashare_lab.research.model_governance import (
-    ModelGovernanceError,
-    ModelPurpose,
-    TrainingManifest,
-    ValidationScheme,
-)
-from ashare_lab.research.splits.walk_forward import WalkForwardFold
+from ashare_lab.ml.contracts import ModelArtifact, TrainerJob
+from ashare_lab.ml.registry import ModelStatus
+from ashare_lab.research.experiments.manifest import ModelFamily
+from ashare_lab.research.model_governance import ModelGovernanceError
 from ashare_lab.services.training import TrainingService, TrainingServiceError
+
+from .training_support import build_training_evidence, folds, training_frame
 
 
 class RecordingTrainer:
-    """Record calls so tests can prove the governance gate runs first."""
+    """Record calls so tests can prove the artifact guard runs first."""
 
     def __init__(self) -> None:
         self.calls = 0
-        self.fold_count = 0
 
     @property
     def model_family(self) -> ModelFamily:
         return ModelFamily.RIDGE
 
-    def train(
-        self,
-        manifest: ExperimentManifest,
-        folds: tuple[WalkForwardFold, ...],
-    ) -> ModelArtifact:
+    def train(self, job: TrainerJob) -> ModelArtifact:
         self.calls += 1
-        self.fold_count = len(folds)
         return ModelArtifact(
             model_id="model_001",
-            training_run_id=manifest.training_run_id,
-            dataset_snapshot_id=manifest.dataset_snapshot_id,
-            artifact_uri="artifacts/model_001.bin",
+            training_run_id=job.experiment.training_run_id,
+            dataset_snapshot_id=job.experiment.dataset_snapshot_id,
+            artifact_uri="artifacts/model_001.json",
             artifact_sha256="a" * 64,
         )
 
 
-def _experiment() -> ExperimentManifest:
-    return ExperimentManifest(
-        training_run_id="run_001",
-        dataset_snapshot_id="ds_abc123",
-        schema_manifest_id="schema_abc123",
-        lineage_manifest_id="lineage_abc123",
-        rulebook_version="1.1.0",
-        git_commit="abcdef1",
-        model_family=ModelFamily.RIDGE,
-        feature_names=("momentum_20d",),
-        label_name="open_to_open_20d",
-        split_protocol="purged_walk_forward_v1",
-        random_seed=7,
-        final_test_runs=1,
-    )
+class WrongFamilyTrainer(RecordingTrainer):
+    """Declare a different family to prove dispatch is closed over the manifest."""
+
+    @property
+    def model_family(self) -> ModelFamily:
+        return ModelFamily.LIGHTGBM_RANKER
 
 
-def _protocol(*, complete_data_lineage: bool) -> TrainingManifest:
-    return TrainingManifest(
-        purpose=ModelPurpose.INVESTMENT_DECISION,
-        validation_scheme=ValidationScheme.PURGED_WALK_FORWARD,
-        uses_synthetic_data=False,
-        point_in_time_features=True,
-        survivorship_safe_universe=True,
-        preprocessing_fit_on_train_only=True,
-        final_test_runs=1,
-        reproducible_snapshot=True,
-        complete_schema_documentation=True,
-        complete_data_lineage=complete_data_lineage,
-        selection_trials=1,
-        multiple_testing_control=False,
-    )
-
-
-def test_training_service_never_calls_trainer_when_governance_rejects() -> None:
-    # Given: a trainer and a protocol with broken data lineage.
+def test_training_service_rejects_tampered_dataset_before_trainer(tmp_path: Path) -> None:
+    # Given: valid evidence whose DatasetSpec bytes are altered after publication.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    evidence.dataset_descriptor.manifest_path.write_text("{}", encoding="utf-8")
     trainer = RecordingTrainer()
-    service = TrainingService(trainer)
 
-    # When / Then: the guard rejects before trainer code can execute.
-    with pytest.raises(ModelGovernanceError, match="complete_data_lineage"):
-        service.train(_protocol(complete_data_lineage=False), _experiment(), ())
+    # When / Then: actual artifact verification fails before trainer code executes.
+    with pytest.raises(ModelGovernanceError, match="dataset"):
+        TrainingService(trainer).train(evidence, experiment, folds(), frame)
     assert trainer.calls == 0
 
 
-def test_training_service_calls_trainer_after_governance_approval() -> None:
-    # Given: a valid protocol, immutable experiment, and one time-ordered fold.
+def test_training_service_rejects_tampered_lineage_before_trainer(tmp_path: Path) -> None:
+    # Given: a lineage document whose bytes no longer match its descriptor.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    evidence.lineage_descriptor.path.write_text("{}", encoding="utf-8")
     trainer = RecordingTrainer()
-    service = TrainingService(trainer)
-    fold = WalkForwardFold(
-        fold_index=0,
-        train=(date(2020, 1, 1), date(2020, 12, 31)),
-        validation=(date(2021, 2, 1), date(2021, 6, 30)),
-        test=(date(2021, 8, 1), date(2021, 12, 31)),
-    )
 
-    # When: the sole public training service executes the approved request.
-    result = service.train(_protocol(complete_data_lineage=True), _experiment(), (fold,))
+    # When / Then: field lineage cannot be replaced by caller booleans.
+    with pytest.raises(ModelGovernanceError, match="lineage"):
+        TrainingService(trainer).train(evidence, experiment, folds(), frame)
+    assert trainer.calls == 0
 
-    # Then: one trainer call produces an artifact bound to the approved run.
+
+def test_training_service_creates_draft_record_after_approval(tmp_path: Path) -> None:
+    # Given: verified development artifacts and an internal Ridge adapter.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    trainer = RecordingTrainer()
+
+    # When: the sole training service approves and executes the job.
+    result = TrainingService(trainer).train(evidence, experiment, folds(), frame)
+
+    # Then: one trainer call yields a DRAFT model linked to the approved run.
     assert trainer.calls == 1
-    assert trainer.fold_count == 1
-    assert result.artifact.training_run_id == "run_001"
+    assert result.record.status is ModelStatus.DRAFT
+    assert result.record.training_run_id == experiment.training_run_id
     assert result.approval.approved is True
 
 
-def test_training_service_rejects_trainer_from_another_model_family() -> None:
-    # Given: a Ridge trainer bound to an experiment declared as a LightGBM ranker.
-    trainer = RecordingTrainer()
-    service = TrainingService(trainer)
-    experiment = _experiment().model_copy(update={"model_family": ModelFamily.LIGHTGBM_RANKER})
+def test_training_service_rejects_trainer_family_mismatch(tmp_path: Path) -> None:
+    # Given: a Ridge experiment paired with an adapter declaring LightGBM.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    trainer = WrongFamilyTrainer()
 
-    # When / Then: orchestration rejects the mismatch before trainer code executes.
-    with pytest.raises(TrainingServiceError, match="model family"):
-        service.train(_protocol(complete_data_lineage=True), experiment, ())
+    # When / Then: dispatch stops before governance or trainer execution.
+    with pytest.raises(TrainingServiceError, match="model family mismatch"):
+        TrainingService(trainer).train(evidence, experiment, folds(), frame)
     assert trainer.calls == 0

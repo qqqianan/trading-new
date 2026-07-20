@@ -2,22 +2,29 @@
 
 from dataclasses import dataclass
 
-from ashare_lab.ml.contracts import ModelArtifact, Trainer
-from ashare_lab.research.experiments.manifest import ExperimentManifest
-from ashare_lab.research.model_governance import (
-    ModelTrainingGuard,
-    TrainingApproval,
-    TrainingManifest,
+import polars as pl
+
+from ashare_lab.ml.contracts import ModelArtifact, Trainer, TrainerJob
+from ashare_lab.ml.registry import (
+    DatasetSnapshotId,
+    ModelId,
+    ModelRecord,
+    ModelStatus,
+    TrainingRunId,
 )
+from ashare_lab.research.experiments.manifest import ExperimentManifest
+from ashare_lab.research.model_evidence import DevelopmentTrainingEvidence
+from ashare_lab.research.model_governance import ModelTrainingGuard, TrainingApproval
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
 
 
 @dataclass(frozen=True, slots=True)
 class GovernedTrainingResult:
-    """Artifact and rulebook evidence produced by one approved run."""
+    """DRAFT model artifact and rulebook evidence from one approved run."""
 
     artifact: ModelArtifact
     approval: TrainingApproval
+    record: ModelRecord
 
 
 class TrainingServiceError(Exception):
@@ -40,7 +47,7 @@ class TrainingServiceError(Exception):
 
 
 class TrainingService:
-    """Ensure governance approval occurs before any trainer implementation runs."""
+    """Verify actual artifacts before invoking one internal trainer."""
 
     def __init__(self, trainer: Trainer) -> None:
         """Bind one internal trainer behind the non-bypassable service entrypoint."""
@@ -48,16 +55,31 @@ class TrainingService:
 
     def train(
         self,
-        protocol: TrainingManifest,
+        evidence: DevelopmentTrainingEvidence,
         experiment: ExperimentManifest,
         folds: tuple[WalkForwardFold, ...],
+        frame: pl.DataFrame,
     ) -> GovernedTrainingResult:
-        """Approve the protocol first, then execute the bound trainer exactly once."""
+        """Approve development evidence, execute once, and register DRAFT only."""
         if self._trainer.model_family is not experiment.model_family:
             raise TrainingServiceError(
                 experiment.model_family.value,
                 self._trainer.model_family.value,
             )
-        approval = ModelTrainingGuard().approve(protocol)
-        artifact = self._trainer.train(experiment, folds)
-        return GovernedTrainingResult(artifact=artifact, approval=approval)
+        decision = ModelTrainingGuard().approve_development(evidence, experiment, folds, frame)
+        artifact = self._trainer.train(
+            TrainerJob(
+                experiment=experiment,
+                folds=folds,
+                frame=frame,
+                preprocessors=decision.inputs.preprocessors,
+                artifact_root=evidence.artifact_root,
+            )
+        )
+        record = ModelRecord(
+            model_id=ModelId(artifact.model_id),
+            dataset_snapshot_id=DatasetSnapshotId(artifact.dataset_snapshot_id),
+            training_run_id=TrainingRunId(artifact.training_run_id),
+            status=ModelStatus.DRAFT,
+        )
+        return GovernedTrainingResult(artifact, decision.approval, record)

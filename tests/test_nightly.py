@@ -1,3 +1,4 @@
+import ast
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -15,6 +16,23 @@ from ashare_lab.data.tushare_client import TushareClient, TushareQuery
 
 ROOT = Path(__file__).parents[1]
 SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def test_nightly_runtime_cannot_import_research_or_training_entrypoints() -> None:
+    # Given: the production nightly maintenance module.
+    tree = ast.parse((ROOT / "src/ashare_lab/data/nightly.py").read_text(encoding="utf-8"))
+
+    # When: every absolute import is inspected.
+    imported = tuple(
+        node.module
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module is not None
+    )
+
+    # Then: data freshness cannot trigger research orchestration or model training.
+    assert "ashare_lab.research_cli" not in imported
+    assert "ashare_lab.services.research_workflow" not in imported
+    assert "ashare_lab.services.training" not in imported
 
 
 def test_nightly_execution_orders_daily_and_weekly_stages(
