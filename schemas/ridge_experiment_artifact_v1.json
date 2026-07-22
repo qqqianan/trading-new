@@ -99,6 +99,22 @@
     "random_seed": {"type": "integer"},
     "portfolio_rule_version": {"type": "string", "minLength": 1},
     "cost_rule_version": {"type": "string", "minLength": 1},
+    "model_family": {"enum": ["ridge", "ridge_rank"], "default": "ridge"},
+    "label_transform": {
+      "enum": ["identity", "cross_sectional_percentile_rank"],
+      "default": "identity"
+    },
+    "experiment_protocol_id": {
+      "oneOf": [
+        {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"},
+        {"type": "null"}
+      ],
+      "default": null
+    },
+    "prediction_label_semantics": {
+      "const": "raw_forward_return_for_diagnostics",
+      "default": "raw_forward_return_for_diagnostics"
+    },
     "final_test_runs": {"const": 0},
     "model_status": {"const": "DRAFT"},
     "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"}

@@ -4,10 +4,13 @@ import pytest
 from pydantic import ValidationError
 
 from ashare_lab.ml.contracts import ModelArtifact, TrainerJob
+from ashare_lab.ml.trainers import ridge as ridge_module
 from ashare_lab.ml.trainers.ridge import RidgeTrainer
-from ashare_lab.ml.trainers.ridge_data import RidgeTrainingError
+from ashare_lab.ml.trainers.ridge_data import RidgeTrainingError, prepare_fold
 from ashare_lab.ml.trainers.ridge_models import FoldPredictionBatch
 from ashare_lab.ml.trainers.ridge_store import RidgeArtifactStore, RidgeArtifactStoreError
+from ashare_lab.research.experiments.manifest import ExperimentManifest
+from ashare_lab.research.preprocessing.store import FoldPreprocessorStore
 from ashare_lab.services.training import TrainingService
 
 from .training_support import build_training_evidence, folds, training_frame
@@ -148,3 +151,59 @@ def test_ridge_prediction_batch_rejects_misaligned_value_vectors() -> None:
             predictions=(0.1, 0.2),
             labels=(0.3,),
         )
+
+
+def test_rank_ridge_uses_per_date_rank_target_and_preserves_raw_test_labels(
+    tmp_path: Path,
+) -> None:
+    # Given: a protocol-bound rank Ridge experiment over ordered daily cross-sections.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    payload = experiment.model_dump(mode="json")
+    payload.update(
+        {
+            "model_family": "ridge_rank",
+            "label_transform": "cross_sectional_percentile_rank",
+            "experiment_protocol_id": "model_protocol_" + "f" * 64,
+        }
+    )
+    rank_experiment = ExperimentManifest.model_validate(payload)
+    artifact = FoldPreprocessorStore(tmp_path).read(evidence.preprocessor_descriptors[0])
+    job = TrainerJob(rank_experiment, folds(), frame, (artifact,), tmp_path)
+
+    # When: the first fold is converted to typed model matrices.
+    prepared = prepare_fold(job, folds()[0], artifact)
+
+    # Then: fitting uses [0, 1] cross-sectional ranks while diagnostics retain returns.
+    assert prepared.train_y[:4].tolist() == pytest.approx([0.0, 1 / 3, 2 / 3, 1.0])
+    assert prepared.test_raw_y[:4].tolist() == pytest.approx([-0.85, -0.55, 0.55, 0.85])
+
+
+def test_rank_ridge_publishes_protocol_bound_draft_with_raw_diagnostic_labels(
+    tmp_path: Path,
+) -> None:
+    # Given: governed evidence and a rank-label experiment bound to one protocol.
+    frame = training_frame()
+    evidence, experiment = build_training_evidence(tmp_path, frame)
+    payload = experiment.model_dump(mode="json")
+    payload.update(
+        {
+            "model_family": "ridge_rank",
+            "label_transform": "cross_sectional_percentile_rank",
+            "experiment_protocol_id": "model_protocol_" + "f" * 64,
+        }
+    )
+    rank_experiment = ExperimentManifest.model_validate(payload)
+    trainer = ridge_module.RidgeRankTrainer(tmp_path)
+
+    # When: the only TrainingService authorizes and fits the candidate.
+    result = TrainingService(trainer).train(evidence, rank_experiment, folds(), frame)
+
+    # Then: the artifact declares its frozen objective and keeps raw-return labels for IC.
+    artifact = RidgeArtifactStore(tmp_path).read(result.artifact)
+    predictions = RidgeArtifactStore(tmp_path).read_predictions(result.artifact)
+    assert artifact.model_family.value == "ridge_rank"
+    assert artifact.experiment_protocol_id == "model_protocol_" + "f" * 64
+    assert artifact.label_transform.value == "cross_sectional_percentile_rank"
+    assert artifact.prediction_label_semantics == "raw_forward_return_for_diagnostics"
+    assert predictions.batches[0].labels[:4] == pytest.approx((-0.85, -0.55, 0.55, 0.85))

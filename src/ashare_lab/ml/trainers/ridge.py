@@ -54,17 +54,12 @@ class _TypedRidge(Protocol):
         ...
 
 
-class RidgeTrainer:
-    """Fit only the frozen Ridge grid against development validation folds."""
+class _RidgeTrainerBase:
+    """Shared fitting implementation for protocol-distinct linear objectives."""
 
     def __init__(self, artifact_root: Path) -> None:
         """Bind one immutable model artifact root."""
         self._store = RidgeArtifactStore(artifact_root)
-
-    @property
-    def model_family(self) -> ModelFamily:
-        """Declare the exact family accepted by this adapter."""
-        return ModelFamily.RIDGE
 
     def train(self, job: TrainerJob) -> ModelArtifact:
         """Save baseline, every alpha result, and selected internal-test predictions."""
@@ -133,10 +128,32 @@ class RidgeTrainer:
             random_seed=job.experiment.random_seed,
             portfolio_rule_version=job.experiment.portfolio_rule_version,
             cost_rule_version=job.experiment.cost_rule_version,
+            model_family=job.experiment.model_family,
+            label_transform=job.experiment.label_transform,
+            experiment_protocol_id=job.experiment.experiment_protocol_id,
+            prediction_label_semantics="raw_forward_return_for_diagnostics",
             final_test_runs=0,
             model_status="DRAFT",
         )
         return self._store.write(payload, prediction_artifact)
+
+
+class RidgeTrainer(_RidgeTrainerBase):
+    """Fit return-MSE Ridge against development validation folds."""
+
+    @property
+    def model_family(self) -> ModelFamily:
+        """Declare the exact family accepted by this adapter."""
+        return ModelFamily.RIDGE
+
+
+class RidgeRankTrainer(_RidgeTrainerBase):
+    """Fit protocol-bound Ridge on daily cross-sectional rank labels."""
+
+    @property
+    def model_family(self) -> ModelFamily:
+        """Declare the exact family accepted by this adapter."""
+        return ModelFamily.RIDGE_RANK
 
 
 def _evaluate_candidate(
@@ -187,7 +204,7 @@ def _evaluate_selected(
                 fold_index=fold.fold_index,
                 observation_keys_sha256=fold.test_keys_sha256,
                 predictions=tuple(float(value) for value in test_prediction),
-                labels=tuple(float(value) for value in fold.test_y),
+                labels=tuple(float(value) for value in fold.test_raw_y),
                 decision_times=fold.test_decision_times,
                 symbols=fold.test_symbols,
             )

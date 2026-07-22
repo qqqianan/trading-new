@@ -78,6 +78,8 @@
         "rulebook_version",
         "git_commit",
         "model_family",
+        "label_transform",
+        "experiment_protocol_id",
         "feature_names",
         "size_feature_name",
         "label_name",
@@ -99,7 +101,16 @@
         "lineage_manifest_id": {"type": "string", "pattern": "^lineage_[0-9a-f]+$"},
         "rulebook_version": {"type": "string", "minLength": 1},
         "git_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
-        "model_family": {"const": "ridge"},
+        "model_family": {"enum": ["ridge", "ridge_rank"]},
+        "label_transform": {
+          "enum": ["identity", "cross_sectional_percentile_rank"]
+        },
+        "experiment_protocol_id": {
+          "oneOf": [
+            {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"},
+            {"type": "null"}
+          ]
+        },
         "feature_names": {
           "type": "array",
           "minItems": 1,

@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from ashare_lab.model_protocol_cli import model_preregister
+from ashare_lab.rank_training_cli import train_ridge_rank
 from ashare_lab.research.preflight import (
     PreflightRequest,
     ResearchPreflightError,
@@ -43,6 +44,7 @@ from ashare_lab.services.training_runtime import TrainingRuntimeError, run_defau
 
 app = typer.Typer(no_args_is_help=True, help="Auditable medium-horizon A-share research.")
 app.command("model-preregister")(model_preregister)
+app.command("train-ridge-rank")(train_ridge_rank)
 _CONSOLE = Console()
 
 

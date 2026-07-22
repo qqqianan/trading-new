@@ -1,9 +1,11 @@
 """Immutable Ridge selection, model, and prediction artifact contracts."""
 
 from datetime import datetime
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from ashare_lab.research.experiments.manifest import LabelTransform, ModelFamily
 
 
 class FrozenRidgeModel(BaseModel):
@@ -62,6 +64,9 @@ class RidgePredictionArtifact(FrozenRidgeModel):
     dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
     training_run_id: str = Field(min_length=1)
     batches: tuple[FoldPredictionBatch, ...] = Field(min_length=1)
+    label_semantics: Literal["raw_forward_return_for_diagnostics"] = (
+        "raw_forward_return_for_diagnostics"
+    )
 
 
 class RidgeArtifactPayload(FrozenRidgeModel):
@@ -94,8 +99,34 @@ class RidgeArtifactPayload(FrozenRidgeModel):
     random_seed: int
     portfolio_rule_version: str = Field(min_length=1)
     cost_rule_version: str = Field(min_length=1)
+    model_family: ModelFamily = ModelFamily.RIDGE
+    label_transform: LabelTransform = LabelTransform.IDENTITY
+    experiment_protocol_id: str | None = Field(
+        default=None,
+        pattern=r"^model_protocol_[0-9a-f]{64}$",
+    )
+    prediction_label_semantics: Literal["raw_forward_return_for_diagnostics"] = (
+        "raw_forward_return_for_diagnostics"
+    )
     final_test_runs: int = Field(ge=0, le=0)
     model_status: str = Field(pattern=r"^DRAFT$")
+
+    @model_validator(mode="after")
+    def objective_and_protocol_are_consistent(self) -> Self:
+        """Reject model manifests that relabel return and rank objectives."""
+        if self.model_family is ModelFamily.RIDGE_RANK and (
+            self.label_transform is not LabelTransform.CROSS_SECTIONAL_PERCENTILE_RANK
+            or self.experiment_protocol_id is None
+        ):
+            detail = "rank Ridge artifact requires its protocol and rank label transform"
+            raise ValueError(detail)
+        if self.model_family is ModelFamily.RIDGE and (
+            self.label_transform is not LabelTransform.IDENTITY
+            or self.experiment_protocol_id is not None
+        ):
+            detail = "return Ridge artifact cannot declare rank protocol semantics"
+            raise ValueError(detail)
+        return self
 
 
 class RidgeExperimentArtifact(RidgeArtifactPayload):

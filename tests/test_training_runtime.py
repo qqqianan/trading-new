@@ -29,8 +29,13 @@ from ashare_lab.research.factors.selection import (
     FactorResearchReport,
 )
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
-from ashare_lab.services import training_runtime
+from ashare_lab.services import training_runtime, training_runtime_support
 from ashare_lab.services.training_runtime import run_default_ridge_training
+from ashare_lab.services.training_runtime_support import (
+    TrainingRuntimeError,
+    artifact_sha256,
+    sole_artifact_path,
+)
 
 from .training_support import LABEL, build_training_evidence, folds, training_frame
 
@@ -175,7 +180,7 @@ def test_real_training_runtime_reaches_ridge_only_through_governed_package(
     monkeypatch.setattr(PortfolioBacktestReportStore, "read", read_backtest)
     monkeypatch.setattr(PortfolioTargetStore, "read", read_targets)
     monkeypatch.setattr(training_runtime, "VerifiedArtifactFrameReader", MemoryTrainingReader)
-    monkeypatch.setattr(training_runtime, "load_manifest", manifest)
+    monkeypatch.setattr(training_runtime_support, "load_manifest", manifest)
     monkeypatch.setattr(training_runtime, "load_dataset_development_calendar", calendar)
     monkeypatch.setattr(training_runtime, "build_development_folds", development_folds)
     monkeypatch.setattr(training_runtime, "load_git_evidence", git_evidence)
@@ -187,3 +192,21 @@ def test_real_training_runtime_reaches_ridge_only_through_governed_package(
     assert result.artifact.model_id.startswith("ridge_model_")
     assert result.record.status is ModelStatus.DRAFT
     assert not (project_root / "data" / "governance" / "final_holdout_access").exists()
+
+
+def test_training_runtime_support_rejects_ambiguous_dataset_paths(tmp_path: Path) -> None:
+    # Given: no content-addressed DatasetSpec under the expected root.
+    root = tmp_path / "dataset_spec"
+
+    # When / Then: runtime assembly cannot guess which dataset to train.
+    with pytest.raises(TrainingRuntimeError, match="exactly one DatasetSpec"):
+        sole_artifact_path(root, "ds_*/manifest.json")
+
+
+def test_training_runtime_support_translates_missing_artifact(tmp_path: Path) -> None:
+    # Given: a descriptor path whose artifact bytes do not exist.
+    missing = tmp_path / "missing.json"
+
+    # When / Then: hashing fails through the stable training runtime boundary.
+    with pytest.raises(TrainingRuntimeError, match="artifact cannot be read"):
+        artifact_sha256(missing)

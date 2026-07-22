@@ -13,6 +13,7 @@ from ashare_lab.research.preprocessing import FoldPreprocessor
 from ashare_lab.research.preprocessing.models import FoldPreprocessingArtifact
 from ashare_lab.research.preprocessing.training_identity import training_frame_sha256
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
+from ashare_lab.research.training.targets import TRAINING_TARGET_COLUMN, attach_training_target
 
 _DATETIMES = TypeAdapter(tuple[datetime, ...])
 _SYMBOLS = TypeAdapter(tuple[str, ...])
@@ -44,6 +45,7 @@ class PreparedFold:
     validation_y: NDArray[np.float64]
     test_x: NDArray[np.float64]
     test_y: NDArray[np.float64]
+    test_raw_y: NDArray[np.float64]
     test_keys_sha256: str
     test_decision_times: tuple[datetime, ...]
     test_symbols: tuple[str, ...]
@@ -68,17 +70,30 @@ def prepare_fold(
     validation = _partition(job.frame, fold.validation, job.experiment.label_name)
     test = _partition(job.frame, fold.test, job.experiment.label_name)
     columns = model_feature_names(job.experiment.feature_names)
-    transformed_train = preprocessor.transform(train, artifact)
-    transformed_validation = preprocessor.transform(validation, artifact)
-    transformed_test = preprocessor.transform(test, artifact)
+    transformed_train = attach_training_target(
+        preprocessor.transform(train, artifact),
+        job.experiment.label_name,
+        job.experiment.label_transform,
+    )
+    transformed_validation = attach_training_target(
+        preprocessor.transform(validation, artifact),
+        job.experiment.label_name,
+        job.experiment.label_transform,
+    )
+    transformed_test = attach_training_target(
+        preprocessor.transform(test, artifact),
+        job.experiment.label_name,
+        job.experiment.label_transform,
+    )
     return PreparedFold(
         fold_index=fold.fold_index,
         train_x=_matrix(transformed_train, columns),
-        train_y=_labels(transformed_train, job.experiment.label_name),
+        train_y=_labels(transformed_train, TRAINING_TARGET_COLUMN),
         validation_x=_matrix(transformed_validation, columns),
-        validation_y=_labels(transformed_validation, job.experiment.label_name),
+        validation_y=_labels(transformed_validation, TRAINING_TARGET_COLUMN),
         test_x=_matrix(transformed_test, columns),
-        test_y=_labels(transformed_test, job.experiment.label_name),
+        test_y=_labels(transformed_test, TRAINING_TARGET_COLUMN),
+        test_raw_y=_labels(transformed_test, job.experiment.label_name),
         test_keys_sha256=training_frame_sha256(test.select("decision_time", "symbol")),
         test_decision_times=_DATETIMES.validate_python(test["decision_time"].to_list()),
         test_symbols=_SYMBOLS.validate_python(test["symbol"].to_list()),

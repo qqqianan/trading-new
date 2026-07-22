@@ -11,7 +11,16 @@ class ModelFamily(StrEnum):
     """Closed model families permitted by governed experiments."""
 
     RIDGE = "ridge"
+    RIDGE_RANK = "ridge_rank"
     LIGHTGBM_RANKER = "lightgbm_ranker"
+
+
+@unique
+class LabelTransform(StrEnum):
+    """Closed target semantics permitted by governed experiments."""
+
+    IDENTITY = "identity"
+    CROSS_SECTIONAL_PERCENTILE_RANK = "cross_sectional_percentile_rank"
 
 
 class ExperimentManifest(BaseModel):
@@ -39,20 +48,42 @@ class ExperimentManifest(BaseModel):
     portfolio_backtest_id: str = Field(pattern=r"^portfolio_backtest_[0-9a-f]{64}$")
     portfolio_rule_version: str = Field(min_length=1)
     cost_rule_version: str = Field(min_length=1)
+    label_transform: LabelTransform = LabelTransform.IDENTITY
+    experiment_protocol_id: str | None = Field(
+        default=None,
+        pattern=r"^model_protocol_[0-9a-f]{64}$",
+    )
 
     @model_validator(mode="after")
     def ridge_protocol_is_frozen(self) -> Self:
         """Require the predeclared Ridge grid and exact preprocessing identities."""
         match self.model_family:
             case ModelFamily.RIDGE:
-                if self.ridge_alphas != (0.1, 1.0, 10.0, 100.0):
-                    detail = "Ridge alpha grid must equal the frozen protocol"
+                self._require_ridge_inputs("Ridge")
+                if (
+                    self.label_transform is not LabelTransform.IDENTITY
+                    or self.experiment_protocol_id is not None
+                ):
+                    detail = "return Ridge cannot declare rank protocol semantics"
                     raise ValueError(detail)
-                if not self.preprocessor_artifact_ids:
-                    detail = "Ridge experiments require preprocessor artifact identities"
+            case ModelFamily.RIDGE_RANK:
+                self._require_ridge_inputs("rank Ridge")
+                if (
+                    self.label_transform is not LabelTransform.CROSS_SECTIONAL_PERCENTILE_RANK
+                    or self.experiment_protocol_id is None
+                ):
+                    detail = "rank Ridge requires its frozen protocol and label transform"
                     raise ValueError(detail)
             case ModelFamily.LIGHTGBM_RANKER:
                 if self.ridge_alphas:
                     detail = "non-Ridge experiments cannot declare Ridge alphas"
                     raise ValueError(detail)
         return self
+
+    def _require_ridge_inputs(self, family_name: str) -> None:
+        if self.ridge_alphas != (0.1, 1.0, 10.0, 100.0):
+            detail = f"{family_name} alpha grid must equal the frozen protocol"
+            raise ValueError(detail)
+        if not self.preprocessor_artifact_ids:
+            detail = f"{family_name} experiments require preprocessor artifact identities"
+            raise ValueError(detail)

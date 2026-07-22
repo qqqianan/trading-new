@@ -10,7 +10,11 @@ import polars as pl
 
 from ashare_lab.research.datasets.spec import DatasetSpec
 from ashare_lab.research.datasets.spec_store import DatasetSpecDescriptor
-from ashare_lab.research.experiments.manifest import ExperimentManifest, ModelFamily
+from ashare_lab.research.experiments.manifest import (
+    ExperimentManifest,
+    LabelTransform,
+    ModelFamily,
+)
 from ashare_lab.research.model_evidence import (
     DevelopmentTrainingEvidence,
     ModelPurpose,
@@ -56,6 +60,9 @@ class TrainingPackageRequest:
     portfolio_backtest_id: str
     portfolio_rule_version: str
     cost_rule_version: str
+    model_family: ModelFamily = ModelFamily.RIDGE
+    label_transform: LabelTransform = LabelTransform.IDENTITY
+    experiment_protocol_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,7 +139,7 @@ def build_training_package(
         lineage_manifest_id=request.dataset_spec.lineage_manifest_id,
         rulebook_version=request.dataset_spec.rulebook_version,
         git_commit=request.git_commit,
-        model_family=ModelFamily.RIDGE,
+        model_family=request.model_family,
         feature_names=request.feature_names,
         size_feature_name=request.size_feature_name,
         label_name=request.label_name,
@@ -146,6 +153,8 @@ def build_training_package(
         portfolio_backtest_id=request.portfolio_backtest_id,
         portfolio_rule_version=request.portfolio_rule_version,
         cost_rule_version=request.cost_rule_version,
+        label_transform=request.label_transform,
+        experiment_protocol_id=request.experiment_protocol_id,
     )
     holdout = FinalHoldoutSpec(
         dataset_snapshot_id=request.dataset_spec.snapshot_id,
@@ -203,11 +212,21 @@ def _training_run_id(
         "features": request.feature_names,
         "factor_report": request.factor_report_id,
         "git_commit": request.git_commit,
+        "label_transform": request.label_transform.value,
         "lineage_sha256": lineage_sha,
+        "model_family": request.model_family.value,
         "preprocessors": tuple(item.artifact_id for item in descriptors),
         "portfolio_backtest": request.portfolio_backtest_id,
+        "protocol": request.experiment_protocol_id,
         "schema_sha256": schema_sha,
         "trial_batch": request.trial_batch_id,
     }
     content = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode()
-    return f"ridge_run_{hashlib.sha256(content).hexdigest()}"
+    match request.model_family:
+        case ModelFamily.RIDGE:
+            prefix = "ridge_run"
+        case ModelFamily.RIDGE_RANK:
+            prefix = "ridge_rank_run"
+        case ModelFamily.LIGHTGBM_RANKER:
+            prefix = "lightgbm_ranker_run"
+    return f"{prefix}_{hashlib.sha256(content).hexdigest()}"

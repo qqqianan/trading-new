@@ -508,6 +508,12 @@ DatasetSpec、schema/lineage、代码提交、带时区登记时间、候选模�
 同一 ID 只允许逐字节相同内容重读，身份或路径跨界均 fail closed。协议本身不包含训练结果、预测、
 标签读取或 holdout 访问，状态只能从 `PREREGISTERED_NOT_IMPLEMENTED` 由后续独立审批流程推进。
 
+`ridge_rank` 训练不新增或覆盖物理 label 列。训练包仍以原始未来收益字段及其 Raw/label artifact lineage
+通过 `ModelTrainingGuard`；随后由版本化 `cross_sectional_percentile_rank` 在每个 `decision_time` 内生成
+临时 fitting target。模型 manifest 固定 protocol ID、变换名和预测标签语义。prediction artifact 保存
+精确 `(decision_time, symbol)`、模型分数和原始未来收益；rank target 不写入 prediction artifact，防止
+后续 Rank IC、组合诊断或收益报告混淆目标尺度。
+
 固定合成 QA 的实验 manifest 见 `.omo/evidence/task-12-experiment-manifest.json`。它的
 `data_classification=SYNTHETIC_SOFTWARE_QA_ONLY`、`final_test_runs=0`、`model_status=DRAFT`，仅证明
 validation-only alpha 选择、等权基线保存、哈希验证和门禁调用顺序；不构成真实模型、因子、回测或

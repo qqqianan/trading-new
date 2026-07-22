@@ -56,6 +56,7 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - `ml/`：训练器协议、模型产物和模型注册。
 - `ml/trainers/`：具体模型适配器；Ridge 与未来 LightGBM 平行实现，不得包含数据清洗、组合、风控或成交逻辑。
 - `research/preprocessing/`：所有模型共用的训练折内预处理，具体 trainer 不得复制。
+- `research/training/targets.py`：训练目标变换的唯一实现；rank 模型不得在 trainer 内复制或修改标签语义。
 - `research/training/`：真实训练帧、完整字段 schema、字段级 lineage 和训练证据装配，不得拟合模型。
 - `portfolio/`：预测分数到目标权重，不能创建成交。
 - `backtest/`：A 股成交、费用、持仓与风险执行的唯一事实来源。
@@ -167,6 +168,9 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - 组合层只能接收 `decision_time`、`symbol` 和模型分数，不得携带 label；重复键、跨 fold 重叠键或
   键哈希不一致必须 fail closed。
 - 模型输出只能进入组合构建器，不能直接创建订单。
+- `ridge_rank` 只能读取已验证的 `model_protocol_*`；其拟合目标按每个 `decision_time` 独立计算
+  `[0,1]` 横截面平均秩（并列取平均秩，单样本固定 `0.5`）。预测 artifact 必须继续保存原始未来收益
+  label 供 Rank IC 诊断，禁止把训练 rank 值伪装成收益。
 - 没有覆盖全部训练字段的结构文档，或无法从训练列追溯到 Raw 快照时，训练必须停止。
 
 ## 9. 风控不可绕过

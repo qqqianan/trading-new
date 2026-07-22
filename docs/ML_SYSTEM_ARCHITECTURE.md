@@ -270,6 +270,17 @@ Ridge 事后诊断入口为
 成本/风控版本和 final holdout 单次人工授权；CLI 与 Pydantic 边界都拒绝无时区登记时间。预注册命令不
 训练、不拟合、不读取 holdout，产物固定为 `PREREGISTERED_NOT_IMPLEMENTED`。
 
+协议实现入口为 `ashare-research train-ridge-rank --protocol-id <model_protocol_id>`。运行时在读取训练帧
+前验证 protocol、父 Ridge、父诊断和父因子基线回测，并在装配训练包后再次核对 DatasetSpec schema、
+lineage、特征顺序、label、成本与风控版本。`research/training/targets.py` 按决策日生成 `[0,1]` 平均秩；
+预处理仍只在训练折拟合。`RidgeRankTrainer` 与 `RidgeTrainer` 共享线性拟合实现，但以不同
+`ModelFamily` 经唯一 `TrainingService -> ModelTrainingGuard` 分发，不能互换。
+
+rank 模型的 validation/internal-test MSE 使用 rank target；预测 artifact 的 `labels` 始终保留原始未来
+收益，并显式记录 `raw_forward_return_for_diagnostics`。模型 manifest 绑定 `model_protocol_*`、
+`label_transform=cross_sectional_percentile_rank` 和协议指定的组合规则版本，状态仍为 `DRAFT`，final
+holdout 计数仍为零。
+
 真实回测入口为
 `ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一
 DatasetSpec，股票五链和中证 500 基准查询都受 DatasetSpec schema 与 Raw snapshot 白名单约束；目标

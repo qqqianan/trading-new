@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from ashare_lab.research.datasets.spec_store import DatasetSpecStore
+from ashare_lab.research.experiments.manifest import LabelTransform, ModelFamily
 from ashare_lab.research.model_evidence import TrainingLineageDocument, TrainingSchemaDocument
 from ashare_lab.research.training.package import (
     TrainingColumnSource,
@@ -109,3 +110,24 @@ def test_training_package_rejects_label_different_from_dataset(tmp_path: Path) -
     # When / Then: training stops before any fold-local fitting.
     with pytest.raises(TrainingPackageError, match="label differs"):
         build_training_package(request, folds(), training_frame())
+
+
+def test_training_package_binds_rank_experiment_to_preregistered_protocol(
+    tmp_path: Path,
+) -> None:
+    # Given: the existing governed data package plus one frozen rank-model protocol.
+    protocol_id = "model_protocol_" + "f" * 64
+    request = replace(
+        _request(tmp_path),
+        model_family=ModelFamily.RIDGE_RANK,
+        label_transform=LabelTransform.CROSS_SECTIONAL_PERCENTILE_RANK,
+        experiment_protocol_id=protocol_id,
+    )
+
+    # When: the development training package is assembled.
+    package = build_training_package(request, folds(), training_frame())
+
+    # Then: its run and manifest cannot collide with return-MSE Ridge.
+    assert package.experiment.training_run_id.startswith("ridge_rank_run_")
+    assert package.experiment.experiment_protocol_id == protocol_id
+    assert package.experiment.model_family is ModelFamily.RIDGE_RANK

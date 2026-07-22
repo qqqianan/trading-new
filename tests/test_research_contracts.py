@@ -111,3 +111,39 @@ def test_experiment_manifest_rejects_model_family_protocol_mismatch(
     # When / Then: the immutable experiment boundary rejects the invalid grid.
     with pytest.raises(ValidationError, match=expected):
         ExperimentManifest.model_validate(payload)
+
+
+def test_experiment_manifest_accepts_only_protocol_bound_rank_ridge(tmp_path: Path) -> None:
+    # Given: a Ridge experiment explicitly bound to the preregistered rank objective.
+    _, experiment = build_training_evidence(tmp_path, training_frame())
+    payload = experiment.model_dump(mode="json")
+    payload.update(
+        {
+            "model_family": "ridge_rank",
+            "label_transform": "cross_sectional_percentile_rank",
+            "experiment_protocol_id": "model_protocol_" + "f" * 64,
+        }
+    )
+
+    # When: the immutable experiment boundary parses the candidate.
+    rank_experiment = ExperimentManifest.model_validate(payload)
+
+    # Then: the model family cannot lose its frozen protocol or target semantics.
+    assert rank_experiment.model_family.value == "ridge_rank"
+    assert rank_experiment.experiment_protocol_id == "model_protocol_" + "f" * 64
+
+
+def test_experiment_manifest_rejects_unregistered_rank_ridge(tmp_path: Path) -> None:
+    # Given: a rank-label model declaration without its preregistered protocol ID.
+    _, experiment = build_training_evidence(tmp_path, training_frame())
+    payload = experiment.model_dump(mode="json")
+    payload.update(
+        {
+            "model_family": "ridge_rank",
+            "label_transform": "cross_sectional_percentile_rank",
+        }
+    )
+
+    # When / Then: direct callers cannot use the trainer without preregistration.
+    with pytest.raises(ValidationError, match="requires its frozen protocol"):
+        ExperimentManifest.model_validate(payload)
