@@ -175,6 +175,31 @@ def test_factor_diagnostics_have_one_registered_service_entrypoint() -> None:
     assert violations == []
 
 
+def test_model_promotion_evaluation_has_one_service_entrypoint() -> None:
+    # Given: the pure promotion evaluator and its sole approved composition root.
+    allowed = SOURCE_ROOT / "services" / "model_promotion_runtime.py"
+    protected_module = "ashare_lab.research.experiments.promotion"
+    violations: list[str] = []
+
+    # When: production imports of the evaluator are inspected.
+    for path in SOURCE_ROOT.rglob("*.py"):
+        if path in {allowed, SOURCE_ROOT / "research" / "experiments" / "promotion.py"}:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        violations.extend(
+            f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}"
+            for node in ast.walk(tree)
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module == protected_module
+                and any(alias.name == "evaluate_model_promotion" for alias in node.names)
+            )
+        )
+
+    # Then: generated code cannot calculate or relabel gates outside the verified chain.
+    assert violations == []
+
+
 def test_portfolio_layer_cannot_import_execution_capabilities() -> None:
     # Given: portfolio construction modules and execution-owning boundaries.
     forbidden_modules = {

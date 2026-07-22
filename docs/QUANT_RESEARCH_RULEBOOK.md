@@ -169,6 +169,8 @@
   诊断不得读取变换后的 rank 充当收益。
 - 中期选股开发期固定截止 `2024-12-31`，`2025-01-01` 起属于独立 final holdout。
 - final holdout 只能由绑定冻结协议的强类型授权打开；首次访问必须先原子追加账本，第二次 fail closed。
+- final holdout 人工授权前必须存在内容寻址的 `model_promotion_*`，其 protocol、模型、diagnostic 与
+  DatasetSpec lineage 完全一致，七项预注册开发期门槛全部为 PASS；裁决本身不得授权或读取 holdout。
 - 中期协议固定初始训练 504、验证 126、滚动 63 个交易日，标签 purge 20、embargo 5。
 - 折内预处理顺序固定为训练折 1%/99% winsor、逐决策日横截面中位数填充并保留缺失指示、
   横截面 z-score、使用训练折系数对 `log(total_mv)` 中性化。`log_total_mv` 自身只标准化，不对自身回归。
@@ -188,6 +190,8 @@
 - **FORBIDDEN**：无法复现数据快照和特征生成过程的模型进入模拟或实盘。
 - **FORBIDDEN**：演示/合成行情训练可用于投资决策的模型。
 - **FORBIDDEN**：通过 `allow_final_test`、直接读取路径或删除访问账本重复打开 final holdout。
+- **FORBIDDEN**：缺少 promotion evaluation、裁决为 `BLOCKED`、任一 gate 失败或行业 PIT 不完整时，
+  申请、构造或执行 final holdout 授权。
 - **FORBIDDEN**：以 post-hoc 诊断为由修改当前实验，或不先冻结新的 `model_protocol_*` 就实现、训练或
   评估由诊断引出的候选模型。
 - **FORBIDDEN**：对全部日期一起计算 label rank，或覆盖原始 label 后导致诊断无法还原真实收益语义。

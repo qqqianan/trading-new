@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Model Promotion Evaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_id",
+    "model_id",
+    "diagnostic_report_id",
+    "dataset_snapshot_id",
+    "checks",
+    "decision",
+    "final_holdout_authorized",
+    "model_status",
+    "final_test_runs"
+  ],
+  "properties": {
+    "protocol_id": {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"},
+    "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+    "diagnostic_report_id": {"type": "string", "pattern": "^model_diagnostic_[0-9a-f]{64}$"},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "checks": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {"$ref": "#/$defs/PromotionGateResult"}
+    },
+    "decision": {
+      "enum": ["BLOCKED", "ELIGIBLE_FOR_MANUAL_AUTHORIZATION"]
+    },
+    "final_holdout_authorized": {"const": false},
+    "model_status": {"const": "DRAFT"},
+    "final_test_runs": {"const": 0}
+  },
+  "$defs": {
+    "PromotionGateResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "passed", "observed", "requirement"],
+      "properties": {
+        "gate": {
+          "enum": [
+            "mean_rank_ic",
+            "minimum_fold_rank_ic",
+            "direction_consistency",
+            "total_return_outperformance",
+            "sharpe_outperformance",
+            "no_risk_halt",
+            "complete_industry_pit"
+          ]
+        },
+        "passed": {"type": "boolean"},
+        "observed": {"type": "string", "minLength": 1},
+        "requirement": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

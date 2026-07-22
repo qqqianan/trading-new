@@ -145,6 +145,10 @@ api -> services -> research / ml / portfolio / backtest -> domain
 
 模型训练必须通过 `ModelTrainingGuard`。最终测试集最多运行一次。模型默认状态为 `DRAFT`，获得 `TrainingApproval` 后才可晋级为 `VALIDATED`。
 
+final holdout 授权前必须读取已持久化且内容寻址的 `model_promotion_*`。七项预注册开发期门槛必须全部
+通过；`BLOCKED`、缺失裁决或 PIT 行业不完整均不可由人工确认、配置开关或新入口绕过。promotion
+evaluation 本身始终保持 `DRAFT`、`final_test_runs=0` 和 `final_holdout_authorized=false`。
+
 ## 8. 研究产物和版本
 
 - 数据集由 `DatasetSpec.snapshot_id` 内容寻址。

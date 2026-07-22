@@ -514,6 +514,12 @@ DatasetSpec、schema/lineage、代码提交、带时区登记时间、候选模�
 精确 `(decision_time, symbol)`、模型分数和原始未来收益；rank target 不写入 prediction artifact，防止
 后续 Rank IC、组合诊断或收益报告混淆目标尺度。
 
+`model_promotion_evaluation_v1` 固定
+`model_protocol -> ridge_rank model -> keyed prediction SHA-256 -> model diagnostic -> seven frozen gates`。
+每项 gate 保存稳定名称、实际观测、协议要求和布尔结果；总裁决只能由完整有序 gate 集推导，不能由
+CLI 或人工传入。artifact 始终保存 `model_status=DRAFT`、`final_test_runs=0` 和
+`final_holdout_authorized=false`；全部通过只产生后续人工授权资格，不产生 holdout 访问记录。
+
 固定合成 QA 的实验 manifest 见 `.omo/evidence/task-12-experiment-manifest.json`。它的
 `data_classification=SYNTHETIC_SOFTWARE_QA_ONLY`、`final_test_runs=0`、`model_status=DRAFT`，仅证明
 validation-only alpha 选择、等权基线保存、哈希验证和门禁调用顺序；不构成真实模型、因子、回测或

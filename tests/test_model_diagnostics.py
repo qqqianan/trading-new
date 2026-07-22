@@ -143,6 +143,11 @@ def _input() -> ModelDiagnosticInput:
     )
 
 
+def model_diagnostic_input_fixture() -> ModelDiagnosticInput:
+    """Expose one complete typed diagnostic chain to adjacent test modules."""
+    return _input()
+
+
 def test_model_diagnostic_discloses_rank_stability_and_like_for_like_portfolio() -> None:
     # Given: keyed predictions, every fold coefficient, and governed baseline/model ledgers.
     request = _input()

@@ -108,7 +108,7 @@ class ModelDiagnosticReport(FrozenDiagnosticModel):
     yearly_segments: tuple[RankIcSegment, ...] = Field(min_length=1)
     coefficient_stability: tuple[CoefficientStability, ...] = Field(min_length=1)
     portfolio: BacktestComparison
-    industry_neutralization: Literal["UNAVAILABLE"]
+    industry_neutralization: Literal["AVAILABLE", "UNAVAILABLE"]
     diagnostic_scope: Literal["POST_HOC_DEVELOPMENT_ONLY"]
     tuning_permitted: Literal[False]
     model_status: Literal["DRAFT"]

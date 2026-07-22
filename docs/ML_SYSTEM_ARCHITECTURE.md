@@ -283,6 +283,14 @@ rank 模型的 validation/internal-test MSE 使用 rank target；预测 artifact
 fold loss，但 Rank IC 始终使用 artifact 中物理保留的原始未来收益。状态仍为 `DRAFT`，final holdout
 计数仍为零。
 
+开发期晋级裁决入口为
+`ashare-research model-evaluate --protocol-id <id> --model-id <id> --diagnostic-report-id <id>`。
+composition root 逐项核对 protocol、rank 模型、预测哈希、因子报告和 diagnostic lineage，再按预注册
+阈值同时评估 Rank IC、最差 fold、方向一致率、收益/Sharpe 基线超额、风险熔断和 PIT 行业完整性。
+结果以 `model_promotion_*` 内容寻址并保留每项 observed/requirement/PASS/FAIL；任一失败时总状态只能为
+`BLOCKED`。全部通过也只表示 `ELIGIBLE_FOR_MANUAL_AUTHORIZATION`，不能自行打开 final holdout。
+机器契约见 `schemas/model_promotion_evaluation_v1.json`。
+
 真实回测入口为
 `ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一
 DatasetSpec，股票五链和中证 500 基准查询都受 DatasetSpec schema 与 Raw snapshot 白名单约束；目标

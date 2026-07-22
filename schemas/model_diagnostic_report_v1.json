@@ -45,7 +45,7 @@
       "items": {"$ref": "#/$defs/CoefficientStability"}
     },
     "portfolio": {"$ref": "#/$defs/BacktestComparison"},
-    "industry_neutralization": {"const": "UNAVAILABLE"},
+    "industry_neutralization": {"enum": ["AVAILABLE", "UNAVAILABLE"]},
     "diagnostic_scope": {"const": "POST_HOC_DEVELOPMENT_ONLY"},
     "tuning_permitted": {"const": false},
     "model_status": {"const": "DRAFT"},
