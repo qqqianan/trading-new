@@ -107,7 +107,6 @@ def _run_default_model_promotion_evaluation(
         or diagnostic.model_id != model.model_id
         or diagnostic.dataset_snapshot_id != protocol.dataset_snapshot_id
         or model.dataset_snapshot_id != protocol.dataset_snapshot_id
-        or model.schema_manifest_id != protocol.schema_manifest_id
         or model.lineage_manifest_id != protocol.lineage_manifest_id
         or model.training_feature_names != protocol.feature_names
         or model.prediction_artifact_sha256 != diagnostic.prediction_artifact_sha256

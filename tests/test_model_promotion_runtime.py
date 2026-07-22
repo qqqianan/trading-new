@@ -29,7 +29,8 @@ def test_model_promotion_runtime_verifies_exact_chain_before_publication(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Given: one exact protocol -> rank model -> development diagnostic chain.
+    # Given: one exact protocol -> rank model -> development diagnostic chain where
+    # DatasetSpec input schema and materialized training schema remain distinct.
     artifact_root = tmp_path / "data" / "artifacts"
     protocol = create_rank_aligned_protocol(protocol_request())
     diagnostic = passing_diagnostic()
@@ -37,7 +38,7 @@ def test_model_promotion_runtime_verifies_exact_chain_before_publication(
         model_id=diagnostic.model_id,
         training_run_id="ridge_run_test",
         dataset_snapshot_id=diagnostic.dataset_snapshot_id,
-        schema_manifest_id=protocol.schema_manifest_id,
+        schema_manifest_id="schema_" + "9" * 64,
         lineage_manifest_id=protocol.lineage_manifest_id,
         prediction_artifact_sha256=diagnostic.prediction_artifact_sha256,
         factor_report_id=diagnostic.factor_report_id,
