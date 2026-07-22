@@ -23,6 +23,7 @@
 - `portfolio_backtest_report_v1.json`：绑定目标、DatasetSpec、股票/基准 schema 与实际 Raw 快照的组合账户报告；包含冻结成本/风险假设、数据质量、订单、成交、净值、基准、分段指标和 final holdout 封存计数。
 - `model_training_input_v1.json`：训练前必须验证的 DatasetSpec、字段 schema/lineage、fold 预处理、开发帧哈希、封存账本与实验协议引用。
 - `ridge_experiment_artifact_v1.json`：固定 alpha 全候选结果、等权基线、内部 test、系数、预测血缘、模型哈希和 DRAFT 状态。
+- `model_experiment_protocol_v1.json`：由 post-hoc 诊断引出的新实验预注册；冻结父证据、数据/字段血缘、假设、晋级门槛与单次 final holdout 条件，不含训练或评估结果。
 - `research_audit_report_v1.json`：一键研究阶段、冻结身份、全部因子/试验、成本风控、最差区间、失败、模型与 final holdout 状态。
 
 每份契约固定列顺序、Polars 物理类型、空值语义、单位、时间角色和允许用途。研究产物写入

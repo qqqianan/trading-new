@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Model Experiment Protocol v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dataset_snapshot_id", "schema_manifest_id", "lineage_manifest_id", "parent_model_id",
+    "parent_diagnostic_report_id", "registered_at", "registered_by", "code_commit",
+    "rulebook_version", "experiment_name", "hypothesis", "candidate_model_family",
+    "training_objective", "feature_names", "label_name", "label_transform", "split_protocol",
+    "preprocessing_version", "portfolio_rule_version", "cost_rule_version", "risk_rule_version",
+    "evidence_classification", "development_end", "promotion_gates", "final_holdout", "status",
+    "protocol_id"
+  ],
+  "properties": {
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "schema_manifest_id": {"type": "string", "pattern": "^schema_[0-9a-f]{64}$"},
+    "lineage_manifest_id": {"type": "string", "pattern": "^lineage_[0-9a-f]{64}$"},
+    "parent_model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+    "parent_diagnostic_report_id": {"type": "string", "pattern": "^model_diagnostic_[0-9a-f]{64}$"},
+    "registered_at": {"type": "string", "format": "date-time"},
+    "registered_by": {"type": "string", "minLength": 1},
+    "code_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "rulebook_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "experiment_name": {"const": "ridge_rank_alignment_v1"},
+    "hypothesis": {"type": "string", "minLength": 20},
+    "candidate_model_family": {"const": "ridge_rank"},
+    "training_objective": {"const": "ridge_mse_on_cross_sectional_rank_label"},
+    "feature_names": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "label_name": {"type": "string", "minLength": 1},
+    "label_transform": {"const": "cross_sectional_percentile_rank"},
+    "split_protocol": {"const": "purged_walk_forward_medium_horizon_v1"},
+    "preprocessing_version": {"const": "1.0.0"},
+    "portfolio_rule_version": {"const": "2.0.0"},
+    "cost_rule_version": {"type": "string", "minLength": 1},
+    "risk_rule_version": {"type": "string", "minLength": 1},
+    "evidence_classification": {"const": "POST_HOC_DERIVED_NEW_EXPERIMENT"},
+    "development_end": {"type": "string", "format": "date"},
+    "promotion_gates": {"$ref": "#/$defs/DevelopmentPromotionGates"},
+    "final_holdout": {"$ref": "#/$defs/FinalHoldoutPolicy"},
+    "status": {"const": "PREREGISTERED_NOT_IMPLEMENTED"},
+    "protocol_id": {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "DevelopmentPromotionGates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_mean_rank_ic", "minimum_fold_rank_ic", "minimum_direction_consistency",
+        "require_baseline_total_return_outperformance", "require_baseline_sharpe_outperformance",
+        "forbid_risk_halt", "require_complete_industry_pit"
+      ],
+      "properties": {
+        "minimum_mean_rank_ic": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_fold_rank_ic": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_direction_consistency": {"type": "number", "minimum": 0, "maximum": 1},
+        "require_baseline_total_return_outperformance": {"const": true},
+        "require_baseline_sharpe_outperformance": {"const": true},
+        "forbid_risk_halt": {"const": true},
+        "require_complete_industry_pit": {"const": true}
+      }
+    },
+    "FinalHoldoutPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holdout_spec_id", "holdout_start", "maximum_accesses",
+        "requires_all_development_gates", "requires_manual_authorization"
+      ],
+      "properties": {
+        "holdout_spec_id": {"type": "string", "pattern": "^holdout_spec_[0-9a-f]{64}$"},
+        "holdout_start": {"type": "string", "format": "date"},
+        "maximum_accesses": {"const": 1},
+        "requires_all_development_gates": {"const": true},
+        "requires_manual_authorization": {"const": true}
+      }
+    }
+  }
+}

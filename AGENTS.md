@@ -158,6 +158,10 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - 每个模型通过 `ModelRecord` 关联数据集与训练运行。
 - 模型诊断只能读取已持久化的 keyed development predictions、逐 fold 模型证据及完整风控回测；
   禁止在诊断代码中重新拟合模型、访问 final holdout 或产生训练审批。
+- 任何由 post-hoc 诊断引出的新模型、标签、特征、阈值或组合假设，必须先写入内容寻址且追加式的
+  `model_protocol_*`；协议固定父诊断、数据/字段 schema 与 lineage、带时区登记时间、开发期晋级门槛和
+  单次人工授权的 final holdout 条件。协议状态为 `PREREGISTERED_NOT_IMPLEMENTED` 时，禁止训练或访问
+  final holdout。
 - 模型预测进入组合层前必须持久化并逐批验证精确的 `(decision_time, symbol)` 有序键；仅保存键哈希的
   旧预测只允许审计，禁止从其他 artifact 或当前数据顺序猜测、回填或重建预测键。
 - 组合层只能接收 `decision_time`、`symbol` 和模型分数，不得携带 label；重复键、跨 fold 重叠键或

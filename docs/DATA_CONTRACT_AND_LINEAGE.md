@@ -502,6 +502,12 @@ SHA-256；预测批次同时保存精确的 `(decision_time, symbol)` 有序键�
 intersection 后静默丢期；两套回测必须固定相同 DatasetSpec、factor report、成本和风险版本。报告是
 post-hoc development evidence，只能解释既有结果，不能授权调参、模型晋级或 final holdout 访问。
 
+`model_experiment_protocol_v1` 是诊断引出新实验的先验冻结契约。它内容寻址父诊断、父模型、
+DatasetSpec、schema/lineage、代码提交、带时区登记时间、候选模型与标签变换、特征顺序、split 与
+预处理版本、组合/成本/风控版本、开发期晋级门槛和 final holdout 单次人工授权条件。协议 append-only；
+同一 ID 只允许逐字节相同内容重读，身份或路径跨界均 fail closed。协议本身不包含训练结果、预测、
+标签读取或 holdout 访问，状态只能从 `PREREGISTERED_NOT_IMPLEMENTED` 由后续独立审批流程推进。
+
 固定合成 QA 的实验 manifest 见 `.omo/evidence/task-12-experiment-manifest.json`。它的
 `data_classification=SYNTHETIC_SOFTWARE_QA_ONLY`、`final_test_runs=0`、`model_status=DRAFT`，仅证明
 validation-only alpha 选择、等权基线保存、哈希验证和门禁调用顺序；不构成真实模型、因子、回测或

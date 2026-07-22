@@ -160,6 +160,9 @@
 - 多资产标签有重叠时采用 purged walk-forward，并在边界设置 embargo。
 - 标准化、降维、特征选择、缺失值处理全部只在训练折拟合。
 - 每次训练记录数据快照、代码提交、随机种子、特征清单和参数。
+- 任何从 post-hoc 诊断产生的新假设必须先预注册为内容寻址、追加式 `model_protocol_*`：固定父诊断、
+  数据集、schema、lineage、带时区登记时间、候选模型/标签变换、特征、预处理、组合、成本、风控、开发期
+  晋级门槛与 final holdout 条件。`PREREGISTERED_NOT_IMPLEMENTED` 协议只登记，不得训练或访问 holdout。
 - 中期选股开发期固定截止 `2024-12-31`，`2025-01-01` 起属于独立 final holdout。
 - final holdout 只能由绑定冻结协议的强类型授权打开；首次访问必须先原子追加账本，第二次 fail closed。
 - 中期协议固定初始训练 504、验证 126、滚动 63 个交易日，标签 purge 20、embargo 5。
@@ -181,6 +184,8 @@
 - **FORBIDDEN**：无法复现数据快照和特征生成过程的模型进入模拟或实盘。
 - **FORBIDDEN**：演示/合成行情训练可用于投资决策的模型。
 - **FORBIDDEN**：通过 `allow_final_test`、直接读取路径或删除访问账本重复打开 final holdout。
+- **FORBIDDEN**：以 post-hoc 诊断为由修改当前实验，或不先冻结新的 `model_protocol_*` 就实现、训练或
+  评估由诊断引出的候选模型。
 - **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
 - **FORBIDDEN**：计算结果后补登记 trial、隐藏失败试验，或把额外噪声试验排除在 FDR 分母之外。
 - **FORBIDDEN**：看过标签后修改因子方向、family 或简洁度优先级并沿用原 trial ID。

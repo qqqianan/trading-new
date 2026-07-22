@@ -264,6 +264,12 @@ Ridge 事后诊断入口为
 新实验，原 internal-test 区间不能再次声称为未见数据。行业 PIT 不可用时仍固定为 `UNAVAILABLE`，
 不能用当前行业快照补齐。
 
+由该报告引出的新实验必须先经 `ashare-research model-preregister`。该 composition root 在干净 Git
+工作树下重新验证 `model_diagnostic -> ridge model -> DatasetSpec -> model backtest` 身份链，然后将
+`model_protocol_*` 追加写入 artifacts。协议固定 rank-label Ridge 假设、训练目标、特征、开发期门槛、
+成本/风控版本和 final holdout 单次人工授权；CLI 与 Pydantic 边界都拒绝无时区登记时间。预注册命令不
+训练、不拟合、不读取 holdout，产物固定为 `PREREGISTERED_NOT_IMPLEMENTED`。
+
 真实回测入口为
 `ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一
 DatasetSpec，股票五链和中证 500 基准查询都受 DatasetSpec schema 与 Raw snapshot 白名单约束；目标
