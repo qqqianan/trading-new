@@ -13,6 +13,7 @@ from ashare_lab.portfolio.research_models import (
     PortfolioTargetPositionRow,
     PortfolioTargetRecord,
 )
+from ashare_lab.research.experiments.manifest import LabelTransform, ModelFamily
 from ashare_lab.research.model_diagnostics.calculations import (
     ModelDiagnosticError,
     ModelDiagnosticInput,
@@ -157,6 +158,30 @@ def test_model_diagnostic_discloses_rank_stability_and_like_for_like_portfolio()
     assert report.diagnostic_scope == "POST_HOC_DEVELOPMENT_ONLY"
     assert report.tuning_permitted is False
     assert report.final_test_runs == 0
+
+
+def test_model_diagnostic_verifies_rank_loss_while_retaining_raw_return_labels() -> None:
+    # Given: a rank Ridge whose fold loss uses rank targets but predictions retain raw returns.
+    request = _input()
+    rank_loss = sum((float(symbol) - (symbol - 1) / 5) ** 2 for symbol in range(1, 7)) / 6
+    rank_folds = tuple(
+        item.model_copy(update={"internal_test_mse": rank_loss})
+        for item in request.model.fold_results
+    )
+    rank_model = request.model.model_copy(
+        update={
+            "model_family": ModelFamily.RIDGE_RANK,
+            "label_transform": LabelTransform.CROSS_SECTIONAL_PERCENTILE_RANK,
+            "experiment_protocol_id": "model_protocol_" + "f" * 64,
+            "fold_results": rank_folds,
+        }
+    )
+
+    # When: diagnostics verify the immutable rank model and raw-return prediction artifact.
+    report = diagnose_ridge_model(replace(request, model=rank_model))
+
+    # Then: objective loss integrity is checked without discarding raw-return Rank IC labels.
+    assert report.overall_rank_ic.mean_rank_ic == 1.0
 
 
 def test_model_diagnostic_rejects_final_holdout_rows() -> None:

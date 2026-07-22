@@ -20,6 +20,7 @@ from ashare_lab.research.model_diagnostics.portfolio import (
     PortfolioComparisonInput,
     portfolio_comparison,
 )
+from ashare_lab.research.training.targets import TRAINING_TARGET_COLUMN, attach_training_target
 
 _MINIMUM_PAIRS: Final = 5
 _DATE = TypeAdapter(date)
@@ -179,9 +180,12 @@ def _segment(name: str, daily: pl.DataFrame) -> RankIcSegment:
 
 
 def _verify_fold_mse(model: RidgeExperimentArtifact, frame: pl.DataFrame) -> None:
+    evaluation = attach_training_target(frame, "label_value", model.label_transform)
     for fold in model.fold_results:
-        rows = frame.filter(pl.col("fold_index") == fold.fold_index)
-        mse = _FLOAT.validate_python(((rows["label_value"] - rows["model_score"]) ** 2).mean())
+        rows = evaluation.filter(pl.col("fold_index") == fold.fold_index)
+        mse = _FLOAT.validate_python(
+            ((rows[TRAINING_TARGET_COLUMN] - rows["model_score"]) ** 2).mean()
+        )
         if not np.isclose(mse, fold.internal_test_mse, rtol=1e-12, atol=1e-15):
             detail = f"prediction loss differs from fold {fold.fold_index} manifest"
             raise ModelDiagnosticError(detail)
