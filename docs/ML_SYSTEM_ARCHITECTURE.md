@@ -277,9 +277,9 @@ lineage、特征顺序、label、成本与风控版本。`research/training/targ
 `ModelFamily` 经唯一 `TrainingService -> ModelTrainingGuard` 分发，不能互换。
 
 rank 模型的 validation/internal-test MSE 使用 rank target；预测 artifact 的 `labels` 始终保留原始未来
-收益，并显式记录 `raw_forward_return_for_diagnostics`。模型 manifest 绑定 `model_protocol_*`、
-`label_transform=cross_sectional_percentile_rank` 和协议指定的组合规则版本，状态仍为 `DRAFT`，final
-holdout 计数仍为零。
+收益，并显式记录 `raw_forward_return_for_diagnostics`。模型 manifest 绑定 `model_protocol_*` 和
+`label_transform=cross_sectional_percentile_rank`；其 `portfolio_rule_version` 保留训练来源的因子基线
+规则，protocol 单独冻结后续模型 Top30 规则。状态仍为 `DRAFT`，final holdout 计数仍为零。
 
 真实回测入口为
 `ashare-research backtest --portfolio-target-id <portfolio_targets_id>`。composition root 显式读取目标与唯一

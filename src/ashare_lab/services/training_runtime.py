@@ -180,11 +180,7 @@ def _run_governed_ridge_training(
             trial_batch_id=report.batch_id,
             factor_report_id=factor_report_id,
             portfolio_backtest_id=portfolio_backtest_id,
-            portfolio_rule_version=(
-                targets.portfolio_rule_version
-                if protocol is None
-                else protocol.portfolio_rule_version
-            ),
+            portfolio_rule_version=targets.portfolio_rule_version,
             cost_rule_version=backtest.cost_rule_version,
             model_family=variant.model_family,
             label_transform=variant.label_transform,

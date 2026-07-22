@@ -12,12 +12,15 @@ from ashare_lab.backtest.report_store import (
 )
 from ashare_lab.code_identity import GitEvidence
 from ashare_lab.ml.registry import ModelStatus
+from ashare_lab.ml.trainers.ridge_store import RidgeArtifactStore
 from ashare_lab.portfolio.research_models import PortfolioTargetBatch
 from ashare_lab.portfolio.research_store import PortfolioTargetDescriptor, PortfolioTargetStore
 from ashare_lab.research.artifacts import ArtifactKind
 from ashare_lab.research.artifacts.models import ArtifactManifest
 from ashare_lab.research.datasets.spec import DatasetSpec
 from ashare_lab.research.datasets.spec_store import DatasetSpecStore
+from ashare_lab.research.experiments.manifest import ModelFamily
+from ashare_lab.research.experiments.protocol_models import ModelExperimentProtocol
 from ashare_lab.research.factors.report_store import (
     FactorReportDescriptor,
     FactorReportStore,
@@ -30,7 +33,10 @@ from ashare_lab.research.factors.selection import (
 )
 from ashare_lab.research.splits.walk_forward import WalkForwardFold
 from ashare_lab.services import training_runtime, training_runtime_support
-from ashare_lab.services.training_runtime import run_default_ridge_training
+from ashare_lab.services.training_runtime import (
+    run_default_ridge_training,
+    run_protocol_rank_ridge_training,
+)
 from ashare_lab.services.training_runtime_support import (
     TrainingRuntimeError,
     artifact_sha256,
@@ -70,9 +76,11 @@ def _feature(frame: pl.DataFrame, name: str) -> pl.DataFrame:
     )
 
 
+@pytest.mark.parametrize("model_family", [ModelFamily.RIDGE, ModelFamily.RIDGE_RANK])
 def test_real_training_runtime_reaches_ridge_only_through_governed_package(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    model_family: ModelFamily,
 ) -> None:
     # Given: one complete local research chain and verified in-memory artifact adapter.
     project_root = tmp_path
@@ -115,6 +123,7 @@ def test_real_training_runtime_reaches_ridge_only_through_governed_package(
         factor_report_id=report_id,
         dataset_snapshot_id=spec.snapshot_id,
         cost_rule_version="china_a_cost_v1",
+        risk_rule_version="portfolio_risk_v1",
         final_test_runs=0,
     )
     report_path = artifact_root / "factor_report" / report_id / "report.json"
@@ -185,12 +194,29 @@ def test_real_training_runtime_reaches_ridge_only_through_governed_package(
     monkeypatch.setattr(training_runtime, "build_development_folds", development_folds)
     monkeypatch.setattr(training_runtime, "load_git_evidence", git_evidence)
 
-    # When: the formal real-data composition root trains the model.
-    result = run_default_ridge_training(project_root, report_id, backtest_id)
+    protocol = ModelExperimentProtocol.model_construct(
+        protocol_id="model_protocol_" + "f" * 64,
+        dataset_snapshot_id=spec.snapshot_id,
+        schema_manifest_id=spec.schema_manifest_id,
+        lineage_manifest_id=spec.lineage_manifest_id,
+        feature_names=candidates,
+        label_name=spec.label.name,
+        portfolio_rule_version="2.0.0",
+        cost_rule_version="china_a_cost_v1",
+        risk_rule_version="portfolio_risk_v1",
+    )
 
-    # Then: only a DRAFT Ridge artifact is produced and final holdout remains untouched.
+    # When: the formal real-data composition root trains the declared Ridge objective.
+    result = (
+        run_protocol_rank_ridge_training(project_root, report_id, backtest_id, protocol)
+        if model_family is ModelFamily.RIDGE_RANK
+        else run_default_ridge_training(project_root, report_id, backtest_id)
+    )
+
+    # Then: source portfolio lineage stays 1.0.0 and final holdout remains untouched.
     assert result.artifact.model_id.startswith("ridge_model_")
     assert result.record.status is ModelStatus.DRAFT
+    assert RidgeArtifactStore(artifact_root).read(result.artifact).portfolio_rule_version == "1.0.0"
     assert not (project_root / "data" / "governance" / "final_holdout_access").exists()
 
 
