@@ -138,7 +138,10 @@ embargo 5。开发日期不得晚于 `2024-12-31`；`2025-01-01` 起是物理隔
 代码提交和冻结人/时间。正式打开必须提交匹配该协议且晚于冻结时点的
 `FinalHoldoutAccessRequest`。`FinalHoldoutAccessLedger` 通过独占文件创建先登记
 `HoldoutAccessRecord`，再返回 holdout；已存在首条记录时第二次访问直接拒绝。开发读取器没有
-`allow_final_test` 参数，只能返回 development partition。当前真实账本计数为 0。
+`allow_final_test` 参数，只能返回 development partition。模型 final holdout 的唯一 composition root
+还必须重新读取 exact `model_protocol_*` 和 `model_promotion_*`；只有七项全 PASS 才能构造
+`FinalHoldoutPromotionEvidence`。授权与账本同时绑定 evaluation、model protocol 和 model ID，机器契约
+见 `schemas/final_holdout_access_v1.json`。当前真实账本计数为 0。
 
 ### 5.2 Fold-local 预处理 artifact
 

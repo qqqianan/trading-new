@@ -200,6 +200,32 @@ def test_model_promotion_evaluation_has_one_service_entrypoint() -> None:
     assert violations == []
 
 
+def test_final_holdout_gate_has_one_promotion_verified_service_entrypoint() -> None:
+    # Given: the low-level data gate and its sole promotion-verifying composition root.
+    allowed = SOURCE_ROOT / "services" / "model_final_holdout.py"
+    protected = {"FinalHoldoutGate", "FinalHoldoutPromotionEvidence"}
+    module = "ashare_lab.research.splits.final_holdout"
+    violations: list[str] = []
+
+    # When: production imports of opening capabilities are inspected.
+    for path in SOURCE_ROOT.rglob("*.py"):
+        if path in {allowed, SOURCE_ROOT / "research" / "splits" / "final_holdout.py"}:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        violations.extend(
+            f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}"
+            for node in ast.walk(tree)
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module == module
+                and any(alias.name in protected for alias in node.names)
+            )
+        )
+
+    # Then: generated code cannot construct all-pass proof or expose data elsewhere.
+    assert violations == []
+
+
 def test_portfolio_layer_cannot_import_execution_capabilities() -> None:
     # Given: portfolio construction modules and execution-owning boundaries.
     forbidden_modules = {

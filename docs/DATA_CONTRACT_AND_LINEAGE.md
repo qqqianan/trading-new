@@ -367,8 +367,11 @@ lineage 交集为 0。DatasetSpec 区间为 `2020-01-03` 至 `2026-07-10`；逻�
 
 `ds_862d155145b89879b679` 的开发边界固定为 `2024-12-31`，`2025-01-01` 起只属于 final
 holdout。默认开发读取器会物理过滤后者；正式访问必须同时匹配 DatasetSpec、
-`FinalHoldoutSpec`、冻结协议和单次授权，并先写追加式 `HoldoutAccessRecord`。截至本节记录时，
-真实 final holdout 未被打开，开发期 validation/test 不能冒充 final test。
+`FinalHoldoutSpec`、冻结协议、全 PASS promotion artifact 和单次授权，并先写追加式
+`HoldoutAccessRecord`。记录固定 exact `model_promotion_* -> model_protocol_* -> ridge_model_* ->
+DatasetSpec -> holdout_spec`，任一身份错配均不得创建账本。机器结构为
+`schemas/final_holdout_access_v1.json`。截至本节记录时，真实 final holdout 未被打开，开发期
+validation/test 不能冒充 final test。
 
 中期 split 使用 504/126/63/63 个交易日的初始训练、验证、内部 test 和滚动步长，标签窗口
 purge=20、embargo=5。每个训练折产生独立 `FoldPreprocessingArtifact`，其血缘锚点为

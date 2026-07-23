@@ -148,6 +148,8 @@ api -> services -> research / ml / portfolio / backtest -> domain
 final holdout 授权前必须读取已持久化且内容寻址的 `model_promotion_*`。七项预注册开发期门槛必须全部
 通过；`BLOCKED`、缺失裁决或 PIT 行业不完整均不可由人工确认、配置开关或新入口绕过。promotion
 evaluation 本身始终保持 `DRAFT`、`final_test_runs=0` 和 `final_holdout_authorized=false`。
+正式打开只能经唯一 model final-holdout service；授权和访问账本必须绑定 exact promotion evaluation、
+model protocol、model、DatasetSpec 与 holdout spec，其他生产模块不得直接构造底层 gate/evidence。
 
 ## 8. 研究产物和版本
 

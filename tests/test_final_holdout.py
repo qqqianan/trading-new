@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -12,9 +13,13 @@ from ashare_lab.research.splits.final_holdout import (
     FinalHoldoutAccessRequest,
     FinalHoldoutError,
     FinalHoldoutGate,
+    FinalHoldoutPromotionEvidence,
     FinalHoldoutSpec,
     FrozenResearchProtocol,
+    HoldoutAccessRecord,
 )
+
+ROOT = Path(__file__).parents[1]
 
 
 def _spec() -> FinalHoldoutSpec:
@@ -52,6 +57,18 @@ def _protocol(spec: FinalHoldoutSpec) -> FrozenResearchProtocol:
     )
 
 
+def _promotion(spec: FinalHoldoutSpec) -> FinalHoldoutPromotionEvidence:
+    return FinalHoldoutPromotionEvidence(
+        model_protocol_id="model_protocol_" + "b" * 64,
+        promotion_evaluation_id="model_promotion_" + "c" * 64,
+        model_id="ridge_model_" + "d" * 64,
+        dataset_snapshot_id=spec.dataset_snapshot_id,
+        holdout_spec_id=spec.spec_id,
+        all_development_gates_passed=True,
+        final_test_runs=0,
+    )
+
+
 def test_default_development_reader_physically_excludes_holdout() -> None:
     # Given: a source frame contains development and sealed observations.
     reader = DevelopmentDatasetReader(_spec())
@@ -80,12 +97,15 @@ def test_formal_holdout_opening_appends_once_and_second_open_fails(tmp_path: Pat
     ledger = FinalHoldoutAccessLedger(tmp_path)
     request = FinalHoldoutAccessRequest(
         protocol_id=protocol.protocol_id,
+        model_protocol_id="model_protocol_" + "b" * 64,
+        promotion_evaluation_id="model_promotion_" + "c" * 64,
+        model_id="ridge_model_" + "d" * 64,
         dataset_snapshot_id=spec.dataset_snapshot_id,
         authorized_at=datetime(2026, 7, 19, 10, tzinfo=ZoneInfo("Asia/Shanghai")),
         authorized_by="research_owner",
         purpose="single_final_evaluation",
     )
-    gate = FinalHoldoutGate(spec, protocol, ledger)
+    gate = FinalHoldoutGate(spec, protocol, ledger, _promotion(spec))
 
     # When: the frozen final holdout is formally opened once.
     holdout = gate.open_once(_frame(), request)
@@ -104,6 +124,9 @@ def test_holdout_opening_rejects_authorization_for_another_protocol(tmp_path: Pa
     protocol = _protocol(spec)
     request = FinalHoldoutAccessRequest(
         protocol_id="protocol_" + "b" * 64,
+        model_protocol_id="model_protocol_" + "b" * 64,
+        promotion_evaluation_id="model_promotion_" + "c" * 64,
+        model_id="ridge_model_" + "d" * 64,
         dataset_snapshot_id=spec.dataset_snapshot_id,
         authorized_at=datetime(2026, 7, 19, 10, tzinfo=ZoneInfo("Asia/Shanghai")),
         authorized_by="research_owner",
@@ -113,7 +136,7 @@ def test_holdout_opening_rejects_authorization_for_another_protocol(tmp_path: Pa
     # When / Then: no ledger record or holdout data is exposed.
     ledger = FinalHoldoutAccessLedger(tmp_path)
     with pytest.raises(FinalHoldoutError, match="authorization"):
-        FinalHoldoutGate(spec, protocol, ledger).open_once(_frame(), request)
+        FinalHoldoutGate(spec, protocol, ledger, _promotion(spec)).open_once(_frame(), request)
     assert ledger.count(spec.spec_id) == 0
 
 
@@ -135,6 +158,9 @@ def test_holdout_opening_rejects_authorization_before_protocol_freeze(tmp_path: 
     protocol = _protocol(spec)
     request = FinalHoldoutAccessRequest(
         protocol_id=protocol.protocol_id,
+        model_protocol_id="model_protocol_" + "b" * 64,
+        promotion_evaluation_id="model_promotion_" + "c" * 64,
+        model_id="ridge_model_" + "d" * 64,
         dataset_snapshot_id=spec.dataset_snapshot_id,
         authorized_at=datetime(2026, 7, 19, 8, tzinfo=ZoneInfo("Asia/Shanghai")),
         authorized_by="research_owner",
@@ -144,7 +170,7 @@ def test_holdout_opening_rejects_authorization_before_protocol_freeze(tmp_path: 
     # When / Then: pre-freeze authorization cannot consume or expose the holdout.
     ledger = FinalHoldoutAccessLedger(tmp_path)
     with pytest.raises(FinalHoldoutError, match="after protocol freeze"):
-        FinalHoldoutGate(spec, protocol, ledger).open_once(_frame(), request)
+        FinalHoldoutGate(spec, protocol, ledger, _promotion(spec)).open_once(_frame(), request)
     assert ledger.count(spec.spec_id) == 0
 
 
@@ -169,3 +195,25 @@ def test_holdout_ledger_rejects_malformed_existing_record(tmp_path: Path) -> Non
     # When / Then: audit counting fails closed instead of treating it as unused.
     with pytest.raises(FinalHoldoutError, match="ledger is invalid"):
         FinalHoldoutAccessLedger(tmp_path).count(spec.spec_id)
+
+
+def test_final_holdout_access_schema_documents_every_persisted_field() -> None:
+    # Given: the committed machine schema for promotion-bound holdout access.
+    document = json.loads(
+        (ROOT / "schemas" / "final_holdout_access_v1.json").read_text(encoding="utf-8")
+    )
+
+    # When: required fields are compared with all three trust boundaries.
+    definitions = document["$defs"]
+    required = (
+        set(definitions["FinalHoldoutAccessRequest"]["required"]),
+        set(definitions["FinalHoldoutPromotionEvidence"]["required"]),
+        set(definitions["HoldoutAccessRecord"]["required"]),
+    )
+
+    # Then: authorization, all-pass evidence, and append-only audit fields are documented.
+    assert required == (
+        set(FinalHoldoutAccessRequest.model_fields),
+        set(FinalHoldoutPromotionEvidence.model_fields),
+        set(HoldoutAccessRecord.model_fields),
+    )

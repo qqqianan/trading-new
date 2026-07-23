@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import date, datetime
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -59,10 +59,25 @@ class FinalHoldoutAccessRequest(FrozenHoldoutModel):
     """Explicit one-time authorization bound to one already-frozen protocol."""
 
     protocol_id: str = Field(pattern=r"^protocol_[0-9a-f]{64}$")
+    model_protocol_id: str = Field(pattern=r"^model_protocol_[0-9a-f]{64}$")
+    promotion_evaluation_id: str = Field(pattern=r"^model_promotion_[0-9a-f]{64}$")
+    model_id: str = Field(pattern=r"^ridge_model_[0-9a-f]{64}$")
     dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
     authorized_at: datetime
     authorized_by: str = Field(min_length=1)
     purpose: str = Field(pattern=r"^single_final_evaluation$")
+
+
+class FinalHoldoutPromotionEvidence(FrozenHoldoutModel):
+    """Verified all-pass development evidence passed by the sole composition root."""
+
+    model_protocol_id: str = Field(pattern=r"^model_protocol_[0-9a-f]{64}$")
+    promotion_evaluation_id: str = Field(pattern=r"^model_promotion_[0-9a-f]{64}$")
+    model_id: str = Field(pattern=r"^ridge_model_[0-9a-f]{64}$")
+    dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
+    holdout_spec_id: str = Field(pattern=r"^holdout_spec_[0-9a-f]{64}$")
+    all_development_gates_passed: Literal[True]
+    final_test_runs: Literal[0]
 
 
 class HoldoutAccessRecord(FrozenHoldoutModel):
@@ -71,6 +86,9 @@ class HoldoutAccessRecord(FrozenHoldoutModel):
     record_id: str = Field(pattern=r"^holdout_access_[0-9a-f]{64}$")
     holdout_spec_id: str = Field(pattern=r"^holdout_spec_[0-9a-f]{64}$")
     protocol_id: str = Field(pattern=r"^protocol_[0-9a-f]{64}$")
+    model_protocol_id: str = Field(pattern=r"^model_protocol_[0-9a-f]{64}$")
+    promotion_evaluation_id: str = Field(pattern=r"^model_promotion_[0-9a-f]{64}$")
+    model_id: str = Field(pattern=r"^ridge_model_[0-9a-f]{64}$")
     dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
     accessed_at: datetime
     authorized_by: str
@@ -154,11 +172,13 @@ class FinalHoldoutGate:
         spec: FinalHoldoutSpec,
         protocol: FrozenResearchProtocol,
         ledger: FinalHoldoutAccessLedger,
+        promotion: FinalHoldoutPromotionEvidence,
     ) -> None:
-        """Bind one sealed partition, frozen protocol, and durable ledger."""
+        """Bind one sealed partition, frozen protocol, promotion proof, and ledger."""
         self._spec = spec
         self._protocol = protocol
         self._ledger = ledger
+        self._promotion = promotion
 
     def open_once(
         self,
@@ -171,20 +191,29 @@ class FinalHoldoutGate:
             or self._protocol.dataset_snapshot_id != self._spec.dataset_snapshot_id
             or request.protocol_id != self._protocol.protocol_id
             or request.dataset_snapshot_id != self._spec.dataset_snapshot_id
+            or self._promotion.dataset_snapshot_id != self._spec.dataset_snapshot_id
+            or self._promotion.holdout_spec_id != self._spec.spec_id
+            or request.model_protocol_id != self._promotion.model_protocol_id
+            or request.promotion_evaluation_id != self._promotion.promotion_evaluation_id
+            or request.model_id != self._promotion.model_id
         ):
-            detail = "authorization does not match the frozen protocol"
+            detail = "authorization does not match frozen protocol and promotion evidence"
             raise FinalHoldoutError(detail)
         if request.authorized_at <= self._protocol.frozen_at:
             detail = "authorization must be issued after protocol freeze"
             raise FinalHoldoutError(detail)
         record_payload = (
-            f"{self._spec.spec_id}|{request.protocol_id}|{request.dataset_snapshot_id}|"
+            f"{self._spec.spec_id}|{request.protocol_id}|{request.model_protocol_id}|"
+            f"{request.promotion_evaluation_id}|{request.model_id}|{request.dataset_snapshot_id}|"
             f"{request.authorized_at.isoformat()}|{request.authorized_by}|{request.purpose}"
         )
         record = HoldoutAccessRecord(
             record_id=f"holdout_access_{hashlib.sha256(record_payload.encode()).hexdigest()}",
             holdout_spec_id=self._spec.spec_id,
             protocol_id=request.protocol_id,
+            model_protocol_id=request.model_protocol_id,
+            promotion_evaluation_id=request.promotion_evaluation_id,
+            model_id=request.model_id,
             dataset_snapshot_id=request.dataset_snapshot_id,
             accessed_at=request.authorized_at,
             authorized_by=request.authorized_by,

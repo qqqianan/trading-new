@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Final Holdout Access v1",
+  "$ref": "#/$defs/HoldoutAccessRecord",
+  "$defs": {
+    "FinalHoldoutAccessRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_id",
+        "model_protocol_id",
+        "promotion_evaluation_id",
+        "model_id",
+        "dataset_snapshot_id",
+        "authorized_at",
+        "authorized_by",
+        "purpose"
+      ],
+      "properties": {
+        "protocol_id": {"type": "string", "pattern": "^protocol_[0-9a-f]{64}$"},
+        "model_protocol_id": {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"},
+        "promotion_evaluation_id": {"type": "string", "pattern": "^model_promotion_[0-9a-f]{64}$"},
+        "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+        "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+        "authorized_at": {"type": "string", "format": "date-time"},
+        "authorized_by": {"type": "string", "minLength": 1},
+        "purpose": {"const": "single_final_evaluation"}
+      }
+    },
+    "FinalHoldoutPromotionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_protocol_id",
+        "promotion_evaluation_id",
+        "model_id",
+        "dataset_snapshot_id",
+        "holdout_spec_id",
+        "all_development_gates_passed",
+        "final_test_runs"
+      ],
+      "properties": {
+        "model_protocol_id": {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"},
+        "promotion_evaluation_id": {"type": "string", "pattern": "^model_promotion_[0-9a-f]{64}$"},
+        "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+        "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+        "holdout_spec_id": {"type": "string", "pattern": "^holdout_spec_[0-9a-f]{64}$"},
+        "all_development_gates_passed": {"const": true},
+        "final_test_runs": {"const": 0}
+      }
+    },
+    "HoldoutAccessRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "holdout_spec_id",
+        "protocol_id",
+        "model_protocol_id",
+        "promotion_evaluation_id",
+        "model_id",
+        "dataset_snapshot_id",
+        "accessed_at",
+        "authorized_by",
+        "purpose"
+      ],
+      "properties": {
+        "record_id": {"type": "string", "pattern": "^holdout_access_[0-9a-f]{64}$"},
+        "holdout_spec_id": {"type": "string", "pattern": "^holdout_spec_[0-9a-f]{64}$"},
+        "protocol_id": {"type": "string", "pattern": "^protocol_[0-9a-f]{64}$"},
+        "model_protocol_id": {"type": "string", "pattern": "^model_protocol_[0-9a-f]{64}$"},
+        "promotion_evaluation_id": {"type": "string", "pattern": "^model_promotion_[0-9a-f]{64}$"},
+        "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+        "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+        "accessed_at": {"type": "string", "format": "date-time"},
+        "authorized_by": {"type": "string", "minLength": 1},
+        "purpose": {"const": "single_final_evaluation"}
+      }
+    }
+  }
+}
