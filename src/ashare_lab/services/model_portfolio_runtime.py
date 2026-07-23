@@ -25,7 +25,14 @@ from ashare_lab.research.factors.report_store import (
     FactorReportStore,
     FactorReportStoreError,
 )
+from ashare_lab.research.factors.runtime_frames import DiagnosticFrameAssemblyError
+from ashare_lab.research.factors.runtime_source import FactorRuntimeSourceError
 from ashare_lab.research.factors.selection import FactorDecisionStatus
+from ashare_lab.research.preprocessing.fold import FoldPreprocessingError
+from ashare_lab.research.preprocessing.store import FoldPreprocessorStoreError
+from ashare_lab.research.splits.walk_forward import SplitIntegrityError
+from ashare_lab.research.training.frame import TrainingFrameAssemblyError
+from ashare_lab.services.factor_calendar_runtime import FactorCalendarRuntimeError
 from ashare_lab.services.model_prediction import (
     RidgePredictionFrameError,
     build_ridge_prediction_score_frame,
@@ -35,6 +42,7 @@ from ashare_lab.services.portfolio_research import (
     PortfolioResearchError,
     build_model_portfolio_targets,
 )
+from ashare_lab.services.ridge_portfolio_runtime import load_complete_ridge_portfolio_scores
 
 
 class ModelPortfolioRuntimeError(Exception):
@@ -64,6 +72,13 @@ def run_default_model_portfolio(
         DatasetSpecStoreError,
         FactorReportStoreError,
         PortfolioBacktestReportStoreError,
+        FactorCalendarRuntimeError,
+        FactorRuntimeSourceError,
+        DiagnosticFrameAssemblyError,
+        FoldPreprocessingError,
+        FoldPreprocessorStoreError,
+        SplitIntegrityError,
+        TrainingFrameAssemblyError,
         RidgePredictionFrameError,
         PortfolioResearchError,
         PortfolioConstructionError,
@@ -136,7 +151,12 @@ def _run_default_model_portfolio(
     ):
         detail = "model, report, source backtest, and DatasetSpec identities differ"
         raise ModelPortfolioRuntimeError(detail)
-    scores = build_ridge_prediction_score_frame(predictions)
+    scores = load_complete_ridge_portfolio_scores(
+        project_root,
+        spec,
+        model,
+        build_ridge_prediction_score_frame(predictions),
+    )
     targets = build_model_portfolio_targets(
         ModelPortfolioBuildRequest(
             model_id=model.model_id,

@@ -10,16 +10,18 @@ import polars as pl
 from ashare_lab.ml.trainers.ridge_models import RidgeExperimentArtifact
 from ashare_lab.research.artifacts import ArtifactKind
 from ashare_lab.research.datasets.spec import DatasetSpec
+from ashare_lab.research.factors.runtime_source import VerifiedArtifactFrameReader
 from ashare_lab.research.preprocessing.models import (
     FoldPreprocessingArtifact,
     FoldPreprocessorDescriptor,
 )
 from ashare_lab.research.preprocessing.store import FoldPreprocessorStore
-from ashare_lab.research.splits.walk_forward import WalkForwardFold
+from ashare_lab.research.splits.walk_forward import WalkForwardFold, build_development_folds
 from ashare_lab.research.training.frame import (
     TrainingFeatureFrame,
     assemble_development_feature_frame,
 )
+from ashare_lab.services.factor_calendar_runtime import load_dataset_development_calendar
 from ashare_lab.services.model_prediction import (
     RidgePredictionFrameError,
     build_complete_ridge_score_frame,
@@ -42,6 +44,26 @@ class CompleteRidgeScoreRequest:
     spec: DatasetSpec
     model: RidgeExperimentArtifact
     folds: tuple[WalkForwardFold, ...]
+
+
+def load_complete_ridge_portfolio_scores(
+    project_root: Path,
+    spec: DatasetSpec,
+    model: RidgeExperimentArtifact,
+    anchor_scores: pl.DataFrame,
+) -> pl.DataFrame:
+    """Load exact artifacts and generate complete label-free development scores."""
+    calendar = load_dataset_development_calendar(project_root, spec)
+    return assemble_complete_ridge_portfolio_scores(
+        CompleteRidgeScoreRequest(
+            artifact_root=project_root / "data" / "artifacts",
+            spec=spec,
+            model=model,
+            folds=build_development_folds(calendar),
+        ),
+        VerifiedArtifactFrameReader(project_root),
+        anchor_scores,
+    )
 
 
 def assemble_complete_ridge_portfolio_scores(

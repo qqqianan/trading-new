@@ -13,10 +13,12 @@ from ashare_lab.backtest.report_store import (
 from ashare_lab.ml.trainers.ridge import RidgeTrainer
 from ashare_lab.ml.trainers.ridge_models import (
     FoldPredictionBatch,
+    RidgeExperimentArtifact,
     RidgePredictionArtifact,
 )
 from ashare_lab.ml.trainers.ridge_store import RidgeArtifactStore
 from ashare_lab.portfolio.research_store import PortfolioTargetStore
+from ashare_lab.research.datasets.spec import DatasetSpec
 from ashare_lab.research.factors.report_store import (
     FactorReportDescriptor,
     FactorReportStore,
@@ -28,6 +30,7 @@ from ashare_lab.research.factors.selection import (
     FactorResearchReport,
 )
 from ashare_lab.research.preprocessing.training_identity import training_frame_sha256
+from ashare_lab.services import model_portfolio_runtime
 from ashare_lab.services.model_portfolio_runtime import (
     ModelPortfolioRuntimeError,
     run_default_model_portfolio,
@@ -174,8 +177,21 @@ def test_model_portfolio_runtime_verifies_research_chain_before_publication(
     ) -> PortfolioBacktestReport:
         return backtest
 
+    def complete_scores(
+        _project_root: Path,
+        _spec: DatasetSpec,
+        _model: RidgeExperimentArtifact,
+        anchor: pl.DataFrame,
+    ) -> pl.DataFrame:
+        return anchor
+
     monkeypatch.setattr(FactorReportStore, "read", read_report)
     monkeypatch.setattr(PortfolioBacktestReportStore, "read", read_backtest)
+    monkeypatch.setattr(
+        model_portfolio_runtime,
+        "load_complete_ridge_portfolio_scores",
+        complete_scores,
+    )
 
     # When: the formal model-portfolio composition root publishes targets.
     descriptor = run_default_model_portfolio(tmp_path, result.artifact.model_id)
