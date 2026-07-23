@@ -166,6 +166,12 @@
 - 开发期组合绩效归因必须以一个已持久化且内容寻址的 `model_diagnostic_*` 为唯一入口，沿父诊断自动
   解析 exact 模型、keyed predictions、模型目标、因子基线回测和模型回测。目标键必须全部存在于预测
   artifact，禁止有利内连接；原始未来收益 label 只用于解释选股尾部，不能冒充成交收益或授权调参。
+- 由组合绩效归因产生的组合假设必须先登记追加式、内容寻址的 `portfolio_protocol_*`。当前
+  `factor_anchor_ridge_bottom_quintile_veto_v1` 固定原因子 composite 主排序、逐决策日 Ridge 分数底部
+  20% 否决、Top30、95% 总仓位和 5% 现金；这些常量禁止通过开发期收益寻优。
+- 上述组合协议把 2022--2024 明确标记为 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`。任何晋级证据必须从
+  2026-07-24 起新产生，至少覆盖 26 个周度决策点，并等待 20 个交易日标签成熟；既有 final holdout
+  对该协议固定为不可访问，不能通过人工授权改变。
 - rank-label Ridge 的目标变换固定为逐 `decision_time` 横截面 `[0,1]` 平均秩；并列值取平均秩，横截面
   只有一条有效样本时固定为 `0.5`。该变换不能跨日期、跨 fold 或使用测试期分布拟合参数。
 - rank-label 只用于拟合和 MSE 选 alpha；开发期预测证据必须保留同键的原始未来收益，Rank IC 和组合
@@ -201,6 +207,10 @@
   评估由诊断引出的候选模型。
 - **FORBIDDEN**：由组合绩效归因入口重新拟合模型、改变目标组合、读取 final holdout，或把归因报告
   直接用作 `TrainingApproval`、模型晋级及 final holdout 授权。
+- **FORBIDDEN**：在 `portfolio_protocol_*` 登记前实现或回测归因派生的组合规则；或在登记后修改
+  否决比例、排序、持仓数、仓位、成本、风控和 fresh-forward 起点而沿用同一 protocol ID。
+- **FORBIDDEN**：把已看过的 2022--2024 归因/回测结果重新称为样本外，或使用 2026-07-24 之前的数据
+  充当因子锚定组合的 fresh-forward 晋级证据。
 - **FORBIDDEN**：对全部日期一起计算 label rank，或覆盖原始 label 后导致诊断无法还原真实收益语义。
 - **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
 - **FORBIDDEN**：计算结果后补登记 trial、隐藏失败试验，或把额外噪声试验排除在 FDR 分母之外。

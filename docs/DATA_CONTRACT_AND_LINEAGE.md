@@ -518,6 +518,14 @@ DatasetSpec、schema/lineage、代码提交、带时区登记时间、候选模�
 orders 和按 `(portfolio, risk rule, action)` 聚合的执行约束。该 lineage 只属于开发期 post-hoc 证据，
 不得连接训练写入口、final holdout reader、`TrainingApproval` 或模型晋级状态转换。
 
+`portfolio_experiment_protocol_v1` 固定
+`model_attribution -> model_diagnostic -> ridge_model/keyed predictions -> DatasetSpec -> baseline/model targets
+-> baseline/model backtests` 完整身份链。协议内容寻址全部父 artifact、schema/lineage、代码提交、成本、
+风控以及固定候选规则。当前规则只允许原因子 composite 主排序并否决逐日 Ridge 最低 20%，随后按稳定
+键取 Top30；任何常量变化必须产生新 protocol ID。协议同时保存 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`
+分类和从 2026-07-24 起 26 个周度决策点、20 日标签成熟的 fresh-forward 时钟，并固定禁止访问既有
+final holdout。`PREREGISTERED_NOT_IMPLEMENTED` 产物本身不包含新目标、订单、回测或模型状态变更。
+
 `ridge_rank` 训练不新增或覆盖物理 label 列。训练包仍以原始未来收益字段及其 Raw/label artifact lineage
 通过 `ModelTrainingGuard`；随后由版本化 `cross_sectional_percentile_rank` 在每个 `decision_time` 内生成
 临时 fitting target。模型 manifest 固定 protocol ID、变换名和预测标签语义。prediction artifact 保存

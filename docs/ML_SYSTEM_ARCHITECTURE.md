@@ -279,6 +279,19 @@ Ridge 事后诊断入口为
 `raw_forward_return_for_diagnostics`、`tuning_permitted=false`、`model_status=DRAFT` 和 `final_test_runs=0`。
 它不拟合、不修改目标、不读取 final holdout，也不能生成训练审批或替代新的实验预注册。
 
+因子锚定组合预注册入口为
+`ashare-research portfolio-preregister --attribution-report-id <model_attribution_id> --registered-at <time>`。
+composition root 从 exact 归因自动解析父诊断、Ridge 模型、DatasetSpec、因子基线/模型目标和两套回测，
+逐项核对 prediction SHA-256、schema/lineage、成本、风控和 `final_test_runs=0`。协议以
+`portfolio_protocol_*` 追加持久化，机器契约见 `schemas/portfolio_experiment_protocol_v1.json`。
+
+`factor_anchor_ridge_bottom_quintile_veto_v1` 固定原因子等权 composite 主排序，仅把 Ridge rank 分数
+最低 20% 作为否决集合，然后按 `factor_score desc, symbol asc` 取 Top30，股票总仓位 95%。比例、持仓数
+和仓位不通过旧回测寻优。协议状态固定 `PREREGISTERED_NOT_IMPLEMENTED`；预注册入口不构建目标、不回测、
+不训练。2022--2024 固定为已见开发证据，fresh-forward 从 2026-07-24 起至少积累 26 个周度决策点，
+20 个交易日标签成熟后才允许评估。该协议的 `final_holdout_access_permitted=false`，与既有模型 holdout
+授权链物理隔离。
+
 由该报告引出的新实验必须先经 `ashare-research model-preregister`。该 composition root 在干净 Git
 工作树下重新验证 `model_diagnostic -> ridge model -> DatasetSpec -> model backtest` 身份链，然后将
 `model_protocol_*` 追加写入 artifacts。协议固定 rank-label Ridge 假设、训练目标、特征、开发期门槛、

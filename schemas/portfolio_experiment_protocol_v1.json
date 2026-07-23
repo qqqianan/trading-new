@@ -1,0 +1,134 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Portfolio Experiment Protocol v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "dataset_snapshot_id",
+        "schema_manifest_id",
+        "lineage_manifest_id",
+        "parent_attribution_report_id",
+        "parent_diagnostic_report_id",
+        "parent_model_id",
+        "prediction_artifact_sha256",
+        "baseline_target_artifact_id",
+        "baseline_backtest_id",
+        "model_target_artifact_id",
+        "model_backtest_id",
+        "registered_at",
+        "registered_by",
+        "code_commit",
+        "rulebook_version",
+        "experiment_name",
+        "hypothesis",
+        "candidate_rule",
+        "cost_rule_version",
+        "risk_rule_version",
+        "evidence_classification",
+        "reused_development_end",
+        "promotion_gates",
+        "fresh_forward",
+        "status",
+        "protocol_id"
+    ],
+    "properties": {
+        "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+        "schema_manifest_id": {"type": "string", "pattern": "^schema_[0-9a-f]{64}$"},
+        "lineage_manifest_id": {"type": "string", "pattern": "^lineage_[0-9a-f]{64}$"},
+        "parent_attribution_report_id": {
+            "type": "string",
+            "pattern": "^model_attribution_[0-9a-f]{64}$"
+        },
+        "parent_diagnostic_report_id": {
+            "type": "string",
+            "pattern": "^model_diagnostic_[0-9a-f]{64}$"
+        },
+        "parent_model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+        "prediction_artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "baseline_target_artifact_id": {
+            "type": "string",
+            "pattern": "^portfolio_targets_[0-9a-f]{64}$"
+        },
+        "baseline_backtest_id": {"type": "string", "pattern": "^portfolio_backtest_[0-9a-f]{64}$"},
+        "model_target_artifact_id": {
+            "type": "string",
+            "pattern": "^portfolio_targets_[0-9a-f]{64}$"
+        },
+        "model_backtest_id": {"type": "string", "pattern": "^portfolio_backtest_[0-9a-f]{64}$"},
+        "registered_at": {"type": "string", "format": "date-time"},
+        "registered_by": {"type": "string", "minLength": 1},
+        "code_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "rulebook_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "experiment_name": {"const": "factor_anchor_ridge_bottom_quintile_veto_v1"},
+        "hypothesis": {"type": "string", "minLength": 20},
+        "candidate_rule": {"$ref": "#/$defs/FactorAnchorVetoRule"},
+        "cost_rule_version": {"type": "string", "minLength": 1},
+        "risk_rule_version": {"type": "string", "minLength": 1},
+        "evidence_classification": {"const": "REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE"},
+        "reused_development_end": {"type": "string", "format": "date"},
+        "promotion_gates": {"$ref": "#/$defs/PortfolioPromotionGates"},
+        "fresh_forward": {"$ref": "#/$defs/FreshForwardPolicy"},
+        "status": {"const": "PREREGISTERED_NOT_IMPLEMENTED"},
+        "protocol_id": {"type": "string", "pattern": "^portfolio_protocol_[0-9a-f]{64}$"}
+    },
+    "$defs": {
+        "FactorAnchorVetoRule": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "primary_signal",
+                "veto_signal",
+                "veto_quantile",
+                "selection_order",
+                "maximum_positions",
+                "target_gross_weight",
+                "cash_weight",
+                "insufficient_survivors"
+            ],
+            "properties": {
+                "primary_signal": {"const": "accepted_factor_baseline_equal_composite_v1"},
+                "veto_signal": {"const": "ridge_rank_model_score"},
+                "veto_quantile": {"const": 0.2},
+                "selection_order": {"const": "factor_score_desc_symbol_asc"},
+                "maximum_positions": {"const": 30},
+                "target_gross_weight": {"const": 0.95},
+                "cash_weight": {"const": 0.05},
+                "insufficient_survivors": {"const": "FAIL_CLOSED"}
+            }
+        },
+        "PortfolioPromotionGates": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "require_baseline_total_return_outperformance",
+                "require_baseline_sharpe_outperformance",
+                "require_nonnegative_excess_return",
+                "forbid_risk_halt",
+                "require_complete_industry_pit"
+            ],
+            "properties": {
+                "require_baseline_total_return_outperformance": {"const": true},
+                "require_baseline_sharpe_outperformance": {"const": true},
+                "require_nonnegative_excess_return": {"const": true},
+                "forbid_risk_halt": {"const": true},
+                "require_complete_industry_pit": {"const": true}
+            }
+        },
+        "FreshForwardPolicy": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "start_date",
+                "minimum_decision_dates",
+                "label_maturity_trading_days",
+                "final_holdout_access_permitted"
+            ],
+            "properties": {
+                "start_date": {"const": "2026-07-24"},
+                "minimum_decision_dates": {"const": 26},
+                "label_maturity_trading_days": {"const": 20},
+                "final_holdout_access_permitted": {"const": false}
+            }
+        }
+    }
+}
