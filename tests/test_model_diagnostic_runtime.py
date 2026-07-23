@@ -12,7 +12,10 @@ from ashare_lab.portfolio.research_models import (
     PortfolioTargetRecord,
 )
 from ashare_lab.portfolio.research_store import PortfolioTargetStore
-from ashare_lab.research.model_diagnostics.store import ModelDiagnosticStore
+from ashare_lab.research.model_diagnostics.store import (
+    ModelDiagnosticDescriptor,
+    ModelDiagnosticStore,
+)
 from ashare_lab.services.model_diagnostic_runtime import (
     ModelDiagnosticRuntimeError,
     run_default_model_diagnostics,
@@ -69,8 +72,10 @@ def _baseline_targets(dataset_id: str, factor_id: str, trial_id: str) -> Portfol
     )
 
 
-def test_model_diagnostic_runtime_reads_exact_chain_and_publishes_report(tmp_path: Path) -> None:
-    # Given: one complete baseline -> Ridge -> model targets -> model backtest chain.
+def publish_model_diagnostic_fixture(
+    tmp_path: Path,
+) -> tuple[ModelDiagnosticDescriptor, str, str, str]:
+    """Publish one complete real artifact chain for adjacent runtime tests."""
     artifact_root = tmp_path / "data" / "artifacts"
     frame = _six_symbol_training_frame()
     evidence, original_experiment = build_training_evidence(artifact_root, frame)
@@ -119,18 +124,32 @@ def test_model_diagnostic_runtime_reads_exact_chain_and_publishes_report(tmp_pat
     )
     model_backtest_descriptor = PortfolioBacktestReportStore(artifact_root).write(model_report)
 
-    # When: the formal clean-artifact composition publishes the post-hoc diagnosis.
     descriptor = run_default_model_diagnostics(
         tmp_path,
         trained.artifact.model_id,
         model_backtest_descriptor.report_id,
     )
+    return (
+        descriptor,
+        trained.artifact.model_id,
+        baseline_descriptor.report_id,
+        model_backtest_descriptor.report_id,
+    )
+
+
+def test_model_diagnostic_runtime_reads_exact_chain_and_publishes_report(tmp_path: Path) -> None:
+    # Given: one complete baseline -> Ridge -> model targets -> model backtest chain.
+
+    # When: the formal clean-artifact composition publishes the post-hoc diagnosis.
+    descriptor, model_id, baseline_id, model_backtest_id = publish_model_diagnostic_fixture(
+        tmp_path
+    )
 
     # Then: the report fixes both backtests and cannot authorize tuning or final-test access.
-    report = ModelDiagnosticStore(artifact_root).read(descriptor)
-    assert report.model_id == trained.artifact.model_id
-    assert report.portfolio.baseline_backtest_id == baseline_descriptor.report_id
-    assert report.portfolio.model_backtest_id == model_backtest_descriptor.report_id
+    report = ModelDiagnosticStore(tmp_path / "data" / "artifacts").read(descriptor)
+    assert report.model_id == model_id
+    assert report.portfolio.baseline_backtest_id == baseline_id
+    assert report.portfolio.model_backtest_id == model_backtest_id
     assert report.tuning_permitted is False
     assert report.final_test_runs == 0
 

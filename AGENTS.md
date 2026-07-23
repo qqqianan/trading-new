@@ -165,6 +165,9 @@ model protocol、model、DatasetSpec 与 holdout spec，其他生产模块不得
 - 每个模型通过 `ModelRecord` 关联数据集与训练运行。
 - 模型诊断只能读取已持久化的 keyed development predictions、逐 fold 模型证据及完整风控回测；
   禁止在诊断代码中重新拟合模型、访问 final holdout 或产生训练审批。
+- 模型组合绩效归因只能从 exact `model_diagnostic_*` 自动解析模型、keyed predictions、模型目标和
+  两套可比回测；目标 `(decision_date, symbol)` 必须完整存在于预测证据。归因只能使用保留的原始未来
+  收益 label 解释开发期 Top30 尾部，不得把它冒充真实成交收益、训练审批或调参授权。
 - 任何由 post-hoc 诊断引出的新模型、标签、特征、阈值或组合假设，必须先写入内容寻址且追加式的
   `model_protocol_*`；协议固定父诊断、数据/字段 schema 与 lineage、带时区登记时间、开发期晋级门槛和
   单次人工授权的 final holdout 条件。协议状态为 `PREREGISTERED_NOT_IMPLEMENTED` 时，禁止训练或访问

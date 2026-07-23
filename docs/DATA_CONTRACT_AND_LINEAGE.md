@@ -511,6 +511,13 @@ DatasetSpec、schema/lineage、代码提交、带时区登记时间、候选模�
 同一 ID 只允许逐字节相同内容重读，身份或路径跨界均 fail closed。协议本身不包含训练结果、预测、
 标签读取或 holdout 访问，状态只能从 `PREREGISTERED_NOT_IMPLEMENTED` 由后续独立审批流程推进。
 
+`model_performance_attribution_v1` 固定
+`model_diagnostic -> ridge_model -> keyed predictions -> model portfolio targets -> baseline/model backtests`
+完整身份链。父诊断是唯一调用参数，其余 artifact ID 必须自动解析；模型目标键与预测键必须全量匹配，
+日期集合必须相等。报告保存整体及逐年选中尾部 label 收益、Bottom 尾部差、逐年组合净收益差、pending
+orders 和按 `(portfolio, risk rule, action)` 聚合的执行约束。该 lineage 只属于开发期 post-hoc 证据，
+不得连接训练写入口、final holdout reader、`TrainingApproval` 或模型晋级状态转换。
+
 `ridge_rank` 训练不新增或覆盖物理 label 列。训练包仍以原始未来收益字段及其 Raw/label artifact lineage
 通过 `ModelTrainingGuard`；随后由版本化 `cross_sectional_percentile_rank` 在每个 `decision_time` 内生成
 临时 fitting target。模型 manifest 固定 protocol ID、变换名和预测标签语义。prediction artifact 保存

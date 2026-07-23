@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Model Performance Attribution v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "diagnostic_report_id",
+    "model_id",
+    "dataset_snapshot_id",
+    "prediction_artifact_sha256",
+    "model_target_artifact_id",
+    "baseline_backtest_id",
+    "model_backtest_id",
+    "overall_tail",
+    "yearly_tail",
+    "annual_performance",
+    "execution_constraints",
+    "baseline_pending_orders",
+    "model_pending_orders",
+    "baseline_risk_event_count",
+    "model_risk_event_count",
+    "label_semantics",
+    "diagnostic_scope",
+    "tuning_permitted",
+    "model_status",
+    "final_test_runs"
+  ],
+  "properties": {
+    "diagnostic_report_id": {"type": "string", "pattern": "^model_diagnostic_[0-9a-f]{64}$"},
+    "model_id": {"type": "string", "pattern": "^ridge_model_[0-9a-f]{64}$"},
+    "dataset_snapshot_id": {"type": "string", "pattern": "^ds_[0-9a-f]+$"},
+    "prediction_artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "model_target_artifact_id": {"type": "string", "pattern": "^portfolio_targets_[0-9a-f]{64}$"},
+    "baseline_backtest_id": {"type": "string", "pattern": "^portfolio_backtest_[0-9a-f]{64}$"},
+    "model_backtest_id": {"type": "string", "pattern": "^portfolio_backtest_[0-9a-f]{64}$"},
+    "overall_tail": {"$ref": "#/$defs/TailReturnAttribution"},
+    "yearly_tail": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/TailReturnAttribution"}
+    },
+    "annual_performance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/AnnualPerformanceAttribution"}
+    },
+    "execution_constraints": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/ExecutionConstraintAttribution"}
+    },
+    "baseline_pending_orders": {"type": "integer", "minimum": 0},
+    "model_pending_orders": {"type": "integer", "minimum": 0},
+    "baseline_risk_event_count": {"type": "integer", "minimum": 0},
+    "model_risk_event_count": {"type": "integer", "minimum": 0},
+    "label_semantics": {"const": "raw_forward_return_for_diagnostics"},
+    "diagnostic_scope": {"const": "POST_HOC_DEVELOPMENT_ATTRIBUTION_ONLY"},
+    "tuning_permitted": {"const": false},
+    "model_status": {"const": "DRAFT"},
+    "final_test_runs": {"const": 0}
+  },
+  "$defs": {
+    "TailReturnAttribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment",
+        "decision_dates",
+        "universe_observations",
+        "selected_observations",
+        "mean_universe_label_return",
+        "mean_selected_label_return",
+        "mean_bottom_label_return",
+        "selected_excess_vs_universe",
+        "selected_minus_bottom",
+        "selected_daily_win_rate"
+      ],
+      "properties": {
+        "segment": {"type": "string", "minLength": 1},
+        "decision_dates": {"type": "integer", "minimum": 1},
+        "universe_observations": {"type": "integer", "minimum": 1},
+        "selected_observations": {"type": "integer", "minimum": 1},
+        "mean_universe_label_return": {"type": "number"},
+        "mean_selected_label_return": {"type": "number"},
+        "mean_bottom_label_return": {"type": "number"},
+        "selected_excess_vs_universe": {"type": "number"},
+        "selected_minus_bottom": {"type": "number"},
+        "selected_daily_win_rate": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "AnnualPerformanceAttribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "year",
+        "baseline_return",
+        "model_return",
+        "return_gap",
+        "baseline_excess_return",
+        "model_excess_return",
+        "excess_return_gap"
+      ],
+      "properties": {
+        "year": {"type": "integer", "minimum": 2000, "maximum": 2100},
+        "baseline_return": {"type": "number"},
+        "model_return": {"type": "number"},
+        "return_gap": {"type": "number"},
+        "baseline_excess_return": {"type": "number"},
+        "model_excess_return": {"type": "number"},
+        "excess_return_gap": {"type": "number"}
+      }
+    },
+    "ExecutionConstraintAttribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["portfolio", "rule", "action", "event_count", "affected_symbols"],
+      "properties": {
+        "portfolio": {"enum": ["BASELINE", "MODEL"]},
+        "rule": {"type": "string", "minLength": 1},
+        "action": {"type": "string", "minLength": 1},
+        "event_count": {"type": "integer", "minimum": 1},
+        "affected_symbols": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

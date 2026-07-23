@@ -163,6 +163,9 @@
 - 任何从 post-hoc 诊断产生的新假设必须先预注册为内容寻址、追加式 `model_protocol_*`：固定父诊断、
   数据集、schema、lineage、带时区登记时间、候选模型/标签变换、特征、预处理、组合、成本、风控、开发期
   晋级门槛与 final holdout 条件。`PREREGISTERED_NOT_IMPLEMENTED` 协议只登记，不得训练或访问 holdout。
+- 开发期组合绩效归因必须以一个已持久化且内容寻址的 `model_diagnostic_*` 为唯一入口，沿父诊断自动
+  解析 exact 模型、keyed predictions、模型目标、因子基线回测和模型回测。目标键必须全部存在于预测
+  artifact，禁止有利内连接；原始未来收益 label 只用于解释选股尾部，不能冒充成交收益或授权调参。
 - rank-label Ridge 的目标变换固定为逐 `decision_time` 横截面 `[0,1]` 平均秩；并列值取平均秩，横截面
   只有一条有效样本时固定为 `0.5`。该变换不能跨日期、跨 fold 或使用测试期分布拟合参数。
 - rank-label 只用于拟合和 MSE 选 alpha；开发期预测证据必须保留同键的原始未来收益，Rank IC 和组合
@@ -196,6 +199,8 @@
   申请、构造或执行 final holdout 授权。
 - **FORBIDDEN**：以 post-hoc 诊断为由修改当前实验，或不先冻结新的 `model_protocol_*` 就实现、训练或
   评估由诊断引出的候选模型。
+- **FORBIDDEN**：由组合绩效归因入口重新拟合模型、改变目标组合、读取 final holdout，或把归因报告
+  直接用作 `TrainingApproval`、模型晋级及 final holdout 授权。
 - **FORBIDDEN**：对全部日期一起计算 label rank，或覆盖原始 label 后导致诊断无法还原真实收益语义。
 - **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
 - **FORBIDDEN**：计算结果后补登记 trial、隐藏失败试验，或把额外噪声试验排除在 FDR 分母之外。
