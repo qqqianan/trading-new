@@ -521,8 +521,9 @@ orders 和按 `(portfolio, risk rule, action)` 聚合的执行约束。该 linea
 `portfolio_experiment_protocol_v1` 固定
 `model_attribution -> model_diagnostic -> ridge_model/keyed predictions -> DatasetSpec -> baseline/model targets
 -> baseline/model backtests` 完整身份链。协议内容寻址全部父 artifact、schema/lineage、代码提交、成本、
-风控以及固定候选规则。当前规则只允许原因子 composite 主排序并否决逐日 Ridge 最低 20%，随后按稳定
-键取 Top30；任何常量变化必须产生新 protocol ID。协议同时保存 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`
+风控以及固定候选规则。当前规则只允许原因子 composite 主排序并否决逐日 Ridge 最低 20%；否决数按
+`ceil(N*20%)`，同分按 `(model_score asc, symbol asc)` 稳定处理，随后按稳定键取 Top30。任何常量变化
+必须产生新 protocol ID。协议同时保存 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`
 分类和从 2026-07-24 起 26 个周度决策点、20 日标签成熟的 fresh-forward 时钟，并固定禁止访问既有
 final holdout。`PREREGISTERED_NOT_IMPLEMENTED` 产物本身不包含新目标、订单、回测或模型状态变更。
 

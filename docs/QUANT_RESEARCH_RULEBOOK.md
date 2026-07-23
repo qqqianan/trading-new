@@ -168,7 +168,8 @@
   artifact，禁止有利内连接；原始未来收益 label 只用于解释选股尾部，不能冒充成交收益或授权调参。
 - 由组合绩效归因产生的组合假设必须先登记追加式、内容寻址的 `portfolio_protocol_*`。当前
   `factor_anchor_ridge_bottom_quintile_veto_v1` 固定原因子 composite 主排序、逐决策日 Ridge 分数底部
-  20% 否决、Top30、95% 总仓位和 5% 现金；这些常量禁止通过开发期收益寻优。
+  20% 否决、Top30、95% 总仓位和 5% 现金。否决数量固定为 `ceil(N*20%)`，按
+  `(model_score asc, symbol asc)` 稳定选取；这些常量禁止通过开发期收益寻优。
 - 上述组合协议把 2022--2024 明确标记为 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`。任何晋级证据必须从
   2026-07-24 起新产生，至少覆盖 26 个周度决策点，并等待 20 个交易日标签成熟；既有 final holdout
   对该协议固定为不可访问，不能通过人工授权改变。

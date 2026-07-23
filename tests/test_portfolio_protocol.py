@@ -58,6 +58,8 @@ def test_factor_anchor_veto_protocol_freezes_rule_and_fresh_forward_policy() -> 
     # Then: the non-optimized rule and honest future evidence boundary are immutable.
     assert protocol.protocol_id.startswith("portfolio_protocol_")
     assert protocol.candidate_rule.veto_quantile == 0.2
+    assert protocol.candidate_rule.veto_count_rounding == "CEILING"
+    assert protocol.candidate_rule.veto_order == "model_score_asc_symbol_asc"
     assert protocol.candidate_rule.maximum_positions == 30
     assert protocol.fresh_forward.start_date == date(2026, 7, 24)
     assert protocol.fresh_forward.minimum_decision_dates == 26

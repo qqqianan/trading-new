@@ -18,6 +18,8 @@ class FactorAnchorVetoRule(FrozenPortfolioProtocolModel):
     primary_signal: Literal["accepted_factor_baseline_equal_composite_v1"]
     veto_signal: Literal["ridge_rank_model_score"]
     veto_quantile: float = Field(ge=0.2, le=0.2, allow_inf_nan=False)
+    veto_count_rounding: Literal["CEILING"]
+    veto_order: Literal["model_score_asc_symbol_asc"]
     selection_order: Literal["factor_score_desc_symbol_asc"]
     maximum_positions: Literal[30]
     target_gross_weight: float = Field(ge=0.95, le=0.95, allow_inf_nan=False)

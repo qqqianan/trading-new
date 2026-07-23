@@ -286,7 +286,8 @@ composition root 从 exact 归因自动解析父诊断、Ridge 模型、DatasetS
 `portfolio_protocol_*` 追加持久化，机器契约见 `schemas/portfolio_experiment_protocol_v1.json`。
 
 `factor_anchor_ridge_bottom_quintile_veto_v1` 固定原因子等权 composite 主排序，仅把 Ridge rank 分数
-最低 20% 作为否决集合，然后按 `factor_score desc, symbol asc` 取 Top30，股票总仓位 95%。比例、持仓数
+最低 20% 作为否决集合；数量为 `ceil(N*20%)`，按 `model_score asc, symbol asc` 处理同分。幸存股票再按
+`factor_score desc, symbol asc` 取 Top30，股票总仓位 95%。比例、持仓数
 和仓位不通过旧回测寻优。协议状态固定 `PREREGISTERED_NOT_IMPLEMENTED`；预注册入口不构建目标、不回测、
 不训练。2022--2024 固定为已见开发证据，fresh-forward 从 2026-07-24 起至少积累 26 个周度决策点，
 20 个交易日标签成熟后才允许评估。该协议的 `final_holdout_access_permitted=false`，与既有模型 holdout

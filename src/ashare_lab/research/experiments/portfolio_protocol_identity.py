@@ -57,6 +57,8 @@ def create_factor_anchor_veto_protocol(
             primary_signal="accepted_factor_baseline_equal_composite_v1",
             veto_signal="ridge_rank_model_score",
             veto_quantile=0.2,
+            veto_count_rounding="CEILING",
+            veto_order="model_score_asc_symbol_asc",
             selection_order="factor_score_desc_symbol_asc",
             maximum_positions=30,
             target_gross_weight=0.95,
