@@ -305,6 +305,12 @@ composition root 从 exact 归因自动解析父诊断、Ridge 模型、DatasetS
 固定为 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`。该入口不创建订单，目标仍必须进入正式 backtest 和唯一
 `PortfolioRiskEngine`，也不能成为 promotion 或 final holdout 入口。
 
+模型训练的每折顺序固定为：按 fold 日期选取完整可投资横截面，使用训练折持久化 preprocessor 做
+transform，然后才按 label 有限性形成拟合、validation 与 internal-test 矩阵。组合层不读取 label；它
+从 DatasetSpec 白名单 universe/feature artifacts 装配完整特征帧，复用同一折 preprocessor 与该折
+系数生成全量分数，并以持久化 development predictions 作为重叠键数值锚点。锚点缺失、键越界或数值
+不一致均 fail closed。旧的“先删无标签行再做横截面 transform”模型不得进入组合实现。
+
 由该报告引出的新实验必须先经 `ashare-research model-preregister`。该 composition root 在干净 Git
 工作树下重新验证 `model_diagnostic -> ridge model -> DatasetSpec -> model backtest` 身份链，然后将
 `model_protocol_*` 追加写入 artifacts。协议固定 rank-label Ridge 假设、训练目标、特征、开发期门槛、

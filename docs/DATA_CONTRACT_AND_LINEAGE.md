@@ -534,6 +534,12 @@ final holdout。`PREREGISTERED_NOT_IMPLEMENTED` 产物本身不包含新目标�
 有序 `(decision_time, symbol)` 键上合并。当前 `portfolio_rule_version=3.0.0` targets 固定属于
 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`，不允许被 fresh-forward 评估器或晋级入口误读为新证据。
 
+完整 Ridge 组合分数的字段级 lineage 为
+`DatasetSpec universe/features -> eligible decision-time cross-section -> fold preprocessor -> fold coefficients -> model_score`。
+该路径物理上不读取 label artifact。已存 prediction artifact 只作为有限标签 development 行的数值锚点，
+不得作为股票池；全量分数必须覆盖因子 composite 的 exact keys，且重叠键分数在固定容差内一致。任何
+在 transform 前按 label 有限性删行生成的模型产物只能审计，不具备组合准入资格。
+
 `ridge_rank` 训练不新增或覆盖物理 label 列。训练包仍以原始未来收益字段及其 Raw/label artifact lineage
 通过 `ModelTrainingGuard`；随后由版本化 `cross_sectional_percentile_rank` 在每个 `decision_time` 内生成
 临时 fitting target。模型 manifest 固定 protocol ID、变换名和预测标签语义。prediction artifact 保存

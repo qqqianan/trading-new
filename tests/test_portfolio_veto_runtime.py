@@ -39,6 +39,7 @@ from ashare_lab.services.portfolio_veto_runtime import (
     PortfolioVetoRuntimeError,
     run_factor_anchor_veto_targets,
 )
+from ashare_lab.services.ridge_portfolio_runtime import CompleteRidgeScoreRequest
 
 from .test_portfolio_protocol import portfolio_protocol_request_fixture
 
@@ -107,10 +108,25 @@ class RuntimeAdapters:
     ) -> RidgePredictionArtifact:
         return RidgePredictionArtifact.model_construct()
 
+    def model_artifact(
+        self,
+        _store: RidgeArtifactStore,
+        _descriptor: ModelArtifact,
+    ) -> RidgeExperimentArtifact:
+        return self.evidence.model
+
     def load_calendar(self, _root: Path, _dataset: DatasetSpec) -> tuple[date, ...]:
         return ()
 
     def prediction_frame(self, _predictions: RidgePredictionArtifact) -> pl.DataFrame:
+        return self.model_scores
+
+    def complete_scores(
+        self,
+        _request: CompleteRidgeScoreRequest,
+        _reader: DummyReader,
+        _anchor: pl.DataFrame,
+    ) -> pl.DataFrame:
         return self.model_scores
 
     def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -124,6 +140,12 @@ class RuntimeAdapters:
             descriptor: ModelArtifact,
         ) -> RidgePredictionArtifact:
             return self.predictions(store, descriptor)
+
+        def stored_model(
+            store: RidgeArtifactStore,
+            descriptor: ModelArtifact,
+        ) -> RidgeExperimentArtifact:
+            return self.model_artifact(store, descriptor)
 
         monkeypatch.setattr(
             "ashare_lab.services.portfolio_veto_runtime._read_protocol",
@@ -150,11 +172,17 @@ class RuntimeAdapters:
         monkeypatch.setattr(portfolio_veto_runtime, "VerifiedArtifactFrameReader", self.reader)
         monkeypatch.setattr(portfolio_veto_runtime, "ArtifactFactorScoreSource", self.score_source)
         monkeypatch.setattr(RidgeArtifactStore, "descriptor", model_descriptor)
+        monkeypatch.setattr(RidgeArtifactStore, "read", stored_model)
         monkeypatch.setattr(RidgeArtifactStore, "read_predictions", model_predictions)
         monkeypatch.setattr(
             portfolio_veto_runtime,
             "build_ridge_prediction_score_frame",
             self.prediction_frame,
+        )
+        monkeypatch.setattr(
+            portfolio_veto_runtime,
+            "assemble_complete_ridge_portfolio_scores",
+            self.complete_scores,
         )
 
 

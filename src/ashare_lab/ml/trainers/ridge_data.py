@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 from pydantic import TypeAdapter
 
 from ashare_lab.ml.contracts import TrainerJob
+from ashare_lab.research.experiments.manifest import LabelTransform
 from ashare_lab.research.preprocessing import FoldPreprocessor
 from ashare_lab.research.preprocessing.models import FoldPreprocessingArtifact
 from ashare_lab.research.preprocessing.training_identity import training_frame_sha256
@@ -66,21 +67,21 @@ def prepare_fold(
         job.experiment.feature_names,
         job.experiment.size_feature_name,
     )
-    train = _partition(job.frame, fold.train, job.experiment.label_name)
-    validation = _partition(job.frame, fold.validation, job.experiment.label_name)
-    test = _partition(job.frame, fold.test, job.experiment.label_name)
+    train = _partition(job.frame, fold.train)
+    validation = _partition(job.frame, fold.validation)
+    test = _partition(job.frame, fold.test)
     columns = model_feature_names(job.experiment.feature_names)
-    transformed_train = attach_training_target(
+    transformed_train = _attach_finite_target(
         preprocessor.transform(train, artifact),
         job.experiment.label_name,
         job.experiment.label_transform,
     )
-    transformed_validation = attach_training_target(
+    transformed_validation = _attach_finite_target(
         preprocessor.transform(validation, artifact),
         job.experiment.label_name,
         job.experiment.label_transform,
     )
-    transformed_test = attach_training_target(
+    transformed_test = _attach_finite_target(
         preprocessor.transform(test, artifact),
         job.experiment.label_name,
         job.experiment.label_transform,
@@ -94,22 +95,30 @@ def prepare_fold(
         test_x=_matrix(transformed_test, columns),
         test_y=_labels(transformed_test, TRAINING_TARGET_COLUMN),
         test_raw_y=_labels(transformed_test, job.experiment.label_name),
-        test_keys_sha256=training_frame_sha256(test.select("decision_time", "symbol")),
-        test_decision_times=_DATETIMES.validate_python(test["decision_time"].to_list()),
-        test_symbols=_SYMBOLS.validate_python(test["symbol"].to_list()),
+        test_keys_sha256=training_frame_sha256(transformed_test.select("decision_time", "symbol")),
+        test_decision_times=_DATETIMES.validate_python(transformed_test["decision_time"].to_list()),
+        test_symbols=_SYMBOLS.validate_python(transformed_test["symbol"].to_list()),
     )
 
 
-def _partition(frame: pl.DataFrame, dates: tuple[date, ...], label_name: str) -> pl.DataFrame:
-    result = frame.filter(
-        pl.col("decision_time").dt.date().is_in(dates)
-        & pl.col(label_name).is_not_null()
-        & pl.col(label_name).is_finite()
-    )
+def _partition(frame: pl.DataFrame, dates: tuple[date, ...]) -> pl.DataFrame:
+    result = frame.filter(pl.col("decision_time").dt.date().is_in(dates))
     if result.is_empty():
-        detail = "fold partition has no finite labeled rows"
+        detail = "fold partition has no rows"
         raise RidgeTrainingError(detail)
     return result
+
+
+def _attach_finite_target(
+    frame: pl.DataFrame,
+    label_name: str,
+    transform: LabelTransform,
+) -> pl.DataFrame:
+    labeled = frame.filter(pl.col(label_name).is_not_null() & pl.col(label_name).is_finite())
+    if labeled.is_empty():
+        detail = "fold partition has no finite labeled rows"
+        raise RidgeTrainingError(detail)
+    return attach_training_target(labeled, label_name, transform)
 
 
 def _matrix(frame: pl.DataFrame, columns: tuple[str, ...]) -> NDArray[np.float64]:

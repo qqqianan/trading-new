@@ -39,6 +39,16 @@ def assemble_development_training_frame(
     label_version: str,
 ) -> pl.DataFrame:
     """Join exact artifact keys without dropping rows or imputing model values."""
+    result = assemble_development_feature_frame(universe, features)
+    result = _join_label(result, label, label_name, label_version)
+    return result.select(*_KEYS, *(item.name for item in features), label_name).sort(*_KEYS)
+
+
+def assemble_development_feature_frame(
+    universe: pl.DataFrame,
+    features: tuple[TrainingFeatureFrame, ...],
+) -> pl.DataFrame:
+    """Join the governed eligible universe and PIT features without label access."""
     if not features or len(features) != len({item.name for item in features}):
         detail = "feature identities must be non-empty and unique"
         raise TrainingFrameAssemblyError(detail)
@@ -64,8 +74,7 @@ def assemble_development_training_frame(
         raise TrainingFrameAssemblyError(detail)
     for feature in features:
         result = _join_feature(result, feature)
-    result = _join_label(result, label, label_name, label_version)
-    return result.select(*_KEYS, *(item.name for item in features), label_name).sort(*_KEYS)
+    return result.select(*_KEYS, *(item.name for item in features)).sort(*_KEYS)
 
 
 def _join_feature(base: pl.DataFrame, feature: TrainingFeatureFrame) -> pl.DataFrame:

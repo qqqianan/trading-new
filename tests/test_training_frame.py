@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 import polars as pl
 import pytest
 
+from ashare_lab.research.training import frame as training_frame_module
 from ashare_lab.research.training.frame import (
     TrainingFeatureFrame,
     TrainingFrameAssemblyError,
@@ -84,6 +85,25 @@ def test_training_frame_preserves_eligible_rows_with_null_values() -> None:
     assert frame.height == 2
     assert frame["vol_20"].null_count() == 1
     assert frame["return_20d"].null_count() == 1
+
+
+def test_feature_frame_is_assembled_without_label_capability() -> None:
+    # Given: an eligible universe and complete PIT feature artifacts.
+    features = (
+        _feature("vol_20", [0.2, None, 0.4]),
+        _feature("log_total_mv", [9.0, 8.0, 7.0]),
+    )
+
+    # When: a portfolio scorer requests the governed development feature frame.
+    frame = training_frame_module.assemble_development_feature_frame(
+        _universe(),
+        features,
+    )
+
+    # Then: all eligible keys and feature values survive without a label input.
+    assert frame.columns == ["decision_time", "symbol", "vol_20", "log_total_mv"]
+    assert frame.height == 2
+    assert frame["vol_20"].null_count() == 1
 
 
 def test_training_frame_rejects_duplicate_artifact_keys() -> None:

@@ -177,6 +177,9 @@
   无标签 composite 与协议绑定的 keyed Ridge predictions。两条分数流的 `(decision_time, symbol)` 必须
   完全相同；输出必须保留 protocol ID、`REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE` 和规则版本，且仍然只是
   风控前目标，不具有订单或成交能力。
+- 横截面预处理必须先在每个决策时点的完整可投资股票池上执行，再按 label 有限性形成拟合和诊断矩阵。
+  label 是否可评估不得改变缺失值填充、去极值、标准化或中性化的横截面总体。组合评分必须复用各折
+  已持久化 preprocessor 与系数，并在已存 keyed predictions 的重叠行上复算一致后才能覆盖无标签股票。
 - rank-label Ridge 的目标变换固定为逐 `decision_time` 横截面 `[0,1]` 平均秩；并列值取平均秩，横截面
   只有一条有效样本时固定为 `0.5`。该变换不能跨日期、跨 fold 或使用测试期分布拟合参数。
 - rank-label 只用于拟合和 MSE 选 alpha；开发期预测证据必须保留同键的原始未来收益，Rank IC 和组合
@@ -218,6 +221,8 @@
   充当因子锚定组合的 fresh-forward 晋级证据。
 - **FORBIDDEN**：从基线 Top30 结果反推或补猜完整因子排序、在因子与模型分数间做有利 inner join，或
   生成缺少 exact protocol ID 和证据分类的因子锚定 targets。
+- **FORBIDDEN**：在横截面预处理前根据未来 label 是否存在删样本，或把仅有有限 label 的 prediction
+  键当作历史可投资股票池；此类旧模型不得通过键交集、默认分数或静默删样本进入组合层。
 - **FORBIDDEN**：对全部日期一起计算 label rank，或覆盖原始 label 后导致诊断无法还原真实收益语义。
 - **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
 - **FORBIDDEN**：计算结果后补登记 trial、隐藏失败试验，或把额外噪声试验排除在 FDR 分母之外。

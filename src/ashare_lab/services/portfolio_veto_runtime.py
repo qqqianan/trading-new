@@ -35,7 +35,9 @@ from ashare_lab.research.factors.runtime_source import (
 )
 from ashare_lab.research.factors.selection import FactorResearchReport
 from ashare_lab.research.preprocessing.fold import FoldPreprocessingError
-from ashare_lab.research.splits.walk_forward import SplitIntegrityError
+from ashare_lab.research.preprocessing.store import FoldPreprocessorStoreError
+from ashare_lab.research.splits.walk_forward import SplitIntegrityError, build_development_folds
+from ashare_lab.research.training.frame import TrainingFrameAssemblyError
 from ashare_lab.services.factor_calendar_runtime import (
     FactorCalendarRuntimeError,
     load_dataset_development_calendar,
@@ -55,6 +57,10 @@ from ashare_lab.services.portfolio_veto_composition import (
     compose_factor_anchor_veto_targets,
 )
 from ashare_lab.services.portfolio_veto_research import PortfolioVetoResearchError
+from ashare_lab.services.ridge_portfolio_runtime import (
+    CompleteRidgeScoreRequest,
+    assemble_complete_ridge_portfolio_scores,
+)
 
 
 class PortfolioVetoRuntimeError(Exception):
@@ -92,7 +98,9 @@ def run_factor_anchor_veto_targets(
         FactorRuntimeSourceError,
         DiagnosticFrameAssemblyError,
         FoldPreprocessingError,
+        FoldPreprocessorStoreError,
         SplitIntegrityError,
+        TrainingFrameAssemblyError,
         RidgePredictionFrameError,
         PortfolioResearchError,
         PortfolioVetoResearchError,
@@ -122,8 +130,19 @@ def _run_factor_anchor_veto_targets(
     )
     model_store = RidgeArtifactStore(root)
     model_descriptor = model_store.descriptor(protocol.parent_model_id)
-    model_scores = build_ridge_prediction_score_frame(
+    model = model_store.read(model_descriptor)
+    anchor_scores = build_ridge_prediction_score_frame(
         model_store.read_predictions(model_descriptor)
+    )
+    model_scores = assemble_complete_ridge_portfolio_scores(
+        CompleteRidgeScoreRequest(
+            artifact_root=root,
+            spec=evidence.dataset,
+            model=model,
+            folds=build_development_folds(calendar),
+        ),
+        VerifiedArtifactFrameReader(project_root),
+        anchor_scores,
     )
     targets = compose_factor_anchor_veto_targets(
         PortfolioVetoCompositionRequest(

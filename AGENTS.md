@@ -131,6 +131,8 @@ api -> services -> research / ml / portfolio / backtest -> domain
 
 - 随机打乱金融时间序列后切分训练集和测试集。
 - 在全样本拟合标准化、缺失值填充、PCA、特征选择或中性化。
+- 在横截面填充、去极值、标准化或中性化之前，按未来标签是否有限或可评估删除股票；预处理总体必须是
+  决策时点完整可投资股票池，标签有效性只能在变换完成后筛选拟合与诊断矩阵。
 - 使用决策时点之后发布、修订或回填的数据作为特征。
 - 把标签或标签窗口中的未来信息放入特征。
 - 使用今天的指数成分、ST 状态或退市结局重建历史股票池。
@@ -177,6 +179,9 @@ model protocol、model、DatasetSpec 与 holdout spec，其他生产模块不得
   factor report 和折内预处理无标签分数；Ridge 必须读取协议绑定的 keyed predictions。两侧键集合必须
   完全相同，禁止 inner join 丢样本。输出 `portfolio_targets_*` 必须保存 protocol ID 和证据分类，仍需
   正式回测与唯一风控引擎，不能直接创建订单。
+- Ridge 进入组合层时必须用各折已持久化 preprocessor 和各折系数对完整无标签候选股票池重新评分，并
+  在已存 keyed development predictions 的重叠键上逐值复核。因标签有效性在预处理前删行训练出的旧
+  模型必须 fail closed，不得通过取预测键交集、填默认分数或丢弃无标签股票继续使用。
 - 任何由 post-hoc 诊断引出的新模型、标签、特征、阈值或组合假设，必须先写入内容寻址且追加式的
   `model_protocol_*`；协议固定父诊断、数据/字段 schema 与 lineage、带时区登记时间、开发期晋级门槛和
   单次人工授权的 final holdout 条件。协议状态为 `PREREGISTERED_NOT_IMPLEMENTED` 时，禁止训练或访问
