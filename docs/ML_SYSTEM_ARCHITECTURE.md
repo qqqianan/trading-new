@@ -293,6 +293,18 @@ composition root 从 exact 归因自动解析父诊断、Ridge 模型、DatasetS
 20 个交易日标签成熟后才允许评估。该协议的 `final_holdout_access_permitted=false`，与既有模型 holdout
 授权链物理隔离。
 
+协议实现入口为
+`ashare-research portfolio-veto-targets --protocol-id <portfolio_protocol_id>`。运行时先验证 exact 协议及
+其完整父证据链，再从已登记 factor report/trial batch 读取折内预处理后的无标签候选因子分数，按原因子
+方向计算等权 composite；Ridge 侧只读取协议绑定的 keyed prediction score。两侧键集合必须逐项一致，
+标签列或额外列在纯构建边界直接拒绝。
+
+构建器按 `(model_score asc, symbol asc)` 否决 `ceil(N*20%)`，对幸存股票按
+`(factor_score desc, symbol asc)` 取 Top30。输出是 `portfolio_rule_version=3.0.0` 的
+`portfolio_targets_*`，新增 `portfolio_protocol_id` 与 `evidence_classification` 血缘字段；当前旧开发期
+固定为 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`。该入口不创建订单，目标仍必须进入正式 backtest 和唯一
+`PortfolioRiskEngine`，也不能成为 promotion 或 final holdout 入口。
+
 由该报告引出的新实验必须先经 `ashare-research model-preregister`。该 composition root 在干净 Git
 工作树下重新验证 `model_diagnostic -> ridge model -> DatasetSpec -> model backtest` 身份链，然后将
 `model_protocol_*` 追加写入 artifacts。协议固定 rank-label Ridge 假设、训练目标、特征、开发期门槛、

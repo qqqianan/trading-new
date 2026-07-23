@@ -54,6 +54,14 @@ class ModelPortfolioBuildRequest:
     trial_batch_id: str
 
 
+@dataclass(frozen=True, slots=True)
+class FactorCompositeScores:
+    """Label-free equal-factor composite with its ordered source names."""
+
+    candidate_factor_names: tuple[str, ...]
+    frame: pl.DataFrame
+
+
 class PortfolioResearchError(Exception):
     """Candidate score artifacts cannot form an auditable target batch."""
 
@@ -74,6 +82,28 @@ def build_portfolio_targets(
     source: PortfolioScoreFrameSource,
 ) -> PortfolioTargetBatch:
     """Orient registered candidates and build every internal-test Top 30 target."""
+    composite = build_factor_composite_scores(request, source)
+    name = "factor_score"
+    wide = composite.frame
+    builder = TopNPortfolioBuilder(PortfolioBuilderConfig((name,)))
+    dates = _DATES.validate_python(wide["decision_time"].dt.date().unique().sort().to_list())
+    records = tuple(
+        _build_record(day, wide, (name,), builder, request.factor_report_id) for day in dates
+    )
+    return PortfolioTargetBatch(
+        factor_report_id=request.factor_report_id,
+        dataset_snapshot_id=request.dataset_snapshot_id,
+        trial_batch_id=request.trial_batch_id,
+        candidate_factor_names=composite.candidate_factor_names,
+        records=records,
+    )
+
+
+def build_factor_composite_scores(
+    request: PortfolioBuildRequest,
+    source: PortfolioScoreFrameSource,
+) -> FactorCompositeScores:
+    """Orient registered factors and expose their complete label-free composite."""
     trials = request.candidate_trials
     names = tuple(trial.feature_name for trial in trials)
     if not trials or len(names) != len(set(names)):
@@ -108,17 +138,12 @@ def build_portfolio_targets(
     if wide is None:
         detail = "candidate score matrix is absent"
         raise PortfolioResearchError(detail)
-    builder = TopNPortfolioBuilder(PortfolioBuilderConfig(names))
-    dates = _DATES.validate_python(wide["decision_time"].dt.date().unique().sort().to_list())
-    records = tuple(
-        _build_record(day, wide, names, builder, request.factor_report_id) for day in dates
-    )
-    return PortfolioTargetBatch(
-        factor_report_id=request.factor_report_id,
-        dataset_snapshot_id=request.dataset_snapshot_id,
-        trial_batch_id=request.trial_batch_id,
+    return FactorCompositeScores(
         candidate_factor_names=names,
-        records=records,
+        frame=wide.select(
+            *_KEYS,
+            pl.mean_horizontal(*names).alias("factor_score"),
+        ),
     )
 
 

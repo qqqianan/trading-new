@@ -173,6 +173,10 @@ model protocol、model、DatasetSpec 与 holdout spec，其他生产模块不得
   升序稳定处理，比例不得优化。2022--2024 证据
   固定分类为 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`，只能用于诊断。晋级证据只能从 2026-07-24 起
   累计至少 26 个周度决策点，并等待 20 个交易日标签成熟；该协议禁止访问既有 final holdout。
+- 因子锚定组合只能由 exact `portfolio_protocol_*` 入口装配。因子 composite 必须复用已通过的 trial、
+  factor report 和折内预处理无标签分数；Ridge 必须读取协议绑定的 keyed predictions。两侧键集合必须
+  完全相同，禁止 inner join 丢样本。输出 `portfolio_targets_*` 必须保存 protocol ID 和证据分类，仍需
+  正式回测与唯一风控引擎，不能直接创建订单。
 - 任何由 post-hoc 诊断引出的新模型、标签、特征、阈值或组合假设，必须先写入内容寻址且追加式的
   `model_protocol_*`；协议固定父诊断、数据/字段 schema 与 lineage、带时区登记时间、开发期晋级门槛和
   单次人工授权的 final holdout 条件。协议状态为 `PREREGISTERED_NOT_IMPLEMENTED` 时，禁止训练或访问

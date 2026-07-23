@@ -1,6 +1,7 @@
 """Content-addressed weekly portfolio target research contracts."""
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,8 +33,16 @@ class PortfolioTargetBatch(FrozenPortfolioModel):
 
     factor_report_id: str = Field(pattern=r"^factor_report_[0-9a-f]{64}$")
     model_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*_model_[0-9a-f]{64}$")
+    portfolio_protocol_id: str | None = Field(
+        default=None,
+        pattern=r"^portfolio_protocol_[0-9a-f]{64}$",
+    )
     dataset_snapshot_id: str = Field(pattern=r"^ds_[0-9a-f]+$")
     trial_batch_id: str = Field(pattern=r"^trial_batch_[0-9a-f]{64}$")
     portfolio_rule_version: str = Field(default="1.0.0", pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
+    evidence_classification: Literal[
+        "DEVELOPMENT",
+        "REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE",
+    ] = "DEVELOPMENT"
     candidate_factor_names: tuple[str, ...] = Field(min_length=1)
     records: tuple[PortfolioTargetRecord, ...] = Field(min_length=1)

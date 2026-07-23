@@ -527,6 +527,13 @@ orders 和按 `(portfolio, risk rule, action)` 聚合的执行约束。该 linea
 分类和从 2026-07-24 起 26 个周度决策点、20 日标签成熟的 fresh-forward 时钟，并固定禁止访问既有
 final holdout。`PREREGISTERED_NOT_IMPLEMENTED` 产物本身不包含新目标、订单、回测或模型状态变更。
 
+协议实现产生的 `portfolio_targets_*` 在原有 factor report、DatasetSpec、trial batch 与可选 model ID
+之外，必须保存 exact `portfolio_protocol_id` 和 `evidence_classification`。因子分数 lineage 为
+`trial batch -> accepted factor decisions -> feature artifacts -> fold-local preprocessing -> factor composite`；
+否决分数 lineage 为 `portfolio protocol -> ridge_model -> keyed predictions`。两条分数流只能在完全相同的
+有序 `(decision_time, symbol)` 键上合并。当前 `portfolio_rule_version=3.0.0` targets 固定属于
+`REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`，不允许被 fresh-forward 评估器或晋级入口误读为新证据。
+
 `ridge_rank` 训练不新增或覆盖物理 label 列。训练包仍以原始未来收益字段及其 Raw/label artifact lineage
 通过 `ModelTrainingGuard`；随后由版本化 `cross_sectional_percentile_rank` 在每个 `decision_time` 内生成
 临时 fitting target。模型 manifest 固定 protocol ID、变换名和预测标签语义。prediction artifact 保存

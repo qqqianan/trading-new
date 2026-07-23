@@ -173,6 +173,10 @@
 - 上述组合协议把 2022--2024 明确标记为 `REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE`。任何晋级证据必须从
   2026-07-24 起新产生，至少覆盖 26 个周度决策点，并等待 20 个交易日标签成熟；既有 final holdout
   对该协议固定为不可访问，不能通过人工授权改变。
+- 因子锚定 targets 只能由 exact `portfolio_protocol_*` 读取已登记 trial/factor report 的折内预处理
+  无标签 composite 与协议绑定的 keyed Ridge predictions。两条分数流的 `(decision_time, symbol)` 必须
+  完全相同；输出必须保留 protocol ID、`REUSED_DEVELOPMENT_NOT_OUT_OF_SAMPLE` 和规则版本，且仍然只是
+  风控前目标，不具有订单或成交能力。
 - rank-label Ridge 的目标变换固定为逐 `decision_time` 横截面 `[0,1]` 平均秩；并列值取平均秩，横截面
   只有一条有效样本时固定为 `0.5`。该变换不能跨日期、跨 fold 或使用测试期分布拟合参数。
 - rank-label 只用于拟合和 MSE 选 alpha；开发期预测证据必须保留同键的原始未来收益，Rank IC 和组合
@@ -212,6 +216,8 @@
   否决比例、排序、持仓数、仓位、成本、风控和 fresh-forward 起点而沿用同一 protocol ID。
 - **FORBIDDEN**：把已看过的 2022--2024 归因/回测结果重新称为样本外，或使用 2026-07-24 之前的数据
   充当因子锚定组合的 fresh-forward 晋级证据。
+- **FORBIDDEN**：从基线 Top30 结果反推或补猜完整因子排序、在因子与模型分数间做有利 inner join，或
+  生成缺少 exact protocol ID 和证据分类的因子锚定 targets。
 - **FORBIDDEN**：对全部日期一起计算 label rank，或覆盖原始 label 后导致诊断无法还原真实收益语义。
 - **FORBIDDEN**：把开发期 walk-forward 的 validation/test 称为 final test。
 - **FORBIDDEN**：计算结果后补登记 trial、隐藏失败试验，或把额外噪声试验排除在 FDR 分母之外。
