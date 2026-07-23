@@ -270,13 +270,14 @@ Ridge 事后诊断入口为
 组合绩效归因入口为
 `ashare-research model-attribute --diagnostic-report-id <model_diagnostic_id>`。composition root 只接受
 一个 exact 父诊断，并沿其身份链自动读取 Ridge 模型、keyed development predictions、模型 Top30 目标、
-因子基线回测和模型回测。目标 `(decision_date, symbol)` 必须完整存在于预测 artifact，日期集合必须完全
-一致，禁止通过 inner join 丢弃不利样本。内容寻址的 `model_attribution_*` 披露整体和逐年 Top30 原始
-未来收益、相对全股票池和 Bottom30 的差异、逐年净组合差距、pending orders，以及按规则和动作聚合的
-风险事件。机器契约见 `schemas/model_performance_attribution_v1.json`。
+因子基线回测和模型回测。Tail TopN 在有限标签 prediction universe 内按模型分数和目标持仓数量重建，
+不使用实际 target 股票键补齐缺失 label。内容寻址的 `model_attribution_*` 披露整体和逐年诊断 TopN
+原始未来收益、相对诊断总体和 BottomN 的差异、逐年净组合差距、pending orders，以及按规则和动作
+聚合的风险事件。机器契约见 `schemas/model_performance_attribution_v1.json`。
 
 归因固定 `diagnostic_scope=POST_HOC_DEVELOPMENT_ATTRIBUTION_ONLY`、`label_semantics` 为
-`raw_forward_return_for_diagnostics`、`tuning_permitted=false`、`model_status=DRAFT` 和 `final_test_runs=0`。
+`raw_forward_return_for_diagnostics`、`tail_selection_scope=LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N`、
+`tuning_permitted=false`、`model_status=DRAFT` 和 `final_test_runs=0`。
 它不拟合、不修改目标、不读取 final holdout，也不能生成训练审批或替代新的实验预注册。
 
 因子锚定组合预注册入口为

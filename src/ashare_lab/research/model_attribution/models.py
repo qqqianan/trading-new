@@ -95,6 +95,7 @@ class ModelPerformanceAttributionReport(FrozenAttributionModel):
     baseline_risk_event_count: int = Field(ge=0)
     model_risk_event_count: int = Field(ge=0)
     label_semantics: Literal["raw_forward_return_for_diagnostics"]
+    tail_selection_scope: Literal["LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N"]
     diagnostic_scope: Literal["POST_HOC_DEVELOPMENT_ATTRIBUTION_ONLY"]
     tuning_permitted: Literal[False]
     model_status: Literal["DRAFT"]

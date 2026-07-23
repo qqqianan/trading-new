@@ -91,6 +91,7 @@ def test_attribution_uses_exact_selected_keys_and_raw_forward_returns() -> None:
     assert report.overall_tail.selected_minus_bottom == 3.0
     assert report.overall_tail.selected_daily_win_rate == 1.0
     assert report.label_semantics == "raw_forward_return_for_diagnostics"
+    assert report.tail_selection_scope == "LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N"
     assert report.tuning_permitted is False
     assert report.final_test_runs == 0
 
@@ -167,8 +168,8 @@ def test_attribution_rejects_final_holdout_predictions() -> None:
         attribute_model_portfolio(replace(request, predictions=leaked))
 
 
-def test_attribution_rejects_target_key_not_present_in_predictions() -> None:
-    # Given: one target symbol is not part of the immutable keyed prediction artifact.
+def test_attribution_tail_scope_does_not_treat_actual_targets_as_label_complete() -> None:
+    # Given: one actual target has no row in the finite-label prediction universe.
     request = _request()
     first = request.model_targets.records[0]
     altered_position = first.positions[0].model_copy(update={"symbol": "999999.SZ"})
@@ -179,9 +180,28 @@ def test_attribution_rejects_target_key_not_present_in_predictions() -> None:
         update={"records": (altered_record, *request.model_targets.records[1:])}
     )
 
-    # When / Then: selected-tail evidence is never calculated on a favorable inner join.
-    with pytest.raises(ModelAttributionError, match="target keys"):
-        attribute_model_portfolio(replace(request, model_targets=altered_targets))
+    # When: tail diagnostics rank the registered TopN count only within prediction evidence.
+    report = attribute_model_portfolio(replace(request, model_targets=altered_targets))
+
+    # Then: label-complete diagnostics remain separate from actual portfolio outcomes.
+    assert report.overall_tail.mean_selected_label_return == 5.0
+    assert report.tail_selection_scope == "LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N"
+
+
+def test_attribution_rejects_topn_larger_than_label_complete_universe() -> None:
+    # Given: a registered target count larger than one day's prediction universe.
+    request = _request()
+    first = request.model_targets.records[0]
+    oversized = first.model_copy(
+        update={"positions": (*first.positions, *first.positions, first.positions[0])}
+    )
+    altered = request.model_targets.model_copy(
+        update={"records": (oversized, *request.model_targets.records[1:])}
+    )
+
+    # When / Then: attribution cannot shrink TopN or duplicate finite-label observations.
+    with pytest.raises(ModelAttributionError, match="exceeds finite-label"):
+        attribute_model_portfolio(replace(request, model_targets=altered))
 
 
 def test_attribution_store_is_content_addressed_and_detects_tampering(tmp_path: Path) -> None:

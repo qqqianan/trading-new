@@ -168,8 +168,9 @@ model protocol、model、DatasetSpec 与 holdout spec，其他生产模块不得
 - 模型诊断只能读取已持久化的 keyed development predictions、逐 fold 模型证据及完整风控回测；
   禁止在诊断代码中重新拟合模型、访问 final holdout 或产生训练审批。
 - 模型组合绩效归因只能从 exact `model_diagnostic_*` 自动解析模型、keyed predictions、模型目标和
-  两套可比回测；目标 `(decision_date, symbol)` 必须完整存在于预测证据。归因只能使用保留的原始未来
-  收益 label 解释开发期 Top30 尾部，不得把它冒充真实成交收益、训练审批或调参授权。
+  两套可比回测。收益 tail/IC 只能在有限标签 prediction universe 内按模型分数重建相同 TopN 数量，并
+  固定标记 `LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N`；它不是实际持仓收益。实际完整股票池表现只能
+  读取绑定 targets 的正式风控回测，不得用诊断子样本替代。
 - 由归因提出的组合规则必须先登记内容寻址的 `portfolio_protocol_*`。当前因子锚定实验固定原因子
   composite 主排序、Ridge 分数底部 20% 否决、Top30、95% 总仓位；否决数固定向上取整，同分按 symbol
   升序稳定处理，比例不得优化。2022--2024 证据

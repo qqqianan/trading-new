@@ -164,8 +164,9 @@
   数据集、schema、lineage、带时区登记时间、候选模型/标签变换、特征、预处理、组合、成本、风控、开发期
   晋级门槛与 final holdout 条件。`PREREGISTERED_NOT_IMPLEMENTED` 协议只登记，不得训练或访问 holdout。
 - 开发期组合绩效归因必须以一个已持久化且内容寻址的 `model_diagnostic_*` 为唯一入口，沿父诊断自动
-  解析 exact 模型、keyed predictions、模型目标、因子基线回测和模型回测。目标键必须全部存在于预测
-  artifact，禁止有利内连接；原始未来收益 label 只用于解释选股尾部，不能冒充成交收益或授权调参。
+  解析 exact 模型、keyed predictions、模型目标、因子基线回测和模型回测。原始未来收益 tail 只能在
+  有限标签 prediction universe 内按模型分数重建同样的 TopN 数量，固定标记
+  `LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N`，不能冒充完整组合成交收益或授权调参。
 - 由组合绩效归因产生的组合假设必须先登记追加式、内容寻址的 `portfolio_protocol_*`。当前
   `factor_anchor_ridge_bottom_quintile_veto_v1` 固定原因子 composite 主排序、逐决策日 Ridge 分数底部
   20% 否决、Top30、95% 总仓位和 5% 现金。否决数量固定为 `ceil(N*20%)`，按
@@ -180,6 +181,8 @@
 - 横截面预处理必须先在每个决策时点的完整可投资股票池上执行，再按 label 有限性形成拟合和诊断矩阵。
   label 是否可评估不得改变缺失值填充、去极值、标准化或中性化的横截面总体。组合评分必须复用各折
   已持久化 preprocessor 与系数，并在已存 keyed predictions 的重叠行上复算一致后才能覆盖无标签股票。
+- 实际 targets 中无标签但当时可投资的股票必须保留并由正式风控回测评价；不得为了生成 tail/IC
+  诊断删除这些股票，或把有限标签诊断总体称为实际组合股票池。
 - rank-label Ridge 的目标变换固定为逐 `decision_time` 横截面 `[0,1]` 平均秩；并列值取平均秩，横截面
   只有一条有效样本时固定为 `0.5`。该变换不能跨日期、跨 fold 或使用测试期分布拟合参数。
 - rank-label 只用于拟合和 MSE 选 alpha；开发期预测证据必须保留同键的原始未来收益，Rank IC 和组合

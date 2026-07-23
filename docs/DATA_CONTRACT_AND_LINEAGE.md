@@ -540,6 +540,11 @@ final holdout。`PREREGISTERED_NOT_IMPLEMENTED` 产物本身不包含新目标�
 不得作为股票池；全量分数必须覆盖因子 composite 的 exact keys，且重叠键分数在固定容差内一致。任何
 在 transform 前按 label 有限性删行生成的模型产物只能审计，不具备组合准入资格。
 
+`model_attribution_*` 的 tail 指标 lineage 为
+`persisted keyed predictions with raw labels -> per-date model-score TopN within finite-label universe`，并固定标记
+`LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N`。它不使用实际 target 股票键补齐缺失 label，也不得替代
+`portfolio_backtest_*` 对完整当时可投资股票池的收益、风险和执行评价。
+
 `ridge_rank` 训练不新增或覆盖物理 label 列。训练包仍以原始未来收益字段及其 Raw/label artifact lineage
 通过 `ModelTrainingGuard`；随后由版本化 `cross_sectional_percentile_rank` 在每个 `decision_time` 内生成
 临时 fitting target。模型 manifest 固定 protocol ID、变换名和预测标签语义。prediction artifact 保存

@@ -92,6 +92,7 @@ def attribute_model_portfolio(
         baseline_risk_event_count=len(request.baseline_backtest.result.risk_events),
         model_risk_event_count=len(request.model_backtest.result.risk_events),
         label_semantics="raw_forward_return_for_diagnostics",
+        tail_selection_scope="LABEL_COMPLETE_PREDICTION_UNIVERSE_TOP_N",
         diagnostic_scope="POST_HOC_DEVELOPMENT_ATTRIBUTION_ONLY",
         tuning_permitted=False,
         model_status="DRAFT",
@@ -136,44 +137,43 @@ def _daily_tail_returns(
     predictions: pl.DataFrame,
     targets: PortfolioTargetBatch,
 ) -> pl.DataFrame:
-    target_rows = tuple(
-        (record.decision_date, position.symbol)
-        for record in targets.records
-        for position in record.positions
+    target_counts = tuple(
+        (record.decision_date, len(record.positions)) for record in targets.records
     )
-    keys = pl.DataFrame(
-        target_rows,
-        schema={"decision_date": pl.Date, "symbol": pl.String},
+    counts = pl.DataFrame(
+        target_counts,
+        schema={"decision_date": pl.Date, "selected_count": pl.UInt32},
         orient="row",
-    ).with_columns(pl.lit(value=True).alias("selected"))
-    if keys.is_duplicated().any():
-        detail = "target keys are duplicated"
+    )
+    if counts["decision_date"].is_duplicated().any():
+        detail = "target decision dates are duplicated"
         raise ModelAttributionError(detail)
     frame = predictions.with_columns(pl.col("decision_time").dt.date().alias("decision_date"))
     prediction_dates = set(frame["decision_date"].to_list())
-    target_dates = set(keys["decision_date"].to_list())
+    target_dates = set(counts["decision_date"].to_list())
     if prediction_dates != target_dates:
-        detail = "target keys do not cover exact prediction dates"
+        detail = "target dates do not cover exact prediction dates"
         raise ModelAttributionError(detail)
-    counts = keys.group_by("decision_date").len().rename({"len": "selected_count"})
-    joined = (
-        frame.join(keys, on=["decision_date", "symbol"], how="left")
-        .join(counts, on="decision_date", how="left")
-        .with_columns(
-            pl.col("selected").fill_null(value=False),
-            pl.col("model_score").rank("ordinal").over("decision_date").alias("bottom_rank"),
-        )
+    joined = frame.join(counts, on="decision_date", how="left", validate="m:1").with_columns(
+        pl.col("model_score")
+        .rank("ordinal", descending=True)
+        .over("decision_date")
+        .alias("top_rank"),
+        pl.col("model_score").rank("ordinal").over("decision_date").alias("bottom_rank"),
     )
-    if int(joined["selected"].sum()) != keys.height:
-        detail = "target keys are absent from prediction evidence"
+    if joined.filter(pl.col("selected_count") > pl.len().over("decision_date")).height:
+        detail = "target position count exceeds finite-label prediction universe"
         raise ModelAttributionError(detail)
     return (
         joined.group_by("decision_date")
         .agg(
             pl.len().alias("universe_observations"),
-            pl.col("selected").sum().alias("selected_observations"),
+            (pl.col("top_rank") <= pl.col("selected_count")).sum().alias("selected_observations"),
             pl.col("label_value").mean().alias("universe_return"),
-            pl.col("label_value").filter(pl.col("selected")).mean().alias("selected_return"),
+            pl.col("label_value")
+            .filter(pl.col("top_rank") <= pl.col("selected_count"))
+            .mean()
+            .alias("selected_return"),
             pl.col("label_value")
             .filter(pl.col("bottom_rank") <= pl.col("selected_count"))
             .mean()
