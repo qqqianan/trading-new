@@ -17,7 +17,9 @@ from ashare_lab.data.benchmark_cli import (
 )
 from ashare_lab.data.bson_types import BsonDocument
 from ashare_lab.data.canonical_store import MongoCanonicalStore
+from ashare_lab.data.capco_industry_cli import audit_capco_industry_archives
 from ashare_lab.data.cashflow_cli import backfill_cashflow
+from ashare_lab.data.cninfo_industry_cli import audit_cninfo_industry_bridge
 from ashare_lab.data.config import DataSettings
 from ashare_lab.data.corporate_action_pipeline import persist_dividend_results
 from ashare_lab.data.corporate_action_progress import (
@@ -26,6 +28,7 @@ from ashare_lab.data.corporate_action_progress import (
 from ashare_lab.data.execution import execute_queries
 from ashare_lab.data.financial_cli import backfill_income, sync_income
 from ashare_lab.data.financial_indicator_cli import backfill_financial_indicators
+from ashare_lab.data.historical_industry_cli import audit_historical_industry_archives
 from ashare_lab.data.industry_cli import sync_industries
 from ashare_lab.data.mongo_store import MongoRawStore
 from ashare_lab.data.nightly import nightly_maintenance
@@ -56,6 +59,9 @@ app.command("sync-benchmark-master")(sync_benchmark_master)
 app.command("backfill-benchmark-daily")(backfill_benchmark_daily)
 app.command("backfill-benchmark-weights")(backfill_benchmark_weights)
 app.command("sync-industries")(sync_industries)
+app.command("audit-industry-archives")(audit_historical_industry_archives)
+app.command("audit-capco-industry-archives")(audit_capco_industry_archives)
+app.command("audit-cninfo-industry-bridge")(audit_cninfo_industry_bridge)
 app.command("nightly-maintenance")(nightly_maintenance)
 app.command("rematerialize-lineage")(rematerialize_lineage)
 

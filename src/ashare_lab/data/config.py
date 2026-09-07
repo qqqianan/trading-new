@@ -17,6 +17,21 @@ class DataSettings(BaseSettings):
         ge=0.1,
         validation_alias="TUSHARE_MIN_REQUEST_INTERVAL_SECONDS",
     )
+    cninfo_min_request_interval_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        validation_alias="CNINFO_MIN_REQUEST_INTERVAL_SECONDS",
+    )
+    sse_min_request_interval_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        validation_alias="SSE_MIN_REQUEST_INTERVAL_SECONDS",
+    )
+    capco_min_request_interval_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        validation_alias="CAPCO_MIN_REQUEST_INTERVAL_SECONDS",
+    )
     mongodb_host: str = Field(default="127.0.0.1", validation_alias="MONGODB_HOST")
     mongodb_port: int = Field(default=27017, validation_alias="MONGODB_PORT")
     mongodb_username: str = Field(default="", validation_alias="MONGODB_USERNAME")

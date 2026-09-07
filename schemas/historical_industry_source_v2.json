@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.0.0",
+  "database": "ashare_quant",
+  "source": "resolved_official_historical_industry",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["resolution_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_observation_id", "string", false, "content_id", "lineage", "audit"]
+  ],
+  "canonical_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_raw_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_available_at", "datetime", false, "Asia/Shanghai", "available_at", "filter"],
+    ["usable_from", "datetime", false, "Asia/Shanghai", "available_at", "filter"],
+    ["quality_status", "string", false, "enum", "none", "filter"]
+  ],
+  "governance_collections": {},
+  "managed_collections": {},
+  "endpoints": {
+    "resolved_membership": {
+      "raw_collection": "raw_official_historical_industry",
+      "canonical_collection": "canonical_historical_industry_candidate",
+      "natural_key": ["symbol", "source_observation_id"],
+      "event_time_field": "provider_publication_date",
+      "available_at_policy": "source_precision_then_eligibility",
+      "fields": [
+        ["symbol", "string", false, "security_code", "identity", "filter"],
+        ["listing_date", "date_yyyymmdd", false, "calendar_date", "event_time", "audit"],
+        ["source_kind", "string", false, "provider_branch", "lineage", "audit"],
+        ["source_observation_id", "string", false, "content_id", "lineage", "audit"],
+        ["taxonomy", "string", false, "provider_taxonomy", "attribute", "filter"],
+        ["industry_code", "string", false, "industry_code", "attribute", "filter"],
+        ["industry_name", "string", false, "none", "attribute", "feature"],
+        ["provider_publication_date", "date_yyyymmdd", false, "calendar_date", "event_time", "audit"],
+        ["unknown_from", "date_yyyymmdd", true, "calendar_date", "event_time", "audit"]
+      ]
+    }
+  }
+}

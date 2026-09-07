@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.11",
     "pydantic-settings>=2.10",
     "pymongo>=4.10",
+    "pypdf>=6.1",
     "rich>=14",
     "scikit-learn>=1.7",
     "typer>=0.16",
@@ -34,6 +35,16 @@ ashare-lab = "ashare_lab.main:run"
 ashare-data = "ashare_lab.data.cli:run"
 ashare-coverage = "ashare_lab.coverage_cli:run"
 ashare-research = "ashare_lab.research_cli:run"
+ashare-cninfo-bridge-pilot = "ashare_lab.cninfo_bridge_batch_cli:run"
+ashare-cninfo-prospectus-pilot = "ashare_lab.cninfo_bridge_batch_cli:run_prospectus"
+ashare-cninfo-prospectus-consistency = "ashare_lab.cninfo_consistency_cli:run"
+ashare-sse-prospectus-audit = "ashare_lab.sse_bridge_cli:run"
+ashare-capco-membership-audit = "ashare_lab.capco_membership_cli:run"
+ashare-historical-industry-admission = "ashare_lab.historical_industry_admission_cli:run"
+ashare-historical-industry-resolution = "ashare_lab.historical_industry_resolution_cli:run"
+ashare-historical-industry-pilot-admission = "ashare_lab.historical_industry_pilot_admission_cli:run"
+ashare-historical-industry-coverage = "ashare_lab.historical_industry_coverage_cli:run"
+ashare-cninfo-full-discovery = "ashare_lab.cninfo_full_discovery_cli:run"
 
 [build-system]
 requires = ["hatchling"]

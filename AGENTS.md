@@ -109,6 +109,10 @@ api -> services -> research / ml / portfolio / backtest -> domain
 - 当前观察到的 `index_member.in_date/out_date` 只表示供应商声明的有效区间，不证明历史当时
   已经可得。成员 canonical 必须保持 `QUARANTINED`；PIT `available_at` 只能使用本系统首次
   观察时间，禁止把有效日期倒填为历史可得时间或用于观察时点之前的行业暴露。
+- 历史行业 source-only candidate 进入研究数据层评审前，必须读取显式绑定 selection、resolution、
+  admission batch 和研究区间的内容寻址 coverage report。目标 population 未全量覆盖、候选键差异、
+  重复/冲突分类、lineage 不一致或 UNKNOWN 区间与研究窗口重叠时必须 `BLOCKED`；coverage 通过也只能
+  标记待准入评审，不得直接授权研究使用或写入 MongoDB。
 
 ## 6. 回测硬规则
 
@@ -249,8 +253,53 @@ UI 改动必须使用真实浏览器检查桌面与移动端，并确认控制�
 - 不提交真实市场数据、Parquet、DuckDB、模型二进制、Token、交易密码或账户信息。
 - 新数据库固定为 `ashare_quant`；`tradingagentscn` 只允许人工参考，禁止用于同步回填、训练、验证和回测。
 - 历史与增量市场数据只允许从本项目登记的 Tushare 白名单接口进入 Raw 层。
+- 证监会、中上协和巨潮资讯的行业档案只允许通过已登记的只读来源审计入口写入
+  `artifacts/source_audits/`。在独立 schema、Raw、质量和字段级 lineage 全部实施并验收前，禁止写入
+  MongoDB、canonical/PIT、训练、验证或回测；来源审计 artifact 固定
+  `research_use_authorized=false`。
 - 所有 Tushare 请求必须经过 `TushareSyncService` 的限速器，CLI、调度器和未来服务不得直连
   `TushareClient.fetch()` 绕过限速与 Raw 门禁。
+- 所有巨潮资讯请求必须经过 `CninfoArchiveClient` 和 `RequestPacer`；CLI、批处理和未来同步器不得直接
+  请求巨潮身份、公告或 PDF URL 绕过限速与公告版本筛选。
+- 所有上交所历史公告查询和 PDF 下载必须经过 `SseArchiveClient` 和 `RequestPacer`；静态文件挑战只
+  允许识别已登记版本并最多重试一次，未知挑战或非 PDF 必须 fail closed。
+- 中上协单股行业行只能由 exact CAPCO archive audit 与 exact 上游冲突 audit 装配候选；附件下载必须
+  经过 `CapcoArchiveClient + RequestPacer` 并复核父 SHA-256。协会页面发布日期只能记录为来源时间，
+  在交易日历投影前固定为 `PENDING_NEXT_TRADING_SESSION_OPEN`，禁止倒填至上市日或分类统计期。
+- 巨潮行业桥接批次必须先持久化内容寻址的候选选择；分层名单生成后不得根据下载、提取或解析结果补抽、
+  替换或丢弃失败样本。批次报告必须绑定完整候选 universe 哈希、上游生命周期事件和全部逐股 audit。
+- 巨潮 842 只全量扩量必须先按原试点父 batch 的本地证据截止时间重放 accepted 生命周期事件，精确恢复
+  冻结的 candidate universe 哈希，再生成内容寻址的全量 selection 和固定 shard plan。第一阶段只能做
+  身份与公告发现，不得下载 PDF；HTTP/transport 失败必须作为带阶段、状态码及可得响应哈希的逐股
+  observation 原位保留，不能使失败候选消失或触发补抽。
+- 招股说明书补源只能读取 exact 父 batch 中 `explicit_industry_disclosure_missing` 的 audit；冲突样本不得
+  自动补源。失败结果也必须保留查询响应和已选 PDF 的哈希 trace；相同查询跨运行出现空/非空或选择结果
+  不一致时必须 fail closed，不得挑选成功观察冒充稳定证据。
+- 四位国民经济行业代码不得截断或伪装成证监会三级代码。只有正文依次具名证监会与国民经济两个分类
+  标准，并以“代码分别为”显式给出三级/四级代码时，才能按同一顺序选择证监会代码；其他多层级或多
+  taxonomy 表述继续 fail closed。
+- 公司主体行业与产品行业必须区分。只有具名 taxonomy 且以“公司所处行业为/分类代码”明确绑定发行人
+  主体的声明才能作为公司行业；子产品、材料或业务线的行业代码不得制造冲突或提升为公司分类。
+- 巨潮招股说明书重复观察必须绑定 exact 查询规范和全部显式指定的 source audit；至少 3 次结果完全
+  一致才可标记稳定。空/非空、公告 ID、PDF 哈希或稳定空响应哈希任一变化均为 `UNSTABLE`，且一致性
+  artifact 仍固定 `research_use_authorized=false`，不得据此写入研究数据层。
+- 上交所独立确认只能从 exact `UNSTABLE/query_outcome_changed` 的巨潮一致性报告装配候选，并自动携带
+  唯一成功观察的公告 ID 与 PDF SHA-256。上交所下载文件必须与该哈希完全一致，否则不得确认来源；
+  即使一致，SSE artifact 仍固定 `research_use_authorized=false`。
+- CAPCO 后续单一分类只能解决官方发布日期之后的来源歧义；发布日期之前必须显式保留
+  `UNKNOWN_UNTIL`。CAPCO membership artifact 同样固定 `research_use_authorized=false`，不得据此声称
+  历史 PIT 行业已经完整。
+- date-only 官方发布日期投影到下一开盘前，必须生成内容寻址的日历证据，覆盖发布日期至首个后续开放
+  日之间每个自然日，并绑定当前 market schema、accepted `trade_cal` Raw snapshot 与逐行 SHA-256。
+  缺日、冲突 replay、跨 schema 或跨交易所必须 fail closed；只提供“下一个开放日”不构成证明。
+- 历史行业 source admission 必须同时包含独立 schema 下的 Raw observation、质量报告、字段级 lineage
+  和 source-only PIT candidate。状态只能为 `QUALIFIED_SOURCE_ONLY`，且
+  `research_use_authorized=false`；在单独的研究准入验收前禁止写 MongoDB 或被 DatasetSpec 读取。
+- 固定行业试点的最终来源 resolver 必须绑定 exact selection、base batch、supplemental batch、全部显式
+  consistency/SSE/CAPCO audit。原公告 FOUND 优先；缺失才允许 prospectus；CNInfo 查询不稳定时必须
+  使用 exact SSE 哈希确认；冲突只能使用 exact CAPCO 父链。禁止扫描目录挑最新或按成功结果替换来源。
+- 统一 admission 必须区分 `source_available_at`、上市 `eligible_from` 和二者较晚的 `usable_from`。
+  上市前已可得的行业不制造 UNKNOWN；上市后才解决的冲突必须保存 `unknown_from/unknown_until`。
 - 密钥只通过环境变量或本机密钥管理器注入。
 - 日志不得输出密钥和完整账户信息。
 - 删除或覆盖原始数据、模型与研究产物前必须明确获得用户批准。

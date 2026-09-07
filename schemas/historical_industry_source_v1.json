@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "database": "ashare_quant",
+  "source": "official_historical_industry_archives",
+  "field_tuple": ["name", "type", "nullable", "unit", "time_role", "allowed_use"],
+  "raw_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["parent_source_audit_id", "string", false, "content_id", "lineage", "audit"],
+    ["observed_at", "datetime", false, "Asia/Shanghai", "ingested_at", "audit"],
+    ["source_document_sha256", "string", false, "sha256", "lineage", "audit"]
+  ],
+  "canonical_envelope": [
+    ["_id", "string", false, "content_id", "lineage", "audit"],
+    ["schema_manifest_id", "string", false, "content_id", "lineage", "audit"],
+    ["source_raw_id", "string", false, "content_id", "lineage", "audit"],
+    ["available_at", "datetime", false, "Asia/Shanghai", "available_at", "filter"],
+    ["quality_status", "string", false, "enum", "none", "filter"]
+  ],
+  "governance_collections": {},
+  "managed_collections": {},
+  "endpoints": {
+    "capco_membership": {
+      "raw_collection": "raw_official_capco_membership",
+      "canonical_collection": "canonical_historical_industry_candidate",
+      "natural_key": ["symbol", "provider_publication_date", "industry_code"],
+      "event_time_field": "provider_publication_date",
+      "available_at_policy": "publication_date_next_open",
+      "fields": [
+        ["symbol", "string", false, "security_code", "identity", "filter"],
+        ["security_name", "string", false, "none", "attribute", "feature"],
+        ["taxonomy", "string", false, "provider_taxonomy", "attribute", "filter"],
+        ["industry_code", "string", false, "industry_code", "attribute", "filter"],
+        ["industry_name", "string", false, "none", "attribute", "feature"],
+        ["unknown_from", "date_yyyymmdd", false, "calendar_date", "event_time", "audit"],
+        ["provider_publication_date", "date_yyyymmdd", false, "calendar_date", "event_time", "audit"],
+        ["source_page_number", "int", false, "page", "lineage", "audit"]
+      ]
+    }
+  }
+}

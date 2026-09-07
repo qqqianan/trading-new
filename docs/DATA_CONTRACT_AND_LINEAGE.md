@@ -167,6 +167,142 @@ canonical。`canonical_index_membership` 必须保持 `QUARANTINED`，每条权�
 观察时间。字段 lineage 必须保留 `index_code/con_code/in_date/out_date/is_new`，并通过
 `index_code` 关联同 manifest 的分类主表。不得把有效区间起点解释为发布日期。
 
+官方历史行业来源审计与上述 Tushare 行业 schema 物理隔离。巨潮 IPO 桥接审计至少固定：股票和上市
+日期、组织 ID、身份响应 SHA-256、公告响应 SHA-256、最终公告 ID/标题、供应商公告毫秒值及精度、
+PDF URL/SHA-256/字节数、显式行业代码/名称、taxonomy 证据和匹配原文。当前产物只能位于
+`artifacts/source_audits/`，固定 `research_use_authorized=false`；它不是 Raw/canonical/PIT lineage，
+也不能满足 dataset coverage。日期占位值标记 `DATE_ONLY`；正文未明确 taxonomy 时标记
+`CSRC_UNVERSIONED`，不得由下游补猜。
+
+批量桥接还必须先保存独立 selection artifact：`selection_id`、选择协议版本、完整候选 universe
+SHA-256/数量、逐层 population/quota、每只股票的全部上游 lifecycle event ID。batch artifact 必须按
+selection 顺序逐一绑定 audit ID、状态和失败原因；两侧键集合或顺序不一致时 fail closed，禁止按结果
+补抽。selection 与 batch 均不构成市场数据 lineage，仍固定 `research_use_authorized=false`。
+
+招股说明书补源 artifact 额外固定 `parent_audit_id`，且候选只能来自 exact 父 batch 的
+`explicit_industry_disclosure_missing`。每个结果无论成功失败均保存 security response SHA-256、
+announcement response SHA-256；已选文档还保存公告 ID/标题/时间精度、PDF URL/SHA-256/字节数。
+同一自然查询的响应哈希或公告选择跨运行不一致时，所有观察均追加保留并标记来源不稳定，禁止由下游
+挑选成功版本。
+
+`cninfo_prospectus_consistency_audit_v1` 固定 `cninfo_prospectus_query_v1` 的证券代码、组织 ID、
+730 日窗口、搜索词、页大小和 tab，并绑定每个显式 source audit ID/version、观察时间、身份响应哈希、
+公告响应哈希、规范化结果、公告 ID 和 PDF 哈希。只有至少 3 次完全一致才可得到 `STABLE_FOUND` 或
+`STABLE_EMPTY`；空/非空变化、所选公告/PDF 变化以及空响应哈希变化分别 fail closed 为 `UNSTABLE`。
+报告内容寻址、只追加并固定 `research_use_authorized=false`；它只评价来源稳定性，不产生 Raw、
+canonical/PIT 或 dataset coverage。
+
+`sse_prospectus_industry_audit_v2` 只能绑定 exact
+`cninfo_prospectus_consistency_audit_*` 的 `UNSTABLE/query_outcome_changed` 裁决。candidate 自动保存父
+一致性 ID、唯一 CNInfo 成功公告 ID 和预期 PDF SHA-256；SSE evidence 保存公告查询响应 SHA-256、
+证券代码/名称、标题、`ADDDATE` 原值、`SSEDATE`、最终静态 PDF URL/SHA-256/字节数、显式行业披露及
+taxonomy。只有 SSE 下载哈希与父成功观察完全一致才可为 `FOUND`，否则固定
+`cross_source_pdf_hash_mismatch`。`ADDDATE` 仅是供应商记录时间，不能直接映射研究可得时钟；该产物
+仍属于 source audit，固定 `research_use_authorized=false`。
+
+`capco_membership_audit_v2` 只能由 exact `capco_industry_archive_audit_*` 与 exact
+`explicit_industry_disclosure_conflicting` 巨潮 audit 装配。candidate 固定两个父 ID、股票、上市日、
+统计期、协会页面发布日期、附件 URL 与预期 SHA-256；evidence 固定最终 URL、实际 SHA-256/字节数、
+证券代码/名称、行业代码/名称和 PDF 页码。全文件必须恰好存在一个目标证券行，重复或缺失均 fail
+closed。`temporal_resolution` 同时保存 `unknown_from`、`provider_publication_date` 与
+`PENDING_NEXT_TRADING_SESSION_OPEN`，不在 source audit 内构造 PIT `available_at`。
+
+`688475.SH` 的正式 v2 source audit 为
+`capco_membership_audit_51c4f8e1570f2e0c3b38944fb61fa59e9ff5bb9bff8ba8957ef60216c9eed3d4`：
+父附件 SHA-256 与实际下载均为
+`8202be2cb68ff2668d9efeb9f57ea3f98486e9ef50bb64870931715c0ca759ca`，第 110 页唯一解析为
+`C39 计算机、通信和其他电子设备制造业`。其未知区间从 `2022-12-28` 开始，提供商发布日期为
+`2024-02-08`；该结果只补充后续来源证据，仍固定 `research_use_authorized=false`，不能满足 dataset
+coverage 或历史 PIT 行业门禁。
+
+历史行业 source admission 使用独立 schema
+`schemas/historical_industry_source_v1.json`，版本 `1.0.0`，当前 manifest 为
+`schema_8c0ee4e475899703b5763d195319f51fe8ca260e08f3553fc0d5f432789adf9e`。它与
+`tushare_industry_v1` 物理分离，CAPCO Raw natural key 为
+`symbol/provider_publication_date/industry_code`，可得性策略固定
+`publication_date_next_open`。
+
+date-only 投影的日历 artifact 必须保存发布日期至首个后续开放日的每个自然日，逐行固定
+`cal_date/exchange/is_open/quality_status/schema_manifest_id/source_snapshot_id/source_row_sha256`。当前
+`688475.SH` 日历证据为
+`historical_industry_calendar_6351be334a33953b61ce97a1b96d35e545e596b515160e5a1cb82a8526188f0b`，
+绑定 market schema
+`schema_5f808856f51f930e7c997008535a886d2b12242ffa4cfc02be7ed16cf08064cf` 和 Raw snapshot
+`snap_1744ff77110b64cd1f89076f4b296462379e3f26bd37a934707aeb793d73842f`。证据覆盖
+`2024-02-08` 至 `2024-02-19`，中间自然日连续，首个后续 open 为 `2024-02-19`。
+
+正式 source admission v2 为
+`historical_industry_admission_1fc25bcb0a4d9ba658042456ade8454c8851268bda52d90e1fc83a6db1472788`。
+Raw observation 固定 CAPCO/父 archive/父冲突三个 audit ID、PDF SHA、页码和业务字段；质量状态为
+`QUALIFIED_SOURCE_ONLY`；lineage v1.1.0 对八个 candidate 字段逐一映射，其中 `available_at` 只映射
+calendar artifact 的 `rows.next_open_date`。PIT candidate 保留
+`unknown_from=2022-12-28`、`provider_publication_date=2024-02-08` 和
+`available_at=2024-02-19T09:30:00+08:00`。整个 admission 固定
+`research_use_authorized=false`，当前不写 MongoDB、不满足 DatasetSpec coverage，也不解除模型晋级阻塞。
+
+30 只固定试点的多来源 resolver 版本为 `historical_industry_resolution_v1`。正式 report 为
+`historical_industry_resolution_a82a557838ae6f0c8aa7750f0b8051318eccc67e0fd6b86ab8b9d1fce562eef1`，
+绑定 selection
+`cninfo_bridge_selection_3b432f19e8beb3768897b8351e967fd345e7931530d49af6768fa515be71195e`、
+base batch `cninfo_bridge_batch_audit_ee8a426a3abe186a95b6834da53f3bcacde94c77eb5ae315e56fdbdc98e248ef`、
+supplemental batch
+`cninfo_prospectus_bridge_batch_a0e161a71f52340848a2a3ce05d12cc75833a552f1934a35a524e73847bed799`
+以及显式 consistency/SSE/CAPCO 父证据。来源计数固定为原公告 22、prospectus 6、SSE 1、CAPCO 1；
+`688190.SH` 只能选择 SSE，`688475.SH` 只能选择 CAPCO。
+
+统一 admission 使用 `schemas/historical_industry_source_v2.json`，版本 `2.0.0`，manifest 为
+`schema_cf4437b900bbe07bbceff22fb38f12686ff867d42facf9ed2e2f9c6a098d9c39`。Raw natural key 为
+`symbol/source_observation_id`。每个 PIT candidate 分别保存：
+
+- `source_available_at`：精确来源时刻，或 date-only 日期经连续日历投影后的下一开盘。
+- `eligible_from`：股票上市日 09:30，仅表达股票池资格时钟。
+- `usable_from`：前两者的较晚值。
+- `unknown_from/unknown_until`：仅用于上市后才解决的真实未知区间。
+
+正式全量 batch 为
+`historical_industry_admission_batch_e271d2fad37707e6a53b21162990e6da1b02300f3cb2c90e8f674daee34d5fdd`，
+包含 30 个独立 Raw、六项质量检查、十字段 lineage 和 source-only PIT candidate，使用 30 个唯一
+date-only 连续日历 artifact。`unknown_interval_count=1`，仅为 `688475.SH`；其余 29 只来源均在上市前
+可得，不制造未知区间。batch 与逐股 artifact 继续固定 `research_use_authorized=false`，不写 MongoDB、
+不进入 DatasetSpec、训练、验证或回测。
+
+独立 coverage report 绑定 exact selection、resolution、admission batch、候选全集哈希和半开研究区间，
+保存目标 population、已准入试点、缺失总体、候选键差异、重复/冲突分类、source lineage 差异和重叠
+UNKNOWN 区间。正式报告为：
+
+```text
+historical_industry_coverage_f8b715cc0c93daa82fc568f43708be01bfb746647ac5c25aa564542868e9745c
+```
+
+该报告覆盖 `[2020-01-01, 2025-01-01)`，结果为 `BLOCKED`：目标 population `842`，exact admitted
+selection `30`，尚缺 `812`；admission 分类冲突为 `0`，但 `688475.SH` 有 1 个 UNKNOWN 区间与研究
+窗口重叠。报告继续固定 `research_use_authorized=false`，未写 MongoDB。
+
+842 只第一阶段全量发现使用原试点父 batch 的 `audited_at=2026-07-24T09:05:22.696495Z` 作为本地
+`ingested_at` 截止时间，排除后来周度 replay event ID 对冻结 selection 的改写，同时保留当时 exact
+生命周期 lineage。正式 selection 和 plan 为：
+
+```text
+cninfo_bridge_selection_a5b6bea46e2d3a5e18eca41077206868c44b94d5f2ecc20e661c58a126c93dee
+cninfo_full_discovery_plan_0fe443507053ead1363e9de9b3919e63878b16393e1c703a49d9eec2c54d45bc
+```
+
+plan 固定 842 只、17 个 shard、每 shard 50 只（最后 42 只）。shard 0 正式结果为
+`cninfo_full_discovery_shard_c624230c4de78e270a15343327ee74ca6b4f4088823800683aa7ccb585fc56fa`：
+48 个 `SELECTED`，2 个 `MISSING`。`001230.SZ` 为 `SECURITY_LOOKUP/HTTP 502`，保存响应哈希；
+`001267.SZ` 为 `final_listing_announcement_missing`。此阶段不下载 PDF，全部 artifact 固定
+`research_use_authorized=false`。
+
+`cninfo_prospectus_bridge_audit_v5` 新增 ordered-taxonomy 句式：正文必须先后具名
+`上市公司行业分类指引（2012年修订）` 与 `国民经济行业分类（GB/T4754-2011）`，随后对同一行业名称
+明确声明“行业代码分别为 `<CSRC三位>` 和 `<国民经济四位>`”。只有该完整映射允许选择前者并标记
+`CSRC_2012`；孤立四位代码、多级名称或没有“分别为”的并列代码仍不得截断或推断。
+
+`cninfo_prospectus_bridge_audit_v6` 新增 issuer-scope 句式：只有
+`中国证监会 + 上市公司行业分类指引（2012年修订） + 公司所处行业为 + 分类代码` 的完整声明能建立
+公司级行业。随后出现的产品、材料或业务线代码仅属于各自对象，不参与公司级唯一性裁决。该规则不允许
+从业务描述、表格简称或产品用途推断主体行业。
+
 ## 6. 训练必须能回答的问题
 
 任何训练运行在开始拟合前必须自动回答：

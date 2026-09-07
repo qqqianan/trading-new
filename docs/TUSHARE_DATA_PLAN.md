@@ -30,6 +30,25 @@
 所有 Raw 行必须关联 `meta_source_snapshots.snapshot_id`。所有 canonical、PIT、特征、标签和
 训练集必须能沿 `meta_lineage_edges` 反向追溯到一个或多个 Raw 快照。
 
+### 2.1 非 Tushare 行业档案来源审计白名单
+
+以下入口当前只允许生成 `artifacts/source_audits/` 下的只读证据，不属于 Raw 数据接入许可：
+
+| 来源 | 允许入口 | 允许用途 | 数据库权限 |
+|---|---|---|---|
+| 中国证监会 | 行业结果列表、内容页、PDF | 季度档案覆盖和哈希审计 | 禁止 |
+| 中国上市公司协会 | 半年度行业结果列表、内容页、代码排序 PDF | 继任档案覆盖和哈希审计 | 禁止 |
+| 巨潮资讯 | `topSearch/query`、`hisAnnouncement/query`、最终 PDF | IPO 初始行业披露桥接审计 | 禁止 |
+| 上海证券交易所 | 公司公告查询、最终静态 PDF | 巨潮矛盾的独立来源确认 | 禁止 |
+
+巨潮每次身份查询、公告查询和 PDF 下载前均由 `CninfoArchiveClient` 调用 `RequestPacer`，默认最小间隔
+1 秒。公告选择必须排除“已取消”“提示性公告”和“更正公告”，从剩余完整上市公告书中按公告时间和
+公告 ID 稳定选择最后版本。任一入口缺失、附件非 PDF、正文无显式行业或出现冲突行业时均 fail closed。
+
+上交所历史公告查询和附件下载只能由 `SseArchiveClient` 调用 `RequestPacer`，默认最小间隔 1 秒；
+静态附件只允许一次已识别 cookie challenge 重试，未知响应保持 source-audit 失败。SSE PDF 还必须与
+父巨潮一致性报告中唯一成功观察的 SHA-256 完全相同。
+
 ## 3. 第一批同步白名单
 
 ### 3.1 市场日历与股票池

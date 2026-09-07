@@ -104,6 +104,59 @@
 - **FORBIDDEN**：任何训练、验证、回测或正式选股读取 `tradingagentscn` 及其派生表。
 - **MUST**：同步接口白名单、时间语义和频率遵守 `docs/TUSHARE_DATA_PLAN.md`。
 
+证监会、中上协和巨潮资讯的历史行业材料当前只允许进入本地、内容寻址的 source-audit artifact：
+
+- **MUST**：source audit 固定 `research_use_authorized=false`，且不写 MongoDB。
+- **MUST**：巨潮身份查询、公告查询和 PDF 下载统一经过受限速的 `CninfoArchiveClient`。
+- **MUST**：批量审计在首个巨潮请求前持久化内容寻址的确定性候选选择，绑定当前 universe schema、
+  全部候选哈希和上游生命周期事件；下载或解析失败不得触发补抽、换样本或丢样本。
+- **MUST**：全量发现计划必须从原试点父 batch 的 `audited_at` 本地证据截面重放 842 只候选，并匹配已
+  冻结的 candidate universe 哈希。计划按固定 offset 分片；第一阶段只登记身份响应、公告响应和最终
+  PDF descriptor，不下载 PDF。HTTP/transport 失败必须保留失败阶段、状态码和可得响应哈希，旧观察
+  只追加不覆盖。
+- **MUST**：招股说明书 supplemental audit 只能绑定 exact 父 batch 中显式披露缺失的逐股 audit；父
+  audit 为冲突状态时禁止自动补源。无公告、PDF 错误和正文缺失同样保存响应/PDF 哈希 trace。
+- **FORBIDDEN**：同一巨潮查询跨运行出现空/非空或不同公告选择时，只保留成功观察。此类来源不稳定必须
+  显式阻塞扩量和准入，直到重复观察协议或另一官方来源能解释差异。
+- **MUST**：重复观察报告固定 exact 查询规范、按观察时间排序的全部显式 source audit 和原始响应哈希；
+  少于 3 次只能为 `INSUFFICIENT`。空/非空、公告 ID、PDF 哈希或稳定空响应哈希不一致时必须为
+  `UNSTABLE`，不能用后续多数票或成功结果覆盖。
+- **MUST**：上交所公告与附件请求统一经过 `SseArchiveClient + RequestPacer`。独立确认候选只能由
+  exact `UNSTABLE/query_outcome_changed` 巨潮报告装配；SSE PDF SHA-256 必须与父报告唯一成功观察
+  完全相同，不同则 fail closed。提供商记录时间只保存原值，不直接解释为 PIT `available_at`。
+- **MUST**：CAPCO 单股 membership 候选同时绑定 exact archive audit 与 exact 上游冲突 audit；附件只能
+  由 `CapcoArchiveClient + RequestPacer` 下载，下载 SHA-256 必须与 archive evidence 完全一致。
+- **MUST**：CAPCO 页面只有发布日期时，source audit 固定
+  `PENDING_NEXT_TRADING_SESSION_OPEN`；正式 `available_at` 必须由后续交易日历门禁投影产生。
+- **MUST**：date-only 日期投影必须固定当前 market schema 下 accepted SSE `trade_cal` 的连续自然日区间，
+  每行保留 Raw snapshot ID 和 row SHA-256。只有字节级完全相同的重复物理记录可以折叠；同一日期出现
+  不同 snapshot、row hash 或开闭状态必须阻塞。
+- **MUST**：历史行业 source admission 使用独立 schema，并同时持久化 Raw observation、质量裁决、字段
+  lineage 和 PIT candidate；未获得另行研究准入前固定 `QUALIFIED_SOURCE_ONLY`。
+- **MUST**：多来源 resolver 固定优先级为原上市公告、稳定 prospectus、SSE 对不稳定 CNInfo 的 exact
+  哈希确认、CAPCO 对显式冲突的后续解决。每个分支必须绑定完整父链和所有被评估 audit ID。
+- **MUST**：统一 PIT candidate 分别保存来源可得、上市资格和最终可用三个时钟；最终可用时间只能是
+  `max(source_available_at, eligible_from)`。只有来源在上市后才确定时才记录 UNKNOWN 区间。
+- **FORBIDDEN**：把 source-audit 的 `FOUND` 直接解释为 canonical/PIT `ACCEPTED` 或历史行业完整。
+- **FORBIDDEN**：把 CAPCO 统计期、分类有效期或后来发布的单一分类倒填到上市日。此前冲突样本必须显式
+  记录 `UNKNOWN_UNTIL`，不能用“最终分类已知”消除未知区间。
+- **MUST**：历史行业 coverage 必须绑定 exact selection、resolution、admission batch、候选全集哈希和
+  研究时间窗。目标 population 不完整、候选键差异、重复/冲突分类、source lineage 不一致或 UNKNOWN
+  与研究窗口重叠时必须 `BLOCKED`。`READY_FOR_RESEARCH_ADMISSION_REVIEW` 仅允许单独评审，不能直接
+  改写 `research_use_authorized=false`、写 MongoDB 或进入训练/回测。
+- **FORBIDDEN**：仅凭周末/节假日常识、手工日期或孤立的下一个开放日构造 `available_at`；日历中间任一
+  自然日缺少 accepted 证据时必须停止。
+- **FORBIDDEN**：把上市前已公开但股票尚未上市的分类伪装成上市后数据缺失，或把来源可得时间直接当作
+  可投资起点；同样禁止用上市日覆盖真实较晚的来源可得时间。
+- **FORBIDDEN**：把巨潮日期占位的本地午夜当成精确发布时间；只能标记 `DATE_ONLY`，后续使用交易日历
+  投影到下一可用交易时点。
+- **FORBIDDEN**：公告只披露行业代码/名称但未披露分类体系版本时，根据代码形式猜测 taxonomy；必须
+  绑定当时生效的官方分类规则证据，否则保持 `CSRC_UNVERSIONED`。
+- **FORBIDDEN**：把四位国民经济行业代码截断为证监会三级代码。仅当正文依次具名两个分类标准并用
+  “代码分别为”建立一一对应关系时，才允许选择明确对应的证监会代码；顺序或 taxonomy 不明确仍隔离。
+- **FORBIDDEN**：把产品、材料或业务线的行业代码当作发行人主体行业。公司级证据必须由具名 taxonomy
+  与“公司所处行业为/分类代码”共同限定；主体明确时，次要产品分类不能覆盖或伪造公司级冲突。
+
 ## 4. 回测方法
 
 ### 4.1 事件顺序
