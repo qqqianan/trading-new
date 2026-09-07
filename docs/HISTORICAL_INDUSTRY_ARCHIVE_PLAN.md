@@ -539,3 +539,29 @@ cninfo_full_discovery_shard_c624230c4de78e270a15343327ee74ca6b4f4088823800683aa7
 公告。两者均原位保留，没有补抽。所有结果继续固定 `research_use_authorized=false`，未写 MongoDB。
 下一步按同一 exact plan 执行 shard 1--16，然后由显式列出的全部 shard manifest 装配 discovery
 coverage；只有 complete coverage 后才进入第二阶段 PDF 下载与解析。
+
+## 23. 2026-09-07 执行检查点与发现覆盖门禁
+
+历史行业来源审计、30 只试点准入与全量发现计划的代码已通过 731 项测试及 90.02% 覆盖率检查，
+提交 `d8491aa` 已推送。真实市场数据、PDF 和 source-audit 产物均未纳入 Git。
+
+同一冻结计划下新增两个完整分片：
+
+| shard index | SELECTED | MISSING | manifest ID |
+| --- | --- | --- | --- |
+| 1 | 46 | 4 | `cninfo_full_discovery_shard_5fb865a88dbced1ceee21b4639e861984096c312f9a9a7ca172b1cb311f5f6c7` |
+| 2 | 50 | 0 | `cninfo_full_discovery_shard_90ad5be85692639495dac54c0ab5ec69cae411f63f6ec7b986bfb52529d62316` |
+
+显式绑定 shard 0、1、2 的正式汇总为：
+
+```text
+cninfo_discovery_coverage_2ad9af583b56e5e3b355fa18fe86a9043e02d7be93390b58659115b32ac9d087
+```
+
+结果为 `INCOMPLETE_DISCOVERY`：完整分片覆盖 150/842，其中 144 SELECTED、6 MISSING；尚未纳入完整
+分片覆盖的候选为 692，缺失 shard index 3--16。完整分片中的失败与未完成分片中的失败分别保留。
+
+shard 3 开头的 `301192.SZ/301193.SZ/301195.SZ/301196.SZ/301197.SZ/301198.SZ` 连续出现供应商失败后
+本轮请求停止，6 个独立 observation 已落盘，未生成 completed shard。恢复时必须保留并核对这些旧
+观察，不得以新成功结果覆盖失败历史。下一步先恢复供应商访问、完成 shard 3--16，再显式绑定所有
+分片重跑 coverage；只有完整发现后才开始 PDF 阶段。当前仍未下载本轮 PDF、未写 MongoDB、未授权研究。

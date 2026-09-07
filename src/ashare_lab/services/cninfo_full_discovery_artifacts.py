@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from ashare_lab.data.cninfo_listing_discovery import CninfoListingDiscoveryAudit
+from ashare_lab.services.cninfo_discovery_coverage import CninfoDiscoveryCoverage
 from ashare_lab.services.cninfo_full_discovery import (
     CninfoFullDiscoveryPlan,
     CninfoFullDiscoveryShard,
@@ -32,6 +33,14 @@ class CninfoFullDiscoveryArtifact:
 
     artifact_id: str
     path: Path
+
+
+def write_discovery_coverage(
+    report: CninfoDiscoveryCoverage,
+    root: Path,
+) -> CninfoFullDiscoveryArtifact:
+    """Persist verified full-population discovery coverage without granting research use."""
+    return _write_document(report.report_id, report.model_dump_json(indent=2), root)
 
 
 def write_full_discovery_plan(

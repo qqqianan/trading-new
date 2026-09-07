@@ -708,3 +708,16 @@ validation-only alpha 选择、等权基线保存、哈希验证和门禁调用�
 但首个 `BLOCKED` 后不得出现后续阶段。dry-run 必须包含全部六阶段且均为 `PLANNED`，只读取 manifest
 身份，不读取市场 payload 或 label，不产生训练产物。JSON 与 `report.zh-CN.md` 同目录原子发布，读取时
 必须由机器报告重新渲染并逐字比对。
+
+## 17. 全量行业公告发现覆盖
+
+`ashare-cninfo-full-discovery coverage` 只接受显式 selection、plan 和可重复传入的 `--shard`，不扫描
+目录补齐。入口重新生成 selection/plan/shard 的内容身份，复算每条 discovery audit 的 SHA-256，并
+比较完整 candidate（包含生命周期事件和 universe schema），而非只比较股票代码和上市日。
+
+`cninfo_discovery_coverage_v1` 报告固定父 selection/plan、按 shard index 排序的全部 shard ID、候选
+全集哈希、总量、已观察/未观察量、SELECTED/MISSING 数量、缺失分片和逐股失败 audit ID/原因。
+计数以本报告显式绑定的完整分片为范围；未完成分片中的独立 observation 不计作完整分片覆盖。
+全部分片存在时为 `COMPLETE_DISCOVERY`，否则为 `INCOMPLETE_DISCOVERY`。重复分片、父链错误、计数
+篡改、未知 observation 版本和哈希不一致均拒绝生成报告。报告固定 `research_use_authorized=false`，
+内容寻址持久化于 `artifacts/source_audits/cninfo_discovery_coverage/`，不能替代历史行业研究准入门禁。

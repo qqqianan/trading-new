@@ -8,6 +8,7 @@ import typer
 from pymongo import MongoClient
 from rich.console import Console
 
+from ashare_lab.cninfo_discovery_coverage_cli import discovery_coverage
 from ashare_lab.data.bson_types import BsonDocument
 from ashare_lab.data.cninfo_client import CninfoArchiveClient
 from ashare_lab.data.cninfo_listing_discovery import (
@@ -53,6 +54,7 @@ _PILOT_EVIDENCE_CUTOFF: Final = datetime(
     tzinfo=UTC,
 )
 app = typer.Typer(add_completion=False)
+app.command("coverage")(discovery_coverage)
 
 
 def _expected_universe_sha256() -> str:

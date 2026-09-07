@@ -272,6 +272,9 @@ UI 改动必须使用真实浏览器检查桌面与移动端，并确认控制�
   冻结的 candidate universe 哈希，再生成内容寻址的全量 selection 和固定 shard plan。第一阶段只能做
   身份与公告发现，不得下载 PDF；HTTP/transport 失败必须作为带阶段、状态码及可得响应哈希的逐股
   observation 原位保留，不能使失败候选消失或触发补抽。
+- 全量发现汇总只能读取显式提供的 selection、plan 和 shard，必须重算内容身份、逐股 observation
+  哈希并核对完整生命周期 lineage。重复分片或篡改证据必须拒绝；缺分片为 `INCOMPLETE_DISCOVERY`。
+  `COMPLETE_DISCOVERY` 仅表示所有候选均有发现结果，失败仍须保留，不能授权研究使用。
 - 招股说明书补源只能读取 exact 父 batch 中 `explicit_industry_disclosure_missing` 的 audit；冲突样本不得
   自动补源。失败结果也必须保留查询响应和已选 PDF 的哈希 trace；相同查询跨运行出现空/非空或选择结果
   不一致时必须 fail closed，不得挑选成功观察冒充稳定证据。
